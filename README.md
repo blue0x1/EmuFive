@@ -32,7 +32,7 @@ Running real games needs a translator in KytyPS5's guest patcher that rewrites t
 | Vulkan on the PS4 GPU meets KytyPS5's requirements | Done (`RADV_EXPERIMENTAL=sparse`) |
 | KytyPS5 built for the PS4's CPU | Done (`KYTY_HOST_ARCH=btver2`) |
 | KytyPS5 starts on the PS4 and sets up the GPU | Done, PS4 Pro |
-| PS5 on PS4 system image, installs through PS4 Multiboot | Done, not yet tested on the PS4 |
+| PS5 on PS4 system image, installs through PS4 Multiboot | Done, PS4 Pro |
 | A PS5 homebrew program without AVX2 runs and draws | Next |
 | AVX2, BMI2 and FMA translation for game code | Research |
 | Game picker with the controller | Later |

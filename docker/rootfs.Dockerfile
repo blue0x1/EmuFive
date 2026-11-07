@@ -14,7 +14,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 # (X11, Vulkan, audio, input).
 RUN apt-get update && apt-get install -y --no-install-recommends \
         systemd systemd-sysv dbus dbus-user-session udev kmod sudo locales less nano xz-utils \
-        network-manager wpasupplicant iproute2 iputils-ping openssh-server ca-certificates curl \
+        systemd-timesyncd network-manager wpasupplicant iproute2 iputils-ping openssh-server ca-certificates curl \
         bluez \
         xserver-xorg-core xserver-xorg-input-libinput xinit x11-xserver-utils xterm \
         matchbox-window-manager \
@@ -23,7 +23,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         vulkan-tools fonts-dejavu-core libasound2t64 libpulse0 libxkbcommon-x11-0 \
         libx11-6 libx11-xcb1 libxcursor1 libxext6 libxfixes3 libxi6 libxrandr2 libxss1 libxtst6 \
         libxkbcommon0 libwayland-client0 libwayland-cursor0 libwayland-egl1 libdecor-0-0 \
-        libudev1 libdbus-1-3 libusb-1.0-0 \
+        libxcb-keysyms1 libudev1 libdbus-1-3 libusb-1.0-0 \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # KytyPS5 for the PS4's CPU (scripts/build-kyty.sh), in /opt/kytyps5.
@@ -60,6 +60,6 @@ RUN sed -i 's/^#AutoEnable=.*/AutoEnable=true/' /etc/bluetooth/main.conf \
 # Unique SSH host keys and machine-id per install; services.
 RUN rm -f /etc/ssh/ssh_host_* \
  && : > /etc/machine-id && rm -f /var/lib/dbus/machine-id \
- && systemctl enable ps5-hostkeys.service NetworkManager.service ssh.service \
+ && systemctl enable ps5-hostkeys.service NetworkManager.service ssh.service systemd-timesyncd.service \
         bluetooth.service ps5-pad-pair.service \
  && systemctl set-default multi-user.target
