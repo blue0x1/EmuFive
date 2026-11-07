@@ -1,0 +1,4 @@
+# Copyright (C) 2026 Chokri Hammedi (blue0x1) <https://github.com/blue0x1>
+# The PS5 session turns the PS4 off when the emulator exits. There is no polkit
+# in this system, so the PS5 user may run exactly this command as root.
+ps5 ALL=(root) NOPASSWD: /usr/bin/systemctl poweroff

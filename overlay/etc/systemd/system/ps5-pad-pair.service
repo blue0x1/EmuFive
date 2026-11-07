@@ -1,0 +1,13 @@
+# Copyright (C) 2026 Chokri Hammedi (blue0x1) <https://github.com/blue0x1>
+[Unit]
+Description=Pair PlayStation controllers over Bluetooth (hold SHARE + PS)
+After=bluetooth.service
+Requires=bluetooth.service
+
+[Service]
+ExecStart=/opt/ps5-on-ps4/bin/ps5-pad-pair
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

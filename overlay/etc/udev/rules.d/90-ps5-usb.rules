@@ -1,0 +1,5 @@
+# Copyright (C) 2026 Chokri Hammedi (blue0x1) <https://github.com/blue0x1>
+# Mount USB drives for KytyPS5: the first one goes to /media/ps5-usb, and its
+# PS5 folder holds the games.
+ACTION=="add", SUBSYSTEM=="block", ENV{ID_BUS}=="usb", ENV{ID_FS_USAGE}=="filesystem", RUN+="/opt/ps5-on-ps4/bin/ps5-usb-mount add $devnode"
+ACTION=="remove", SUBSYSTEM=="block", ENV{ID_BUS}=="usb", ENV{ID_FS_USAGE}=="filesystem", RUN+="/opt/ps5-on-ps4/bin/ps5-usb-mount remove $devnode"

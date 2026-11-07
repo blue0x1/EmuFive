@@ -1,0 +1,4 @@
+/out/
+/build/rootfs.tar
+/build/meta/
+.git/

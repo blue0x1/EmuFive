@@ -1,0 +1,25 @@
+#!/bin/sh
+# Copyright (C) 2026 Chokri Hammedi (blue0x1) <https://github.com/blue0x1>
+# Called by udev (90-ps5-usb.rules): mounts the first USB drive at
+# /media/ps5-usb for KytyPS5, owned by the PS5 user. systemd-mount does the
+# mount outside udev, which is not allowed to mount by itself.
+MNT=/media/ps5-usb
+action="$1" dev="$2"
+
+case "$action" in
+add)
+    grep -q " $MNT " /proc/mounts && exit 0
+    case "$ID_FS_TYPE" in
+        exfat|vfat) opts="uid=1000,gid=1000,fmask=0022,dmask=0022" ;;
+        ntfs)       opts="uid=1000,gid=1000,fmask=0022,dmask=0022"; type="-t ntfs3" ;;
+        *)          opts="" ;;
+    esac
+    mkdir -p "$MNT"
+    # shellcheck disable=SC2086
+    systemd-mount --no-block --collect $type ${opts:+-o "$opts"} "$dev" "$MNT"
+    ;;
+remove)
+    grep -q "^$dev $MNT " /proc/mounts && systemd-umount "$MNT"
+    ;;
+esac
+exit 0

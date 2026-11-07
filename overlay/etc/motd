@@ -1,0 +1,7 @@
+
+  PS5 on PS4 - KytyPS5 on the PlayStation 4 (experimental)
+
+  Login: ps5 / ps5 (SSH is on: change the password now with passwd)
+  Settings: /etc/ps5-on-ps4.conf     Emulator: /opt/kytyps5     Log: ~/kytyps5.log
+  Wi-Fi: nmtui     Back to the PS5 session: sudo systemctl restart getty@tty1
+
