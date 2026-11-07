@@ -1,0 +1,88 @@
+From 85fcf27c18f9bd6fcbc5d46f9d2867406fe201a2 Mon Sep 17 00:00:00 2001
+From: Chokri Hammedi <52697989+blue0x1@users.noreply.github.com>
+Date: Sat, 7 Nov 2026 14:52:04 +0300
+Subject: [PATCH] build: add KYTY_HOST_ARCH and KYTY_DEBUG_INFO options
+
+KYTY_HOST_ARCH sets the CPU the emulator itself is compiled for (-march,
+default x86-64-v3). With btver2 the emulator runs on the PS4's AMD Jaguar
+under Linux: tested on a PS4 Pro, it starts and initializes graphics on the
+PS4 GPU (RADV). Guest code still needs AVX2, BMI2 and FMA.
+
+KYTY_DEBUG_INFO=OFF leaves out -g, which makes the build several GB.
+
+ps4/build.Dockerfile is a Debian build environment for this build.
+---
+ ps4/build.Dockerfile | 11 +++++++++++
+ src/utils.cmake      | 19 +++++++++++++++----
+ 2 files changed, 26 insertions(+), 4 deletions(-)
+ create mode 100644 ps4/build.Dockerfile
+
+diff --git a/ps4/build.Dockerfile b/ps4/build.Dockerfile
+new file mode 100644
+index 0000000..a135d8a
+--- /dev/null
++++ b/ps4/build.Dockerfile
+@@ -0,0 +1,11 @@
++# Build environment for KytyPS5 on the PS4 (Linux on PS4, AMD Jaguar CPU).
++# The packages are the ones the Linux build instructions in README.md list.
++FROM docker.io/library/debian:trixie
++
++RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
++        clang lld ninja-build cmake git glslang-tools python3 pkg-config ca-certificates curl \
++        libgl1-mesa-dev libx11-dev libxcursor-dev libxext-dev libxfixes-dev \
++        libxi-dev libxrandr-dev libxss-dev libxtst-dev libxkbcommon-dev \
++        libasound2-dev libpulse-dev libudev-dev libdbus-1-dev libwayland-dev wayland-protocols \
++        qt6-base-dev \
++    && rm -rf /var/lib/apt/lists/*
+diff --git a/src/utils.cmake b/src/utils.cmake
+index 279dd9e..92b8dc3 100644
+--- a/src/utils.cmake
++++ b/src/utils.cmake
+@@ -67,6 +67,17 @@ endif()
+ 
+ # Guest code runs natively and needs x86-64-v3 (AVX2, BMI2, FMA), so every host has it.
+ # No FMA contraction: a * b + c keeps both roundings.
++# KYTY_HOST_ARCH builds the emulator itself for another CPU, for example btver2
++# (the PS4's AMD Jaguar, which lacks AVX2, BMI2 and FMA). Guest code still needs
++# x86-64-v3 unless the guest patcher rewrites those instructions.
++set(KYTY_HOST_ARCH "x86-64-v3" CACHE STRING "CPU the emulator is compiled for (-march)")
++# Debug info makes the build several GB; KYTY_DEBUG_INFO=OFF leaves it out.
++option(KYTY_DEBUG_INFO "Compile with debug info (-g)" ON)
++if(KYTY_DEBUG_INFO)
++	set(KYTY_G_FLAG "-g")
++else()
++	set(KYTY_G_FLAG "")
++endif()
+ if(KYTY_CLANG_CL)
+ 	if(CMAKE_CXX_FLAGS MATCHES "/W[0-4]")
+ 		string(REGEX REPLACE "/W[0-4]" "/W3" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+@@ -81,7 +92,7 @@ if(KYTY_CLANG_CL)
+ 	string(REGEX REPLACE "/MD" "/MT" CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE}")
+ 	string(REGEX REPLACE "/MD" "/MT" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+ 			
+-	set(KYTY_CPP_FLAGS "${KYTY_CPP_FLAGS} /utf-8 /Oy- /clang:-march=x86-64-v3 /clang:-ffp-contract=off /wd4244 /wd4305 /wd4800 /wd4345")
++	set(KYTY_CPP_FLAGS "${KYTY_CPP_FLAGS} /utf-8 /Oy- /clang:-march=${KYTY_HOST_ARCH} /clang:-ffp-contract=off /wd4244 /wd4305 /wd4800 /wd4345")
+   
+ 	if(KYTY_WARNINGS_ARE_ERRORS)
+ 		#set(KYTY_CPP_FLAGS "${KYTY_CPP_FLAGS} /WX")
+@@ -98,14 +109,14 @@ if(KYTY_CLANG_CL)
+ elseif(CLANG OR GCC)
+ 
+ 	if (CLANG)
+-	    set(KYTY_CPP_FLAGS "${KYTY_CPP_FLAGS} -fno-rtti -fno-exceptions -fcolor-diagnostics -finput-charset=UTF-8 -fexec-charset=UTF-8 -g -fno-strict-aliasing -fno-omit-frame-pointer -Wall -fmessage-length=0")
++	    set(KYTY_CPP_FLAGS "${KYTY_CPP_FLAGS} -fno-rtti -fno-exceptions -fcolor-diagnostics -finput-charset=UTF-8 -fexec-charset=UTF-8 ${KYTY_G_FLAG} -fno-strict-aliasing -fno-omit-frame-pointer -Wall -fmessage-length=0")
+ 	    if (WIN32)
+ 	    	set(KYTY_CPP_FLAGS "${KYTY_CPP_FLAGS} -static")
+ 	    endif()
+ 	else()
+-		set(KYTY_CPP_FLAGS "${KYTY_CPP_FLAGS} -fno-exceptions -fdiagnostics-color=always -finput-charset=UTF-8 -fexec-charset=UTF-8 -static-libgcc -static-libstdc++ -g -fno-strict-aliasing -fno-omit-frame-pointer -Wall -Wno-unused-value -fmessage-length=0")
++		set(KYTY_CPP_FLAGS "${KYTY_CPP_FLAGS} -fno-exceptions -fdiagnostics-color=always -finput-charset=UTF-8 -fexec-charset=UTF-8 -static-libgcc -static-libstdc++ ${KYTY_G_FLAG} -fno-strict-aliasing -fno-omit-frame-pointer -Wall -Wno-unused-value -fmessage-length=0")
+ 	endif()
+-	set(KYTY_CPP_FLAGS "${KYTY_CPP_FLAGS} -march=x86-64-v3 -ffp-contract=off")
++	set(KYTY_CPP_FLAGS "${KYTY_CPP_FLAGS} -march=${KYTY_HOST_ARCH} -ffp-contract=off")
+ 	
+     if(KYTY_WARNINGS_ARE_ERRORS)
+         #set(KYTY_CPP_FLAGS "${KYTY_CPP_FLAGS} -Werror")
+-- 
+2.47.3
+
