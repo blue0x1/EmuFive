@@ -2,6 +2,7 @@
   PS5 on PS4 - KytyPS5 on the PlayStation 4 (experimental)
 
   Login: ps5 / ps5 (SSH is on: change the password now with passwd)
-  Settings: /etc/ps5-on-ps4.conf     Emulator: /opt/kytyps5     Log: ~/kytyps5.log
+  Settings: /etc/ps5-on-ps4.conf   Program data (/data): ~/data   Log: ~/kytyps5.log
+  USB drive: /media/ps5-usb (programs in its PS5 folder; the program sees it as /mnt/usb0)
   Wi-Fi: nmtui     Back to the PS5 session: sudo systemctl restart getty@tty1
 

@@ -1,0 +1,522 @@
+From: Chokri Hammedi <52697989+blue0x1@users.noreply.github.com>
+Subject: [PATCH] homebrew: files, directories, system calls, foreground user, extra mounts
+
+For PS5 homebrew built with the ps5-native-app-boilerplate (Snes9x PS5):
+- LibcCompat: opendir/readdir/closedir (packed PS5 dirents from
+  KernelGetdents), lstat, access, rename, realpath, readv/writev, sysconf,
+  getenv, signal functions that accept a handler and never call it, poll
+  that waits out its timeout, inet_pton/ntop/aton, and small stubs.
+- UserService: sceUserServiceGetForegroundUser (the configured user).
+- LibcInternal fflush: any stream, not only stdout (guest FILE* are host ones).
+- KYTY_MOUNTS: host folders as guest paths, for example
+  "/data=/home/ps5/data;/mnt/usb0=/media/ps5-usb".
+---
+diff --git a/src/emulator.cpp b/src/emulator.cpp
+index 306bf9e..4058b42 100644
+--- a/src/emulator.cpp
++++ b/src/emulator.cpp
+@@ -86,6 +86,38 @@ static void MountSandboxDirs() {
+ 	MountOrCreateDir("_DownloadData/" + title_id, "/download0");
+ 	MountOrCreateDir("_TempData/" + title_id, "/temp0");
+ 	MountOrCreateDir("_TempData/" + title_id, "/temp");
++
++	// KYTY_MOUNTS adds host folders as guest paths, for example
++	// "/data=/home/user/ps5-data;/mnt/usb0=/media/usb". A missing folder is created.
++	if (const char* mounts = std::getenv("KYTY_MOUNTS"); mounts != nullptr) {
++		std::string list = mounts;
++		size_t      i    = 0;
++		while (i < list.size()) {
++			size_t end = list.find(';', i);
++			if (end == std::string::npos) {
++				end = list.size();
++			}
++			std::string entry = list.substr(i, end - i);
++			size_t      eq    = entry.find('=');
++			if (eq != std::string::npos && eq > 0 && entry[0] == '/' && eq + 1 < entry.size()) {
++				auto dir   = Common::PathFromUtf8(entry.substr(eq + 1));
++				auto point = entry.substr(0, eq);
++				if (!Common::File::IsDirectoryExisting(dir)) {
++					Common::File::CreateDirectories(dir);
++				}
++				if (Common::File::IsDirectoryExisting(dir)) {
++					Libs::LibKernel::FileSystem::Mount(dir, point);
++					LOGF("Mounted %s -> %s\n", point.c_str(), Common::PathToString(dir).c_str());
++				} else {
++					LOGF("KYTY_MOUNTS: %s is not a folder, %s not mounted\n",
++					     Common::PathToString(dir).c_str(), point.c_str());
++				}
++			} else if (!entry.empty()) {
++				LOGF("KYTY_MOUNTS: ignoring \"%s\" (expected /guest/path=host/path)\n", entry.c_str());
++			}
++			i = end + 1;
++		}
++	}
+ }
+ 
+ static void Init(const Config::ConfigOptions& cfg, const std::filesystem::path& param_json,
+diff --git a/src/libs/libC.cpp b/src/libs/libC.cpp
+index fafa91d..1f43d73 100644
+--- a/src/libs/libC.cpp
++++ b/src/libs/libC.cpp
+@@ -627,11 +627,11 @@ static KYTY_SYSV_ABI int snprintf(VA_ARGS) {
+ 	return GetGuestSnprintfCtxFunc()(&ctx);
+ }
+ 
++// Guest FILE* values are host ones (stdout, and the files libs/libcCompat.cpp opens);
++// NULL flushes every stream.
+ int KYTY_SYSV_ABI fflush(FILE* stream) {
+ 	PRINT_NAME();
+ 
+-	EXIT_NOT_IMPLEMENTED(stream != stdout);
+-
+ 	return ::fflush(stream);
+ }
+ 
+diff --git a/src/libs/libUserService.cpp b/src/libs/libUserService.cpp
+index 0380f9b..ac77216 100644
+--- a/src/libs/libUserService.cpp
++++ b/src/libs/libUserService.cpp
+@@ -72,6 +72,17 @@ static KYTY_SYSV_ABI int UserServiceGetInitialUser(int* user_id) {
+ 	return OK;
+ }
+ 
++// The only logged-in user is always the one in front.
++static KYTY_SYSV_ABI int UserServiceGetForegroundUser(int* user_id) {
++	PRINT_NAME();
++
++	EXIT_NOT_IMPLEMENTED(user_id == nullptr);
++
++	*user_id = Config::GetUserId();
++
++	return OK;
++}
++
+ static KYTY_SYSV_ABI int UserServiceGetEvent(SceUserServiceEvent* event) {
+ 	PRINT_NAME();
+ 
+@@ -289,6 +300,7 @@ LIB_DEFINE(InitUserService_1) {
+ 	LIB_FUNC("j3YMu1MVNNo", UserService::UserServiceInitialize);
+ 	LIB_FUNC("az-0R6eviZ0", UserService::UserServiceInitialize2);
+ 	LIB_FUNC("CdWp0oHWGr0", UserService::UserServiceGetInitialUser);
++	LIB_FUNC("eNb53LQJmIM", UserService::UserServiceGetForegroundUser);
+ 	LIB_FUNC("yH17Q6NWtVg", UserService::UserServiceGetEvent);
+ 	LIB_FUNC("fPhymKNvK-A", UserService::UserServiceGetLoginUserIdList);
+ 	LIB_FUNC("1xxcMiGu2fo", UserService::UserServiceGetUserName);
+diff --git a/src/libs/libcCompat.cpp b/src/libs/libcCompat.cpp
+index 7bfc151..314ff89 100644
+--- a/src/libs/libcCompat.cpp
++++ b/src/libs/libcCompat.cpp
+@@ -22,6 +22,7 @@
+ 
+ #include <algorithm>
+ #include <cerrno>
++#include <chrono>
+ #include <cmath>
+ #include <cstdarg>
+ #include <cstdint>
+@@ -31,6 +32,14 @@
+ #include <ctime>
+ #include <filesystem>
+ #include <string>
++#include <thread>
++#include <vector>
++
++#if KYTY_PLATFORM == KYTY_PLATFORM_WINDOWS
++#include <ws2tcpip.h>
++#else
++#include <arpa/inet.h>
++#endif
+ 
+ namespace Libs::LibcCompat {
+ 
+@@ -886,6 +895,344 @@ static KYTY_SYSV_ABI int swprintf(VA_ARGS) { // NOLINT(cert-dcl50-cpp)
+ 	return static_cast<int>(str.size());
+ }
+ 
++// ---- files and directories (guest paths, KytyPS5's file system) ------------------------------
++
++static int PosixResult(int kernel_result) {
++	if (kernel_result < 0) {
++		SetErrno(LibKernel::KernelToPosix(kernel_result));
++		return -1;
++	}
++	return kernel_result;
++}
++
++static KYTY_SYSV_ABI int lstat(const char* path, LibKernel::FileSystem::FileStat* sb) {
++	return PosixResult(LibKernel::FileSystem::KernelStat(path, sb)); // no symbolic links
++}
++
++static KYTY_SYSV_ABI int access(const char* path, int /*mode*/) {
++	LibKernel::FileSystem::FileStat sb {};
++	return PosixResult(LibKernel::FileSystem::KernelStat(path, &sb)) < 0 ? -1 : 0;
++}
++
++static KYTY_SYSV_ABI int rename(const char* from, const char* to) {
++	return PosixResult(LibKernel::FileSystem::KernelRename(from, to));
++}
++
++static KYTY_SYSV_ABI int fchmod(int /*fd*/, uint16_t /*mode*/) {
++	return 0;
++}
++
++static KYTY_SYSV_ABI int KernelChmod(const char* /*path*/, uint16_t /*mode*/) {
++	return 0;
++}
++
++static KYTY_SYSV_ABI int KernelUtimes(const char* /*path*/, const void* /*times*/) {
++	return 0;
++}
++
++// Resolves "." and ".." in the guest path; there are no symbolic links to follow.
++static KYTY_SYSV_ABI char* realpath(const char* path, char* resolved) {
++	if (path == nullptr) {
++		SetErrno(GUEST_EINVAL);
++		return nullptr;
++	}
++	std::string in = path;
++	if (in.empty() || in[0] != '/') {
++		in = "/app0/" + in;
++	}
++	std::vector<std::string> parts;
++	size_t                   i = 0;
++	while (i < in.size()) {
++		size_t j = in.find('/', i);
++		if (j == std::string::npos) {
++			j = in.size();
++		}
++		std::string part = in.substr(i, j - i);
++		if (part == "..") {
++			if (!parts.empty()) {
++				parts.pop_back();
++			}
++		} else if (!part.empty() && part != ".") {
++			parts.push_back(part);
++		}
++		i = j + 1;
++	}
++	std::string out;
++	for (const auto& p: parts) {
++		out += "/" + p;
++	}
++	if (out.empty()) {
++		out = "/";
++	}
++	LibKernel::FileSystem::FileStat sb {};
++	if (LibKernel::FileSystem::KernelStat(out.c_str(), &sb) < 0) {
++		SetErrno(Posix::POSIX_ENOENT);
++		return nullptr;
++	}
++	if (out.size() >= 1024) {
++		SetErrno(63); // ENAMETOOLONG
++		return nullptr;
++	}
++	if (resolved == nullptr) {
++		return CopyString(out.data(), out.size());
++	}
++	std::memcpy(resolved, out.c_str(), out.size() + 1);
++	return resolved;
++}
++
++// A DIR reads the packed PS5 dirents KernelGetdents returns.
++struct GuestDir {
++	int     fd;
++	int     pos;
++	int     len;
++	uint8_t buf[16384];
++};
++
++static KYTY_SYSV_ABI void* opendir(const char* path) {
++	constexpr int O_DIRECTORY = 0x20000;
++	int           fd          = LibKernel::FileSystem::KernelOpen(path, O_DIRECTORY, 0);
++	if (fd < 0) {
++		PosixResult(fd);
++		return nullptr;
++	}
++	auto* d = static_cast<GuestDir*>(malloc(sizeof(GuestDir)));
++	if (d == nullptr) {
++		LibKernel::FileSystem::KernelClose(fd);
++		return nullptr;
++	}
++	d->fd  = fd;
++	d->pos = 0;
++	d->len = 0;
++	return d;
++}
++
++static KYTY_SYSV_ABI void* readdir(void* dir) {
++	auto* d = static_cast<GuestDir*>(dir);
++	for (;;) {
++		if (d->pos >= d->len) {
++			int n = LibKernel::FileSystem::KernelGetdents(d->fd, reinterpret_cast<char*>(d->buf),
++			                                              static_cast<int>(sizeof(d->buf)));
++			if (n <= 0) {
++				if (n < 0) {
++					PosixResult(n);
++				}
++				return nullptr;
++			}
++			d->pos = 0;
++			d->len = n;
++		}
++		uint8_t* e = d->buf + d->pos;
++		uint16_t reclen = 0;
++		std::memcpy(&reclen, e + 4, sizeof(reclen));
++		if (reclen == 0) {
++			d->len = 0;
++			return nullptr;
++		}
++		d->pos += reclen;
++		uint32_t fileno = 0;
++		std::memcpy(&fileno, e, sizeof(fileno));
++		if (fileno != 0) {
++			return e;
++		}
++	}
++}
++
++static KYTY_SYSV_ABI int closedir(void* dir) {
++	if (dir == nullptr) {
++		return 0;
++	}
++	auto* d = static_cast<GuestDir*>(dir);
++	int   r = LibKernel::FileSystem::KernelClose(d->fd);
++	free(d);
++	return PosixResult(r) < 0 ? -1 : 0;
++}
++
++static KYTY_SYSV_ABI int64_t readv(int fd, const LibKernel::FileSystem::KernelIovec* iov, int n) {
++	int64_t total = 0;
++	for (int i = 0; i < n; i++) {
++		int64_t r = LibKernel::FileSystem::KernelRead(fd, iov[i].iov_base, iov[i].iov_len);
++		if (r < 0) {
++			return total > 0 ? total : PosixResult(static_cast<int>(r));
++		}
++		total += r;
++		if (static_cast<size_t>(r) < iov[i].iov_len) {
++			break;
++		}
++	}
++	return total;
++}
++
++static KYTY_SYSV_ABI int64_t writev(int fd, const LibKernel::FileSystem::KernelIovec* iov, int n) {
++	int64_t r = LibKernel::FileSystem::KernelWritev(fd, iov, n);
++	return r < 0 ? PosixResult(static_cast<int>(r)) : r;
++}
++
++static KYTY_SYSV_ABI int dup2(int /*from*/, int /*to*/) {
++	SetErrno(GUEST_EBADF);
++	return -1;
++}
++
++static KYTY_SYSV_ABI int ioctl(int /*fd*/, uint64_t /*request*/) {
++	SetErrno(Posix::POSIX_ENOTTY);
++	return -1;
++}
++
++// ---- process, user and system information -----------------------------------------------------
++
++// The guest's environment is its own; nothing is set in it.
++static KYTY_SYSV_ABI char* getenv(const char* /*name*/) {
++	return nullptr;
++}
++
++static KYTY_SYSV_ABI void srandom(unsigned int seed) {
++	std::srand(seed);
++}
++
++static KYTY_SYSV_ABI uint32_t getuid() {
++	return 1;
++}
++
++static KYTY_SYSV_ABI uint32_t getgid() {
++	return 1;
++}
++
++static int CopyName(const char* name, char* buf, size_t len) {
++	if (buf == nullptr || len <= std::strlen(name)) {
++		return GUEST_ERANGE;
++	}
++	std::memcpy(buf, name, std::strlen(name) + 1);
++	return 0;
++}
++
++static KYTY_SYSV_ABI int getlogin_r(char* buf, size_t len) {
++	return CopyName("ps5", buf, len);
++}
++
++static KYTY_SYSV_ABI int gethostname(char* buf, size_t len) {
++	if (CopyName("ps5", buf, len) != 0) {
++		SetErrno(63); // ENAMETOOLONG
++		return -1;
++	}
++	return 0;
++}
++
++// FreeBSD sysconf names.
++static KYTY_SYSV_ABI long sysconf(int name) { // NOLINT(google-runtime-int)
++	switch (name) {
++		case 3: return 1000;                                             // _SC_CLK_TCK
++		case 5: return 1024;                                             // _SC_OPEN_MAX
++		case 47: return 16384;                                           // _SC_PAGESIZE
++		case 57:                                                          // _SC_NPROCESSORS_CONF
++		case 58: return std::max(1u, std::thread::hardware_concurrency()); // _SC_NPROCESSORS_ONLN
++		default: SetErrno(GUEST_EINVAL); return -1;
++	}
++}
++
++static KYTY_SYSV_ABI int getrusage(int /*who*/, void* usage) {
++	if (usage != nullptr) {
++		std::memset(usage, 0, 144); // struct rusage
++	}
++	return 0;
++}
++
++static KYTY_SYSV_ABI int KernelMlock(const void* /*addr*/, size_t /*len*/) {
++	return 0;
++}
++
++static KYTY_SYSV_ABI unsigned int sleep(unsigned int seconds) {
++	std::this_thread::sleep_for(std::chrono::seconds(seconds));
++	return 0;
++}
++
++// Signals: the emulator owns the host's signal handlers, so a guest's handler is accepted and
++// never called.
++static KYTY_SYSV_ABI int sigemptyset(void* set) {
++	if (set != nullptr) {
++		std::memset(set, 0, 16); // sigset_t
++	}
++	return 0;
++}
++
++static KYTY_SYSV_ABI int sigaction(int /*sig*/, const void* /*act*/, void* old) {
++	if (old != nullptr) {
++		std::memset(old, 0, 32); // struct sigaction: SIG_DFL, no flags
++	}
++	return 0;
++}
++
++static KYTY_SYSV_ABI void* signal(int /*sig*/, void* /*handler*/) {
++	return nullptr; // SIG_DFL
++}
++
++static KYTY_SYSV_ABI int sigaltstack(const void* /*ss*/, void* old) {
++	if (old != nullptr) {
++		std::memset(old, 0, 24); // stack_t
++		reinterpret_cast<int*>(old)[4] = 4; // ss_flags = SS_DISABLE
++	}
++	return 0;
++}
++
++// The guest's own descriptors are not host ones; with no ready descriptor, poll waits out its
++// timeout instead of returning at once, so a polling loop does not spin.
++static KYTY_SYSV_ABI int poll(void* /*fds*/, uint32_t /*n*/, int timeout_ms) {
++	std::this_thread::sleep_for(std::chrono::milliseconds(timeout_ms < 0 ? 100 : timeout_ms));
++	return 0;
++}
++
++static KYTY_SYSV_ABI int KernelSendNotificationRequest(int /*device*/, const void* request,
++                                                       size_t /*size*/, int /*blocking*/) {
++	// The text starts after the 0x28-byte header of OrbisNotificationRequest.
++	if (request != nullptr) {
++		LOGF("Notification: %s\n", static_cast<const char*>(request) + 0x2d);
++	}
++	return 0;
++}
++
++static KYTY_SYSV_ABI int LibcInternalBacktraceForGame() {
++	return 0;
++}
++
++// ---- network names ----------------------------------------------------------------------------
++
++constexpr int GUEST_AF_INET  = 2;
++constexpr int GUEST_AF_INET6 = 28;
++
++static int HostFamily(int af) {
++	return af == GUEST_AF_INET ? AF_INET : (af == GUEST_AF_INET6 ? AF_INET6 : -1);
++}
++
++static KYTY_SYSV_ABI int inet_pton(int af, const char* src, void* dst) {
++	int host = HostFamily(af);
++	if (host < 0) {
++		SetErrno(Posix::POSIX_EAFNOSUPPORT);
++		return -1;
++	}
++	return ::inet_pton(host, src, dst);
++}
++
++static KYTY_SYSV_ABI const char* inet_ntop(int af, const void* src, char* dst, uint32_t size) {
++	int host = HostFamily(af);
++	if (host < 0) {
++		SetErrno(Posix::POSIX_EAFNOSUPPORT);
++		return nullptr;
++	}
++	return ::inet_ntop(host, src, dst, size);
++}
++
++static KYTY_SYSV_ABI int inet_aton(const char* src, void* dst) {
++	return ::inet_pton(AF_INET, src, dst) == 1 ? 1 : 0;
++}
++
++static KYTY_SYSV_ABI int getifaddrs(void** out) {
++	if (out != nullptr) {
++		*out = nullptr;
++	}
++	SetErrno(Posix::POSIX_ENOSYS);
++	return -1;
++}
++
++static KYTY_SYSV_ABI void freeifaddrs(void* /*ifa*/) {}
++
+ LIB_DEFINE(InitLibcCompat_1) {
+ 	g_stdinp  = stdin;
+ 	g_stdoutp = stdout;
+@@ -996,6 +1343,45 @@ LIB_DEFINE(InitLibcCompat_1) {
+ 	LIB_FUNC("5AYcEn7aoro", wcstoul);
+ 	LIB_FUNC("DAbZ-Vfu6lQ", wcstoull);
+ 	LIB_FUNC("nJz16JE1txM", swprintf);
++
++	LIB_FUNC("DRGXpDDh8Ng", lstat);
++	LIB_FUNC("8vE6Z6VEYyk", access);
++	LIB_FUNC("NN01qLRhiqU", rename);
++	LIB_FUNC("n01yNbQO5W4", fchmod);
++	LIB_FUNC("fgIsQ10xYVA", KernelChmod);
++	LIB_FUNC("0Cq8ipKr9n0", KernelUtimes);
++	LIB_FUNC("vhtcIgZG-Lk", realpath);
++	LIB_FUNC("ay3uROQAc5A", opendir);
++	LIB_FUNC("lybyyKtP54c", readdir);
++	LIB_FUNC("XepdqehVYe4", closedir);
++	LIB_FUNC("I7ImcLds-uU", readv);
++	LIB_FUNC("Z2aKdxzS4KE", writev);
++	LIB_FUNC("wdUufa9g-D8", dup2);
++	LIB_FUNC("PfccT7qURYE", ioctl);
++
++	LIB_FUNC("smbQukfxYJM", getenv);
++	LIB_FUNC("sPC7XE6hfFY", srandom);
++	LIB_FUNC("kg4x8Prhfxw", getuid);
++	LIB_FUNC("AfuS23bX6kg", getgid);
++	LIB_FUNC("78FiHequa9U", getlogin_r);
++	LIB_FUNC("-nvxBWa0iDs", gethostname);
++	LIB_FUNC("mkawd0NA9ts", sysconf);
++	LIB_FUNC("hHlZQUnlxSM", getrusage);
++	LIB_FUNC("3k6kx-zOOSQ", KernelMlock);
++	LIB_FUNC("0wu33hunNdE", sleep);
++	LIB_FUNC("+F7C-hdk7+E", sigemptyset);
++	LIB_FUNC("KiJEPEWRyUY", sigaction);
++	LIB_FUNC("VADc3MNQ3cM", signal);
++	LIB_FUNC("sHziAegVp74", sigaltstack);
++	LIB_FUNC("ku7D4q1Y9PI", poll);
++	LIB_FUNC("zl7hupSO0C0", KernelSendNotificationRequest);
++	LIB_FUNC("EHsF2i9FXPM", LibcInternalBacktraceForGame);
++
++	LIB_FUNC("fyPeCKJ94Hg", inet_pton);
++	LIB_FUNC("4pYihoPggn8", inet_ntop);
++	LIB_FUNC("a7ToDPsIQrc", inet_aton);
++	LIB_FUNC("j-gWL6wDros", getifaddrs);
++	LIB_FUNC("N2OjwJJGjeQ", freeifaddrs);
+ }
+ 
+ } // namespace Libs::LibcCompat

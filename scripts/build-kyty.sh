@@ -7,6 +7,9 @@
 # with this project's patches (patches/kytyps5/*.patch) applied on top. Every
 # build resets that checkout to KYTY_COMMIT first; _Build/ stays, so rebuilds
 # are incremental.
+#
+# KYTY_ARCH=x86-64-v3 builds the same source for a PC instead (build/kytyps5/
+# _Build/pc/kyty_emulator, for testing on the PC; nothing is packed).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -16,7 +19,9 @@ KYTY_COMMIT=589bd14a9b8934a85e951d1aaa8112a05d62354c
 SRC="$ROOT/build/kytyps5"
 PATCHES="$ROOT/patches/kytyps5"
 IMAGE=ps5-on-ps4-kyty-builder
+ARCH="${KYTY_ARCH:-btver2}"
 BUILD_DIR=_Build/ps4
+[ "$ARCH" = btver2 ] || BUILD_DIR=_Build/pc
 
 log() { printf '\033[1;34m[*]\033[0m %s\n' "$*"; }
 ok()  { printf '\033[1;32m[+]\033[0m %s\n' "$*"; }
@@ -41,12 +46,17 @@ version="${KYTY_COMMIT:0:7}+$(cd "$PATCHES" && cat ./*.patch | sha256sum | cut -
 log "Build environment"
 docker build -q -t "$IMAGE" -f "$ROOT/docker/kyty-build.Dockerfile" "$ROOT/docker" > /dev/null
 
-log "Building KytyPS5 $version for btver2"
+log "Building KytyPS5 $version for $ARCH"
 docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp -v "$SRC:/src" -w /src "$IMAGE" sh -euc "
     cmake -S . -B $BUILD_DIR -G Ninja -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \
-        -DKYTY_BUILD_LAUNCHER=OFF -DKYTY_HOST_ARCH=btver2 -DKYTY_DEBUG_INFO=OFF
+        -DKYTY_BUILD_LAUNCHER=OFF -DKYTY_HOST_ARCH=$ARCH -DKYTY_DEBUG_INFO=OFF
     cmake --build $BUILD_DIR --target kyty_emulator --parallel"
+
+if [ "$ARCH" != btver2 ]; then
+    ok "KytyPS5 for $ARCH: $SRC/$BUILD_DIR/kyty_emulator ($version)"
+    exit 0
+fi
 
 log "Packing"
 stage="$(mktemp -d)"

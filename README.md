@@ -36,7 +36,7 @@ Running real games needs a translator in KytyPS5's guest patcher that rewrites t
 | KytyPS5 starts on the PS4 and sets up the GPU | Done, PS4 Pro |
 | PS5 on PS4 system image, installs through PS4 Multiboot | Done, PS4 Pro |
 | A PS5 homebrew app without AVX2 runs and draws | Done: Snes9x PS5 2.11 rebuilt for btver2, PS4 Pro |
-| Controller input and loading a game in that app | Next |
+| Controller, `/data` and USB storage, loading a game in that app | Done on a PC test build (same patches); PS4 next |
 | AVX2, BMI2 and FMA translation for game code | Research |
 | Game picker with the controller | Later |
 
@@ -55,9 +55,19 @@ scripts/build-rootfs.sh    # out/ps5-ps4-rootfs.tar.xz
 
 1. Copy `ps5-ps4-rootfs.tar.xz` to `/user/home/` on the PS4 (GoldHEN FTP).
 2. Start PS4 Multiboot and install **PS5 on PS4** from the menu.
-3. Put games in the `PS5` folder of a USB drive: a game folder with `eboot.bin`, or a ZArchive (`.zar`) dump. The first one found runs; set `PS5_GAME` in `/etc/ps5-on-ps4.conf` to choose another.
+3. Put the PS5 program in the `PS5` folder of a USB drive: a folder with `eboot.bin`, or a ZArchive (`.zar`) dump. The first one found runs; set `PS5_GAME` in `/etc/ps5-on-ps4.conf` to choose another.
 
-Login: `ps5` / `ps5` on tty2 or SSH. The emulator's output is in `~/kytyps5.log`.
+The system needs no keyboard:
+
+- With no program on the USB drive it waits, and starts the program as soon as a drive with one is plugged in.
+- The program sees the USB drive as `/mnt/usb0` and a folder of the system (`~/data`, kept between starts) as `/data`. For Snes9x PS5, ROMs go in `snes9x/roms` on the USB drive or in `~/data/snes9x/roms`.
+- When the program quits, the PS4 turns off (`PS5_POWEROFF_ON_EXIT`).
+- If the emulator stops with an error, the reason is shown and it starts again; after 3 errors in a row the PS4 turns off.
+- Controllers: a DualShock 4 on a cable, or over Bluetooth after holding SHARE + PS until the light bar double-blinks.
+
+`tools/make-pad-test-rom.py` writes a tiny SNES ROM for checking a controller: blue, green while a button is held.
+
+Login: `ps5` / `ps5` on tty2 or SSH. The emulator's output is in `~/kytyps5.log` (the run before: `~/kytyps5.log.1`).
 
 ## Games
 
@@ -72,6 +82,7 @@ This project contains no PS5 system software and no games. Use only games you ow
 | `scripts/build-rootfs.sh` | Builds the system image for PS4 Multiboot |
 | `docker/` | Build environments for both |
 | `overlay/` | Files added to the system: session, settings, USB mount, controller pairing |
+| `tools/` | Logo converter, controller test ROM |
 
 ## Credits
 

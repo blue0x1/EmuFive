@@ -1,23 +1,46 @@
 #!/bin/sh
 # Copyright (C) 2026 Chokri Hammedi (blue0x1) <https://github.com/blue0x1>
-# The X session: finds a PS5 game on the USB drive and runs it in KytyPS5, full
-# screen. When the emulator exits, the PS4 turns off (see /etc/ps5-on-ps4.conf).
+# The X session: runs a PS5 program from the USB drive in KytyPS5, full screen,
+# with no keyboard needed.
+#   - No program yet: a message, and the USB drive is checked every few seconds.
+#   - The program quits: the PS4 turns off (PS5_POWEROFF_ON_EXIT in
+#     /etc/ps5-on-ps4.conf).
+#   - The emulator stops with an error: the reason for 20 seconds, then it starts
+#     again; after 3 errors in a row, a message and the PS4 turns off.
 PS5_GAME=
 PS5_KYTY_OPTIONS=
 PS5_POWEROFF_ON_EXIT=yes
 [ -f /etc/ps5-on-ps4.conf ] && . /etc/ps5-on-ps4.conf
 
 KYTY=/opt/kytyps5/kyty_emulator
-GAMES=/media/ps5-usb/PS5
-LOG="$HOME/kytyps5.log"
+USB=/media/ps5-usb
+DATA="$HOME/data"       # the program's /data (settings, saves, ROMs)
+WORK="$HOME/.kytyps5"   # the emulator's own files (shader caches, temporary data)
+LOG="$HOME/kytyps5.log" # this run; the run before is kytyps5.log.1
 TERM_UI="xterm -fullscreen -bg black -fg white -fa DejaVuSansMono -fs 16"
 
 # KytyPS5 needs sparse resources, which RADV only offers on the PS4 GPU with
 # this switch.
 export RADV_EXPERIMENTAL=sparse
 
-message() {  # text shown full screen until Enter is pressed
-    $TERM_UI -e sh -c 'printf "%b\n\nPress Enter to continue." "$1"; read x' sh "$1"
+mkdir -p "$DATA" "$WORK"
+
+# Shows a message full screen for some seconds.
+message() {  # seconds text
+    $TERM_UI -e sh -c 'printf "%b\n" "$2"; sleep "$1"' sh "$1" "$2"
+}
+
+# The program to run: PS5_GAME, or the first folder with eboot.bin (or .zar
+# dump) in the PS5 folder of the USB drive.
+find_game() {
+    if [ -n "$PS5_GAME" ]; then
+        [ -e "$PS5_GAME" ] && echo "$PS5_GAME"
+        return
+    fi
+    [ -d "$USB/PS5" ] || return
+    g="$(find "$USB/PS5" -maxdepth 3 \( -name eboot.bin -o -name '*.zar' \) 2>/dev/null | sort | head -n 1)"
+    case "$g" in */eboot.bin) g="${g%/eboot.bin}" ;; esac
+    echo "$g"
 }
 
 xset s off -dpms 2>/dev/null
@@ -25,26 +48,41 @@ xset s off -dpms 2>/dev/null
 matchbox-window-manager -use_titlebar no -use_cursor no &
 
 # Give a drive plugged in at boot a few seconds to mount.
-i=0; while [ $i -lt 10 ] && ! grep -q " /media/ps5-usb " /proc/mounts; do sleep 1; i=$((i + 1)); done
+i=0; while [ $i -lt 10 ] && ! grep -q " $USB " /proc/mounts; do sleep 1; i=$((i + 1)); done
 
-# The game: PS5_GAME if set, otherwise the first game folder (with eboot.bin)
-# or ZArchive (.zar) in the USB drive's PS5 folder.
-game="$PS5_GAME"
-if [ -z "$game" ] && [ -d "$GAMES" ]; then
-    game="$(find "$GAMES" -maxdepth 3 \( -name eboot.bin -o -name '*.zar' \) 2>/dev/null | sort | head -n 1)"
-    case "$game" in */eboot.bin) game="${game%/eboot.bin}" ;; esac
-fi
-
-if [ -z "$game" ]; then
-    message "PS5 on PS4: no game found.\n\nPut a PS5 game folder (with eboot.bin) or a .zar dump in the PS5 folder\nof a USB drive, or set PS5_GAME in /etc/ps5-on-ps4.conf.\n\nLog in on tty2 (Ctrl+Alt+F2) for a shell."
-else
-    # shellcheck disable=SC2086
-    "$KYTY" --game "$game" --fullscreen --hide-cursor $PS5_KYTY_OPTIONS > "$LOG" 2>&1
-    rc=$?
-    if [ $rc -ne 0 ]; then
-        message "KytyPS5 stopped (exit code $rc). Last lines of $LOG:\n\n$(tail -n 15 "$LOG")"
+failures=0
+while :; do
+    game="$(find_game)"
+    if [ -z "$game" ]; then
+        $TERM_UI -e sh -c 'printf "%b\n" "$1"; while :; do sleep 60; done' sh \
+            "PS5 on PS4\n\nNo PS5 program found. Waiting for a USB drive with one...\n\nPut the program's folder (with eboot.bin) in the PS5 folder of a USB drive\nand plug it in. It starts by itself.\n\nSettings: /etc/ps5-on-ps4.conf (log in on tty2 with Ctrl+Alt+F2)." &
+        waiting=$!
+        while [ -z "$(find_game)" ]; do sleep 3; done
+        kill "$waiting" 2>/dev/null
+        sleep 2 # let the drive settle
+        continue
     fi
-fi
+
+    mounts="/data=$DATA"
+    grep -q " $USB " /proc/mounts && mounts="$mounts;/mnt/usb0=$USB"
+    [ -f "$LOG" ] && mv -f "$LOG" "$LOG.1"
+    started=$(date +%s)
+    # shellcheck disable=SC2086
+    (cd "$WORK" && KYTY_MOUNTS="$mounts" exec "$KYTY" --game "$game" --fullscreen --hide-cursor $PS5_KYTY_OPTIONS) > "$LOG" 2>&1
+    rc=$?
+    [ $rc -eq 0 ] && break
+
+    # A run of more than 5 minutes was not part of a crash loop.
+    [ $(($(date +%s) - started)) -gt 300 ] && failures=0
+    failures=$((failures + 1))
+    reason="$(grep -A2 -- '--- .*Error ---' "$LOG" | tail -n 2)"
+    [ -n "$reason" ] || reason="$(tail -n 5 "$LOG")"
+    if [ $failures -ge 3 ]; then
+        message 60 "KytyPS5 stopped 3 times in a row (exit code $rc):\n\n$reason\n\nThe log is $LOG. The PS4 turns off in a minute."
+        break
+    fi
+    message 20 "KytyPS5 stopped (exit code $rc):\n\n$reason\n\nStarting again in 20 seconds."
+done
 
 if [ "$PS5_POWEROFF_ON_EXIT" = yes ]; then
     sudo -n /usr/bin/systemctl poweroff
