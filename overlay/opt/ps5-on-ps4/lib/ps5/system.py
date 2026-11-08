@@ -1175,3 +1175,159 @@ def password_is_default():
     """True while the ps5 user's password is still the published one (checked by ps5-admin)."""
     code, out, _ = admin("default-password", timeout=10)
     return code == 0 and out.strip() == "yes"
+
+
+# --------------------------------------------------------------------------------------------
+# Sharing a screenshot with a phone: a small web server for one picture, only while the Share
+# screen is open. Its address has a random part, so nobody on the network can guess it.
+
+SHARE_PORTS = (8642, 8643, 8644)
+
+
+class ShareServer:
+    def __init__(self, path, page_title="Screenshot", download="Download", accent=(124, 110, 255), palette=None):
+        import secrets
+        self.path = path
+        self.accent = accent
+        # Two colors of the screenshot itself (vivid, deep) for the card's glow and border.
+        self.palette = palette or ((124, 110, 255), (20, 18, 46))
+        self.token = secrets.token_urlsafe(9)
+        self.page_title = page_title
+        self.download = download
+        self.server = None
+        self.url = None
+
+    def start(self):
+        """The address to open, or None when the PS4 has no network address or no free port."""
+        import http.server
+        addresses = ip_addresses()
+        if not addresses:
+            return None
+        share = self
+        name = os.path.basename(self.path)
+
+        class Handler(http.server.BaseHTTPRequestHandler):
+            def log_message(self, *args):
+                pass
+
+            def send(self, code, body, kind):
+                self.send_response(code)
+                self.send_header("Content-Type", kind)
+                self.send_header("Content-Length", str(len(body)))
+                self.send_header("Cache-Control", "no-store")
+                self.end_headers()
+                self.wfile.write(body)
+
+            def do_GET(self):
+                if self.path in (f"/{share.token}", f"/{share.token}/"):
+                    self.send(200, share.page(name).encode("utf-8"), "text/html; charset=utf-8")
+                elif self.path == f"/{share.token}/picture.png":
+                    try:
+                        with open(share.path, "rb") as f:
+                            data = f.read()
+                    except OSError:
+                        self.send(404, b"Gone", "text/plain")
+                        return
+                    self.send(200, data, "image/png")
+                else:
+                    self.send(404, b"Not found", "text/plain")
+
+        for port in SHARE_PORTS:
+            try:
+                self.server = http.server.ThreadingHTTPServer(("0.0.0.0", port), Handler)
+                break
+            except OSError:
+                self.server = None
+        if self.server is None:
+            return None
+        self.server.daemon_threads = True
+        threading.Thread(target=self.server.serve_forever, daemon=True).start()
+        self.url = f"http://{addresses[0][1]}:{self.server.server_address[1]}/{self.token}/"
+        return self.url
+
+    def page(self, name):
+        """The phone's page: the picture in a card lit by its own colors (a blurred copy glows
+        behind it, the border and shadow use its two main colors), and a Download button with a
+        slowly breathing glow."""
+        import html
+        title, download, file = html.escape(self.page_title), html.escape(self.download), html.escape(name)
+        (vr, vg, vb), (dr, dg, db) = self.palette
+        # The button takes the picture's vivid color too; dark text when that color is light.
+        r, g, b = vr, vg, vb
+        light = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255 > 0.6
+        ink = "#14122a" if light else "#fff"
+        return f"""<!doctype html>
+<html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="rgb({dr},{dg},{db})"><title>{title}</title>
+<style>
+:root {{
+  --accent: rgb({r},{g},{b}); --glow: rgba({r},{g},{b},.55);
+  --vivid: rgb({vr},{vg},{vb}); --vivid-soft: rgba({vr},{vg},{vb},.45); --deep: rgb({dr},{dg},{db});
+}}
+* {{ box-sizing: border-box; }}
+html, body {{ margin: 0; min-height: 100%; overflow-x: hidden; }}
+body {{
+  background:
+    radial-gradient(90% 60% at 50% 0%, rgba({vr},{vg},{vb},.35), transparent 70%),
+    radial-gradient(80% 60% at 50% 100%, rgba({dr},{dg},{db},.9), transparent 70%),
+    linear-gradient(180deg, #0d0b1c, rgb({dr // 2},{dg // 2},{db // 2}));
+  color: #fff; font-family: -apple-system, system-ui, "Segoe UI", Roboto, sans-serif;
+  display: flex; justify-content: center;
+  padding: max(22px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right))
+           max(30px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
+}}
+main {{ width: 100%; max-width: 720px; display: flex; flex-direction: column; gap: 22px; }}
+h1 {{ font-size: 1.15rem; font-weight: 600; margin: 4px 2px 0; opacity: .9; letter-spacing: .01em; }}
+.stage {{ position: relative; }}
+.stage::before {{
+  content: ""; position: absolute; inset: -6% -4%; border-radius: 40px; z-index: 0;
+  background: url("picture.png") center / cover; filter: blur(38px) saturate(1.7); opacity: .7;
+}}
+.card {{
+  position: relative; z-index: 1; border-radius: 22px; padding: 2px;
+  background: linear-gradient(135deg, rgba(255,255,255,.55), var(--vivid) 30%, var(--deep) 70%,
+                              rgba(255,255,255,.25));
+  box-shadow: 0 24px 60px -12px var(--vivid-soft), 0 10px 30px rgba(0,0,0,.55);
+}}
+.card .frame {{ position: relative; border-radius: 20px; overflow: hidden; background: #000; }}
+.card img {{ display: block; width: 100%; height: auto; }}
+.card .frame::after {{
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(125deg, rgba(255,255,255,.22) 0%, rgba(255,255,255,.06) 22%,
+                              transparent 40%);
+}}
+.download {{
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  width: 100%; min-height: 56px; padding: 16px 24px; border-radius: 999px;
+  background: linear-gradient(135deg, rgba(255,255,255,.18), transparent 55%), var(--accent);
+  color: {ink}; font-size: 1.1rem; font-weight: 700;
+  text-decoration: none; letter-spacing: .02em; -webkit-tap-highlight-color: transparent;
+  animation: breathe 2.6s ease-in-out infinite;
+  transition: transform .15s ease;
+}}
+.download:active {{ transform: scale(.97); }}
+.download svg {{ width: 22px; height: 22px; }}
+@keyframes breathe {{
+  0%, 100% {{ box-shadow: 0 0 0 0 var(--glow), 0 6px 18px rgba(0,0,0,.35); filter: brightness(1); }}
+  50% {{ box-shadow: 0 0 0 10px rgba({r},{g},{b},0), 0 0 28px 6px var(--glow); filter: brightness(1.12); }}
+}}
+@media (prefers-reduced-motion: reduce) {{ .download {{ animation: none; }} }}
+.name {{ text-align: center; font-size: .85rem; opacity: .55; word-break: break-all; margin: 0; }}
+@media (min-width: 700px) {{ .download {{ width: auto; align-self: center; padding: 16px 56px; }} }}
+</style></head>
+<body><main>
+<h1>{title}</h1>
+<div class="stage"><div class="card"><div class="frame"><img src="picture.png" alt="{title}"></div></div></div>
+<a class="download" href="picture.png" download="{file}">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"
+stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"/><path d="m6.5 10.5 5.5 5.5 5.5-5.5"/>
+<path d="M5 20h14"/></svg>{download}</a>
+<p class="name">{file}</p>
+</main></body></html>"""
+
+    def stop(self):
+        if self.server is not None:
+            self.server.shutdown()
+            self.server.server_close()
+            self.server = None

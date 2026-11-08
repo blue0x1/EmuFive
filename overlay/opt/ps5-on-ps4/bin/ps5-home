@@ -2596,6 +2596,9 @@ class MediaViewer(Modal):
         elif action == RIGHT and m.index < len(m.paths) - 1:
             m.index += 1
             h.sounds.play("move")
+        elif action == TRIANGLE and self.path():
+            h.sounds.play("select")
+            h.push(ShareView(h, self.path()))
         elif action == SQUARE and self.path():
             path = self.path()
 
@@ -2634,7 +2637,92 @@ class MediaViewer(Modal):
                "topright")
 
     def hints(self):
-        return [(None, "Left / Right: next"), ("square", "Delete"), ("circle", "Back")]
+        return [(None, "Left / Right: next"), ("triangle", "Share"), ("square", "Delete"), ("circle", "Back")]
+
+
+def picture_palette(path):
+    """Two colors of a picture: its most vivid one (for glows) and a deep one (its darker average)."""
+    import colorsys
+    try:
+        small = pygame.transform.smoothscale(pygame.image.load(path), (24, 14))
+    except (pygame.error, OSError):
+        return None
+    pixels = [small.get_at((x, y))[:3] for y in range(14) for x in range(24)]
+    avg = tuple(sum(p[i] for p in pixels) // len(pixels) for i in range(3))
+
+    def vividness(p):
+        h, s, v = colorsys.rgb_to_hsv(*(c / 255 for c in p))
+        return s * v
+
+    vivid = max(pixels, key=vividness)
+    if vividness(vivid) < 0.15:                 # A grey picture: keep its own light grey.
+        vivid = ui.mix(avg, (255, 255, 255), 0.4)
+    deep = ui.mix(avg, (0, 0, 0), 0.6)
+    return tuple(int(c) for c in vivid), tuple(int(c) for c in deep)
+
+
+class ShareView(Modal):
+    """A QR code for a phone: it opens the screenshot in the phone's browser, to save or share."""
+
+    def __init__(self, home, path):
+        super().__init__(home)
+        self.path = path
+        self.qr = None
+        self.error = None
+        try:
+            import segno
+        except ImportError:
+            self.error = "Sharing needs the python3-segno package."
+            return
+        self.server = system.ShareServer(path, i18n.translate("Screenshot"), i18n.translate("Download"),
+                                         ACCENT, picture_palette(path))
+        self.url = self.server.start()
+        if self.url is None:
+            self.error = "Connect the PS4 to a network first."
+            return
+        matrix = list(segno.make(self.url, error="m").matrix)
+        n = len(matrix)
+        quiet = 4
+        surface = pygame.Surface((n + 2 * quiet, n + 2 * quiet))
+        surface.fill((255, 255, 255))
+        for y, row in enumerate(matrix):
+            for x, dark in enumerate(row):
+                if dark:
+                    surface.set_at((x + quiet, y + quiet), (0, 0, 0))
+        side = px(320)
+        self.qr = pygame.transform.scale(surface, (side - side % (n + 2 * quiet) or side, ) * 2)
+
+    def close(self):
+        if getattr(self, "server", None) is not None:
+            self.server.stop()
+        super().close()
+
+    def act(self, action):
+        if action in (BACK, OK, TRIANGLE):
+            self.home.sounds.play("back")
+            self.close()
+
+    def draw(self, c):
+        a = ease_out(self.appear)
+        c.dim(190 * a)
+        w, ht = 760, 540
+        x, y = ui.W / 2 - w / 2, ui.H / 2 - ht / 2 + (1 - a) * 20
+        c.rect(DIALOG, x, y, w, ht, 20)
+        c.text("Share", 26, ui.W / 2, y + 28, WHITE, True, "midtop")
+        if self.error:
+            for n, line in enumerate(c.t.wrap(self.error, 18, w - 80)):
+                c.text(line, 18, ui.W / 2, y + 120 + n * 26, SOFT, False, "midtop")
+            return
+        c.blit(self.qr, ui.W / 2, y + 80, "midtop")
+        qr_h = self.qr.get_height() / ui.S
+        lines = c.t.wrap("Scan with your phone's camera to open the screenshot there, then save or share it. "
+                         "The phone must be on the same network as the PS4.", 16, w - 80)
+        for n, line in enumerate(lines[:3]):
+            c.text(line, 16, ui.W / 2, y + 96 + qr_h + n * 22, SOFT, False, "midtop")
+        c.text(self.url, 13, ui.W / 2, y + ht - 34, DIM, False, "midtop")
+
+    def hints(self):
+        return [("circle", "Close")]
 
 
 # --------------------------------------------------------------------------------------------

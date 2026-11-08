@@ -25,7 +25,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libx11-6 libx11-xcb1 libxcursor1 libxext6 libxfixes3 libxi6 libxrandr2 libxss1 libxtst6 \
         libxkbcommon0 libwayland-client0 libwayland-cursor0 libwayland-egl1 libdecor-0-0 \
         libxcb-keysyms1 libudev1 libdbus-1-3 libusb-1.0-0 \
-        python3 python3-pygame fonts-inter \
+        python3 python3-pygame python3-segno fonts-inter \
         smbnetfs fuse3 \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 

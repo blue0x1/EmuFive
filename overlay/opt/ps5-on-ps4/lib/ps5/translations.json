@@ -4552,5 +4552,59 @@
 "de": "Die Uhrzeit konnte nicht eingestellt werden.",
 "it": "Impossibile impostare l'ora.",
 "pt": "Não foi possível definir a hora."
+},
+"Share": {
+"ar": "مشاركة",
+"fr": "Partager",
+"tr": "Paylaş",
+"es": "Compartir",
+"de": "Teilen",
+"it": "Condividi",
+"pt": "Compartilhar"
+},
+"Download": {
+"ar": "تنزيل",
+"fr": "Télécharger",
+"tr": "İndir",
+"es": "Descargar",
+"de": "Herunterladen",
+"it": "Scarica",
+"pt": "Baixar"
+},
+"Screenshot": {
+"ar": "لقطة شاشة",
+"fr": "Capture d'écran",
+"tr": "Ekran görüntüsü",
+"es": "Captura de pantalla",
+"de": "Screenshot",
+"it": "Screenshot",
+"pt": "Captura de tela"
+},
+"Scan with your phone's camera to open the screenshot there, then save or share it. The phone must be on the same network as the PS4.": {
+"ar": "امسح الرمز بكاميرا هاتفك لفتح لقطة الشاشة عليه، ثم احفظها أو شاركها. يجب أن يكون الهاتف على نفس شبكة PS4.",
+"fr": "Scannez avec l'appareil photo de votre téléphone pour y ouvrir la capture, puis enregistrez-la ou partagez-la. Le téléphone doit être sur le même réseau que la PS4.",
+"tr": "Ekran görüntüsünü telefonunuzda açmak için telefon kamerasıyla tarayın, sonra kaydedin ya da paylaşın. Telefon PS4 ile aynı ağda olmalı.",
+"es": "Escanea con la cámara del móvil para abrir ahí la captura y luego guardarla o compartirla. El móvil debe estar en la misma red que la PS4.",
+"de": "Scanne mit der Handykamera, um den Screenshot dort zu öffnen, und speichere oder teile ihn dann. Das Handy muss im selben Netzwerk wie die PS4 sein.",
+"it": "Inquadra con la fotocamera del telefono per aprire lì lo screenshot, poi salvalo o condividilo. Il telefono deve essere sulla stessa rete della PS4.",
+"pt": "Escaneie com a câmera do celular para abrir a captura nele e depois salvar ou compartilhar. O celular precisa estar na mesma rede que o PS4."
+},
+"Sharing needs the python3-segno package.": {
+"ar": "تحتاج المشاركة إلى الحزمة python3-segno.",
+"fr": "Le partage a besoin du paquet python3-segno.",
+"tr": "Paylaşım için python3-segno paketi gerekir.",
+"es": "Compartir necesita el paquete python3-segno.",
+"de": "Teilen braucht das Paket python3-segno.",
+"it": "La condivisione richiede il pacchetto python3-segno.",
+"pt": "O compartilhamento precisa do pacote python3-segno."
+},
+"Connect the PS4 to a network first.": {
+"ar": "صِل PS4 بشبكة أولًا.",
+"fr": "Connectez d'abord la PS4 à un réseau.",
+"tr": "Önce PS4'ü bir ağa bağlayın.",
+"es": "Conecta primero la PS4 a una red.",
+"de": "Verbinde die PS4 zuerst mit einem Netzwerk.",
+"it": "Collega prima la PS4 a una rete.",
+"pt": "Conecte o PS4 a uma rede primeiro."
 }
 }
