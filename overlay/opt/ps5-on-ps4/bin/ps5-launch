@@ -1,0 +1,98 @@
+#!/usr/bin/env python3
+# Copyright (C) 2026 Chokri Hammedi (blue0x1) <https://github.com/blue0x1>
+# Runs one game in KytyPS5 (called by ps5-session) and waits for it:
+#   - the profile name from the home screen is the game's user name,
+#   - the settings for all games (Settings, Games and Controller) and the game's own options
+#     (OPTIONS on its tile) become KytyPS5 options,
+#   - $XDG_RUNTIME_DIR/ps5-game.json says which game runs and its process (for ps5-guide),
+#   - the time played is added to the game (minus the time it spent paused by the PS button).
+# Exits with KytyPS5's exit code (128 + the signal when it was stopped by one).
+#   ps5-launch GAME [extra KytyPS5 options...]
+import json
+import os
+import signal
+import subprocess
+import sys
+import time
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "lib"))
+from ps5 import store, system  # noqa: E402
+
+KYTY = "/opt/kytyps5/kyty_emulator"
+WORK = os.path.expanduser("~/.kytyps5")     # The emulator's own files (shader caches...).
+STATE = os.path.join(system.RUNTIME, "ps5-game.json")
+PAUSED = os.path.join(system.RUNTIME, "ps5-game-paused")   # Seconds paused, added by ps5-guide.
+
+
+def user_name(name):
+    """At most 16 bytes of UTF-8, cut at a character boundary."""
+    data = name.strip().encode("utf-8")[:16]
+    return data.decode("utf-8", errors="ignore").strip() or "Player"
+
+
+def kyty_options(settings, games, game):
+    args = ["--user-name", user_name(settings["name"]),
+            "--console-language", str(settings["console_language"]),
+            "--present-mode", settings["present_mode"]]
+    if settings["hdr"]:
+        args.append("--hdr")
+    rgb = store.LIGHTBAR_COLORS.get(settings["lightbar"], store.LIGHTBAR_COLORS["blue"])[1]
+    args += ["--controller-color", "#%02X%02X%02X" % rgb,
+             "--controller-vibration", str(settings["vibration"])]
+    if settings["swap_buttons"]:
+        args += ["--keymap", "Cross=East", "--keymap", "Circle=South"]
+    return args + games.options(game.key, settings)
+
+
+def main():
+    if len(sys.argv) < 2:
+        print("usage: ps5-launch GAME [options...]", file=sys.stderr)
+        return 2
+    path = sys.argv[1]
+    extra = sys.argv[2:]
+    game = system.Game(path)
+    settings = store.Settings()
+    games = store.Games()
+
+    mounts = "/data=" + system.DATA_DIR
+    if system.mounted(system.USB_MOUNT):
+        mounts += ";/mnt/usb0=" + system.USB_MOUNT
+    os.environ["KYTY_MOUNTS"] = mounts
+    # KytyPS5 (SDL) would hide its full-screen window when the screenshot notice takes the focus.
+    os.environ["SDL_VIDEO_MINIMIZE_ON_FOCUS_LOSS"] = "0"
+    if settings["fps_counter"]:
+        os.environ["KYTY_FPS_COUNTER"] = "1"     # Patch 0005: FPS in the bottom-left corner.
+    os.makedirs(system.DATA_DIR, exist_ok=True)
+    os.makedirs(WORK, exist_ok=True)
+    os.chdir(WORK)
+
+    args = [KYTY, "--game", path, "--fullscreen", "--hide-cursor"] + kyty_options(settings, games, game) + extra
+    print("ps5-launch: " + " ".join(args), flush=True)
+    try:
+        os.remove(PAUSED)
+    except OSError:
+        pass
+    started = time.monotonic()
+    child = subprocess.Popen(args)
+    # A stop request for the launcher goes to the game.
+    for sig in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP):
+        signal.signal(sig, lambda number, _frame: child.send_signal(number))
+    state = {"pid": child.pid, "path": path, "title": game.title, "key": game.key}
+    try:
+        store.write_private(STATE, json.dumps(state) + "\n")
+    except OSError:
+        pass
+    code = child.wait()
+    played = time.monotonic() - started
+    try:
+        with open(PAUSED) as f:
+            played -= float(f.read().strip() or 0)
+    except (OSError, ValueError):
+        pass
+    if played > 5:
+        games.add_play_time(game.key, played)
+    return 128 - code if code < 0 else code
+
+
+if __name__ == "__main__":
+    sys.exit(main())

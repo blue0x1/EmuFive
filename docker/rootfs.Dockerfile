@@ -19,7 +19,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         bluez \
         xserver-xorg-core xserver-xorg-input-libinput xinit x11-xserver-utils xterm \
         matchbox-window-manager \
-        pipewire pipewire-pulse pipewire-alsa wireplumber \
+        pipewire pipewire-pulse pipewire-alsa wireplumber libspa-0.2-bluetooth \
         libgl1 libegl1 libgles2 libvulkan1 libgl1-mesa-dri libglx-mesa0 libegl-mesa0 \
         vulkan-tools fonts-dejavu-core libasound2t64 libpulse0 libxkbcommon-x11-0 \
         libx11-6 libx11-xcb1 libxcursor1 libxext6 libxfixes3 libxi6 libxrandr2 libxss1 libxtst6 \
@@ -49,20 +49,28 @@ RUN useradd -m -s /bin/bash -G sudo,video,render,input,audio,netdev,plugdev "$US
  && echo "LANG=C.UTF-8" > /etc/default/locale
 
 COPY overlay/ /
-RUN chmod 0440 /etc/sudoers.d/ps5-poweroff /etc/sudoers.d/ps5-network && visudo -c \
+RUN chmod 0440 /etc/sudoers.d/ps5-poweroff /etc/sudoers.d/ps5-network /etc/sudoers.d/ps5-admin \
+ && visudo -c \
  && chown -R "$USER_NAME:$USER_NAME" "/home/$USER_NAME"
 
 # Bluetooth powers on at boot; ps5-pad-pair pairs controllers held in pairing
 # mode (SHARE + PS), so they work without a cable.
 # IdleTimeout=0: a connected controller stays connected while it is not used.
+# FastConnectable: a paired controller reconnects quickly (PS button).
 RUN sed -i 's/^#AutoEnable=.*/AutoEnable=true/' /etc/bluetooth/main.conf \
  && grep -q '^AutoEnable=true' /etc/bluetooth/main.conf \
  && sed -i 's/^#IdleTimeout=.*/IdleTimeout=0/' /etc/bluetooth/input.conf \
- && grep -q '^IdleTimeout=0' /etc/bluetooth/input.conf
+ && grep -q '^IdleTimeout=0' /etc/bluetooth/input.conf \
+ && sed -i 's/^#FastConnectable *=.*/FastConnectable = true/' /etc/bluetooth/main.conf \
+ && grep -q '^FastConnectable = true' /etc/bluetooth/main.conf
 
-# Unique SSH host keys and machine-id per install; services.
+# Unique SSH host keys and machine-id per install; services. SSH starts off: the
+# password is the published default until changed in Settings, Advanced, which
+# asks for a new one before it turns SSH on.
 RUN rm -f /etc/ssh/ssh_host_* \
  && : > /etc/machine-id && rm -f /var/lib/dbus/machine-id \
- && systemctl enable ps5-hostkeys.service NetworkManager.service ssh.service systemd-timesyncd.service \
+ && systemctl enable ps5-hostkeys.service NetworkManager.service systemd-timesyncd.service \
         bluetooth.service ps5-pad-pair.service ps5-ps4-drive.service \
- && systemctl set-default multi-user.target
+ && systemctl disable ssh.service \
+ && systemctl set-default multi-user.target \
+ && date -u +%Y-%m-%d > /etc/ps5-on-ps4-release

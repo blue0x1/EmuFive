@@ -1,0 +1,77 @@
+#!/bin/sh
+# Copyright (C) 2026 Chokri Hammedi (blue0x1) <https://github.com/blue0x1>
+# The few things the home screen needs root for, each one checked here. The PS5
+# user runs it with sudo and no password (/etc/sudoers.d/ps5-admin).
+#   ps5-admin ssh on|off            SSH login on or off (now and at boot)
+#   ps5-admin timezone ZONE         the time zone, for example Europe/Istanbul
+#   ps5-admin eject                 unmount the USB drive so it can be unplugged
+#   ps5-admin reboot                restart the PS4
+#   ps5-admin pair                  look for new controllers for 60 seconds
+#   ps5-admin forget MAC            remove a paired Bluetooth controller
+#   ps5-admin default-password      "yes" while the ps5 password is still "ps5"
+#   ps5-admin lightbar R G B        the light bar color of the connected controllers (0-255 each)
+set -u
+PATH=/usr/sbin:/usr/bin:/sbin:/bin
+export LC_ALL=C
+USB=/media/ps5-usb
+
+die() { echo "$*" >&2; exit 1; }
+
+case "${1:-}" in
+ssh)
+    case "${2:-}" in
+    on)  systemctl enable --now ssh.service >/dev/null 2>&1 || die "Could not start SSH." ;;
+    off) systemctl disable --now ssh.service >/dev/null 2>&1 || die "Could not stop SSH." ;;
+    *)   die "ssh on|off" ;;
+    esac
+    ;;
+timezone)
+    zone="${2:-}"
+    printf '%s' "$zone" | grep -Eq '^[A-Za-z0-9_+-]+(/[A-Za-z0-9_+-]+){0,2}$' || die "Not a time zone: $zone"
+    [ -f "/usr/share/zoneinfo/$zone" ] || die "Not a time zone: $zone"
+    timedatectl set-timezone "$zone" || die "Could not set the time zone."
+    ;;
+eject)
+    grep -q " $USB " /proc/mounts || die "No USB drive is mounted."
+    sync
+    systemd-umount "$USB" 2>/dev/null || umount "$USB" || die "The USB drive is in use. Close the game first."
+    echo "You can unplug the USB drive."
+    ;;
+reboot)
+    systemctl reboot
+    ;;
+pair)
+    mkdir -p /run/ps5-pad-pair
+    echo $(( $(date +%s) + 60 )) > /run/ps5-pad-pair/search-until
+    ;;
+forget)
+    mac="${2:-}"
+    printf '%s' "$mac" | grep -Eq '^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$' || die "Not a controller address: $mac"
+    bluetoothctl remove "$mac" >/dev/null 2>&1 || die "Could not remove $mac."
+    ;;
+lightbar)
+    for v in "${2:-}" "${3:-}" "${4:-}"; do
+        printf '%s' "$v" | grep -Eq '^[0-9]{1,3}$' && [ "$v" -le 255 ] || die "lightbar R G B (0-255)"
+    done
+    found=0
+    for led in /sys/class/leds/input*:red; do
+        [ -e "$led" ] || continue
+        base="${led%:red}"
+        grep -q "DRIVER=playstation" "$base:red/device/uevent" 2>/dev/null || continue
+        echo "$2" > "$base:red/brightness"
+        echo "$3" > "$base:green/brightness"
+        echo "$4" > "$base:blue/brightness"
+        [ -e "$base:global/brightness" ] && echo 1 > "$base:global/brightness"
+        found=1
+    done
+    [ $found = 1 ] || die "No controller light bar found."
+    ;;
+default-password)
+    hash="$(getent shadow ps5 | cut -d: -f2)"
+    [ -n "$hash" ] || die "No password entry for ps5."
+    perl -e 'my ($h) = @ARGV; print crypt("ps5", $h) eq $h ? "yes\n" : "no\n"' "$hash"
+    ;;
+*)
+    die "usage: ps5-admin ssh on|off | timezone ZONE | eject | reboot | pair | forget MAC | lightbar R G B | default-password"
+    ;;
+esac

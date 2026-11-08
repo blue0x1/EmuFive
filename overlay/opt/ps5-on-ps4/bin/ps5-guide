@@ -1,0 +1,282 @@
+#!/usr/bin/env python3
+# Copyright (C) 2026 Chokri Hammedi (blue0x1) <https://github.com/blue0x1>
+# The PS button and screenshots, for the whole session. Started by ps5-session.
+#
+# PS button during a game (when it is released, and no other button was pressed meanwhile):
+# pauses the game (SIGSTOP), so it gets no input and uses no CPU, and opens the quick menu
+# (ps5-home --quick-menu) over it:
+#   Resume             the game goes on
+#   Home               the home screen (ps5-home --suspended); the game stays paused in the
+#                      background and comes back from there. Starting another game asks first,
+#                      then closes this one.
+#   Close the game, Restart, Turn off
+# On the home screen, the home screen answers the PS button itself.
+#
+# Screenshots, anywhere: PS + Square, or Share (Create on a DualSense). Saved in PS5-screenshots on
+# the USB drive (or ~/Screenshots without one), with a notification.
+#
+# It reads the controllers' input devices directly (evdev), so it works whatever the game does with
+# the controller.
+import json
+import os
+import select
+import signal
+import struct
+import subprocess
+import sys
+import threading
+import time
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "lib"))
+from ps5 import system  # noqa: E402
+
+BIN = os.path.dirname(os.path.realpath(__file__))
+HOME = os.path.join(BIN, "ps5-home")
+NOTIFY = os.path.join(BIN, "ps5-notify")
+STATE = os.path.join(system.RUNTIME, "ps5-game.json")
+CLOSED = os.path.join(system.RUNTIME, "ps5-game-closed")    # Read by ps5-session.
+PAUSED = os.path.join(system.RUNTIME, "ps5-game-paused")    # Seconds paused, read by ps5-launch.
+EV_KEY = 0x01
+BTN_WEST, BTN_SELECT, BTN_MODE = 0x134, 0x13a, 0x13c        # Square, Share, PS
+EVENT = struct.Struct("llHHi")
+
+
+def log(text):
+    print("ps5-guide: " + text, flush=True)
+
+
+def has_ps_button(event_dir):
+    """True for a controller's main input device (it has BTN_MODE)."""
+    try:
+        with open(os.path.join(event_dir, "device", "capabilities", "key")) as f:
+            words = f.read().split()
+    except OSError:
+        return False
+    # Hex words, most significant first, 64 bits each (long on x86-64).
+    index = len(words) - 1 - BTN_MODE // 64
+    return 0 <= index < len(words) and bool(int(words[index], 16) >> (BTN_MODE % 64) & 1)
+
+
+def controller_devices():
+    found = []
+    for name in os.listdir("/sys/class/input"):
+        if not name.startswith("event"):
+            continue
+        event_dir = os.path.join("/sys/class/input", name)
+        try:
+            with open(os.path.join(event_dir, "device", "name")) as f:
+                device_name = f.read().strip()
+        except OSError:
+            continue
+        if ("Controller" in device_name or "DualSense" in device_name) and has_ps_button(event_dir):
+            found.append("/dev/input/" + name)
+    return found
+
+
+def running_game():
+    """The game's state ({pid, path, title}) while KytyPS5 runs, else None."""
+    try:
+        with open(STATE) as f:
+            state = json.load(f)
+        pid = int(state["pid"])
+        with open(f"/proc/{pid}/cmdline", "rb") as f:
+            if b"kyty_emulator" not in f.read():
+                return None
+        return state
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+
+
+class Guide:
+    def __init__(self):
+        self.files = {}           # path -> file object
+        self.last_scan = 0.0
+        self.ps_down = False
+        self.ps_combo = False
+        self.menu = None          # The quick menu or the suspended home screen (a process).
+        self.menu_kind = None
+        self.state = None         # The paused game.
+        self.paused_at = None
+        self.last_shot = 0.0
+
+    # The game ---------------------------------------------------------------------------------
+
+    def pause(self, state):
+        try:
+            os.kill(int(state["pid"]), signal.SIGSTOP)
+        except ProcessLookupError:
+            return False
+        self.state = state
+        self.paused_at = time.monotonic()
+        return True
+
+    def resume(self):
+        if self.state is None:
+            return
+        self.count_paused()
+        try:
+            os.kill(int(self.state["pid"]), signal.SIGCONT)
+        except ProcessLookupError:
+            pass
+        self.state = None
+
+    def count_paused(self):
+        if self.paused_at is None:
+            return
+        seconds = time.monotonic() - self.paused_at
+        self.paused_at = None
+        try:
+            with open(PAUSED) as f:
+                seconds += float(f.read().strip() or 0)
+        except (OSError, ValueError):
+            pass
+        try:
+            with open(PAUSED, "w") as f:
+                f.write(f"{seconds:.1f}\n")
+        except OSError:
+            pass
+
+    def close(self, why):
+        """Ends the paused game; `why` tells ps5-session what comes next (closed, poweroff, reboot,
+        play:<another game>)."""
+        if self.state is None:
+            return
+        self.count_paused()
+        pid = int(self.state["pid"])
+        self.state = None
+        with open(CLOSED, "w") as f:
+            f.write(why + "\n")
+        for sig in (signal.SIGCONT, signal.SIGTERM):
+            try:
+                os.kill(pid, sig)
+            except ProcessLookupError:
+                return
+        for _ in range(50):
+            time.sleep(0.1)
+            if not os.path.exists(f"/proc/{pid}"):
+                return
+        try:
+            os.kill(pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+
+    # Menus ------------------------------------------------------------------------------------
+
+    def open(self, kind):
+        args = [sys.executable, HOME, "--quick-menu" if kind == "quick" else "--suspended", self.state["path"]]
+        self.menu = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        self.menu_kind = kind
+
+    def menu_done(self):
+        out, err = self.menu.communicate()
+        result = out.strip().splitlines()[-1] if out.strip() else ""
+        if self.menu.returncode != 0:
+            log("menu failed: " + err.strip()[-300:])
+        kind = self.menu_kind
+        self.menu = None
+        self.menu_kind = None
+        log(f"{kind}: {result or 'RESUME'}")
+        if result == "HOME":
+            self.open("home")
+        elif result == "RELOAD" and kind == "home":
+            self.open("home")                      # Settings changed the appearance.
+        elif result == "CLOSE":
+            self.close("closed")
+        elif result in ("POWEROFF", "REBOOT"):
+            self.close(result.lower())
+        elif result.startswith("PLAY "):
+            self.close("play:" + result[5:])       # The home screen asked first.
+        else:
+            self.resume()
+
+    def ps_button(self):
+        if self.menu is not None:
+            return                                 # The menu answers the PS button itself.
+        state = running_game()
+        if state is not None and self.pause(state):
+            log(f"PS button: pausing {state.get('title', '?')}")
+            self.open("quick")
+
+    # Screenshots ------------------------------------------------------------------------------
+
+    def screenshot(self):
+        now = time.monotonic()
+        if now - self.last_shot < 1.5:
+            return
+        self.last_shot = now
+
+        def work():
+            from ps5 import capture
+            state = running_game() or self.state
+            title = (state or {}).get("title") or "Home screen"
+            safe = "".join(ch for ch in title if ch.isalnum() or ch in " -_").strip() or "Screenshot"
+            folder = os.path.join(system.screenshot_dir(), safe)
+            path = os.path.join(folder, time.strftime("%Y-%m-%d %H-%M-%S") + ".png")
+            ok = capture.capture(path)
+            where = "PS5-screenshots on the USB drive" if path.startswith(system.USB_MOUNT) else "~/Screenshots"
+            log(f"screenshot {'saved: ' + path if ok else 'failed'}")
+            args = [sys.executable, NOTIFY, "Screenshot saved" if ok else "Screenshot failed",
+                    f"{title}  ·  {where}" if ok else "The screen could not be read."]
+            if ok:
+                args += ["--picture", path]
+            subprocess.Popen(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+        threading.Thread(target=work, daemon=True).start()
+
+    # Input ------------------------------------------------------------------------------------
+
+    def key(self, code, value):
+        if code == BTN_MODE:
+            if value == 1:
+                self.ps_down, self.ps_combo = True, False
+            elif value == 0 and self.ps_down:
+                self.ps_down = False
+                if not self.ps_combo:
+                    self.ps_button()
+        elif value == 1:
+            if self.ps_down:
+                self.ps_combo = True
+                if code == BTN_WEST:
+                    self.screenshot()
+            elif code == BTN_SELECT:
+                self.screenshot()
+
+    def run(self):
+        while True:
+            now = time.monotonic()
+            if now - self.last_scan > 2.0:
+                self.last_scan = now
+                wanted = set(controller_devices())
+                for path in list(self.files):
+                    if path not in wanted:
+                        self.files.pop(path).close()
+                for path in wanted - set(self.files):
+                    try:
+                        self.files[path] = open(path, "rb", buffering=0)
+                    except OSError:
+                        pass
+            if self.menu is not None and self.menu.poll() is not None:
+                self.menu_done()
+            if not self.files:
+                time.sleep(0.5)
+                continue
+            ready, _, _ = select.select(list(self.files.values()), [], [], 0.2)
+            for f in ready:
+                try:
+                    data = f.read(EVENT.size * 64)
+                except OSError:
+                    data = b""
+                if not data:
+                    for path, g in list(self.files.items()):
+                        if g is f:
+                            self.files.pop(path).close()
+                    continue
+                for offset in range(0, len(data) - EVENT.size + 1, EVENT.size):
+                    _, _, kind, code, value = EVENT.unpack_from(data, offset)
+                    if kind == EV_KEY:
+                        self.key(code, value)
+
+
+if __name__ == "__main__":
+    signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
+    sys.exit(Guide().run())

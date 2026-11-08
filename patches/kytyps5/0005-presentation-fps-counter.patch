@@ -1,0 +1,145 @@
+From: Chokri Hammedi <52697989+blue0x1@users.noreply.github.com>
+Subject: [PATCH] presentation: a small FPS counter in the bottom-left corner
+
+KYTY_FPS_COUNTER=1 shows the game's frames per second in a small box in the
+bottom-left corner, green, yellow or red like the performance panel. It only
+counts the guest's flips, so it costs next to nothing, unlike the full panel
+(--perf-overlay), and it hides while that panel shows. The PS5 on PS4 home
+screen turns it on with "Show FPS counter" in Settings.
+---
+diff --git a/src/graphics/presentation/performanceOverlay.cpp b/src/graphics/presentation/performanceOverlay.cpp
+index 0c94749..64b7d2a 100644
+--- a/src/graphics/presentation/performanceOverlay.cpp
++++ b/src/graphics/presentation/performanceOverlay.cpp
+@@ -13,6 +13,7 @@
+ #include <chrono>
+ #include <condition_variable>
+ #include <cstdarg>
++#include <cstdlib>
+ #include <cstdio>
+ #include <mutex>
+ #include <optional>
+@@ -745,7 +746,12 @@ void DrawMemoryAndIo(const Snapshot& shown) {
+ 
+ } // namespace
+ 
++std::atomic<uint64_t> g_fps_flips {0};
++
+ void PerformanceOverlayRecordFlip(uint32_t guest_width, uint32_t guest_height) noexcept {
++	if (FpsCounterEnabled()) {
++		g_fps_flips.fetch_add(1, std::memory_order_relaxed);
++	}
+ 	if (!Common::DebugCounters::Enabled()) {
+ 		return;
+ 	}
+@@ -892,4 +898,58 @@ float DrawPerformanceOverlay(const GraphicContext& graphics, vk::Extent2D extent
+ 	return bottom;
+ }
+ 
++bool FpsCounterEnabled() noexcept {
++	static const bool enabled = [] {
++		const char* value = std::getenv("KYTY_FPS_COUNTER");
++		return value != nullptr && *value != '\0' && std::string(value) != "0";
++	}();
++	return enabled;
++}
++
++void DrawFpsCounter(vk::Extent2D extent) {
++	if (!FpsCounterEnabled() || PerformanceOverlayEnabled()) {
++		return;
++	}
++	static Clock::time_point window_start {};
++	static uint64_t          window_flips = 0;
++	static double            fps          = -1.0;
++	const auto               now          = Clock::now();
++	const uint64_t           flips        = g_fps_flips.load(std::memory_order_relaxed);
++	if (window_start == Clock::time_point {}) {
++		window_start = now;
++		window_flips = flips;
++	}
++	const double seconds = std::chrono::duration<double>(now - window_start).count();
++	if (seconds >= 0.5) {
++		fps          = static_cast<double>(flips - window_flips) / seconds;
++		window_start = now;
++		window_flips = flips;
++	}
++
++	const float scale = std::clamp(std::min(static_cast<float>(extent.width) / 1920.0f,
++	                                        static_cast<float>(extent.height) / 1080.0f),
++	                               0.75f, 1.5f);
++	ImGui::SetNextWindowPos({14.0f * scale, static_cast<float>(extent.height) - 14.0f * scale},
++	                        ImGuiCond_Always, {0.0f, 1.0f});
++	ImGui::SetNextWindowBgAlpha(0.55f);
++	constexpr ImGuiWindowFlags FLAGS =
++	    ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoNav |
++	    ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings |
++	    ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoBringToFrontOnFocus |
++	    ImGuiWindowFlags_AlwaysAutoResize;
++	ImGui::PushFont(nullptr, 18.0f * scale);
++	ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 6.0f * scale);
++	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, {9.0f * scale, 4.0f * scale});
++	if (ImGui::Begin("##kyty_fps_counter", nullptr, FLAGS)) {
++		if (fps < 0.0) {
++			ImGui::TextDisabled("-- FPS");
++		} else {
++			ImGui::TextColored(Color(FrameTimeColor(fps > 0.0 ? 1000.0 / fps : 1000.0)), "%.0f FPS", fps);
++		}
++	}
++	ImGui::End();
++	ImGui::PopStyleVar(2);
++	ImGui::PopFont();
++}
++
+ } // namespace Libs::Graphics
+diff --git a/src/graphics/presentation/performanceOverlay.h b/src/graphics/presentation/performanceOverlay.h
+index 8b7b318..852595a 100644
+--- a/src/graphics/presentation/performanceOverlay.h
++++ b/src/graphics/presentation/performanceOverlay.h
+@@ -25,6 +25,12 @@ void TogglePerformanceOverlayDetails() noexcept;
+ // edge, or 0 when hidden.
+ float DrawPerformanceOverlay(const GraphicContext& graphics, vk::Extent2D extent);
+ 
++// A small frames-per-second counter in the bottom-left corner, on when the environment variable
++// KYTY_FPS_COUNTER is set (and not 0). It counts guest flips only, so it costs next to nothing,
++// and is hidden while the performance panel shows. Draw between NewFrame() and Render().
++[[nodiscard]] bool FpsCounterEnabled() noexcept;
++void               DrawFpsCounter(vk::Extent2D extent);
++
+ } // namespace Libs::Graphics
+ 
+ #endif // EMULATOR_SRC_GRAPHICS_PRESENTATION_PERFORMANCEOVERLAY_H_
+diff --git a/src/graphics/presentation/systemOverlay.cpp b/src/graphics/presentation/systemOverlay.cpp
+index efee498..ad9ea2c 100644
+--- a/src/graphics/presentation/systemOverlay.cpp
++++ b/src/graphics/presentation/systemOverlay.cpp
+@@ -1802,7 +1802,8 @@ struct SystemOverlay::Impl {
+ 		const auto now = Clock::now();
+ 		if (!has_overlay && !g_trophy_notification_active.load(std::memory_order_acquire) &&
+ 		    !g_splash_active.load(std::memory_order_acquire) &&
+-		    !GetHostInputTouchPadVisualState().enabled && !PerformanceOverlayEnabled()) {
++		    !GetHostInputTouchPadVisualState().enabled && !PerformanceOverlayEnabled() &&
++		    !FpsCounterEnabled()) {
+ 			return false;
+ 		}
+ 		const auto prepared_session = snapshot.session;
+@@ -1834,6 +1835,7 @@ struct SystemOverlay::Impl {
+ 		ImGui::NewFrame();
+ 		DrawSplash(frame_extent);
+ 		const float performance_bottom = DrawPerformanceOverlay(graphics, frame_extent);
++		DrawFpsCounter(frame_extent);
+ 		GetOverlaySnapshot(&snapshot);
+ 		if (has_overlay && snapshot.session == prepared_session) {
+ 			if (snapshot.session.kind == OverlayKind::Dialog) {
+diff --git a/src/graphics/presentation/window/swapchain.cpp b/src/graphics/presentation/window/swapchain.cpp
+index bed2fbc..cd185b7 100644
+--- a/src/graphics/presentation/window/swapchain.cpp
++++ b/src/graphics/presentation/window/swapchain.cpp
+@@ -1065,7 +1065,7 @@ void Presenter::Impl::Present() {
+ 		auto&      command = present_scheduler.BeginCommand();
+ 		const bool draw_system_overlay = [&] {
+ 			ScopedTimer overlay_time(Counter::OverlayNs);
+-			return (overlay_visual.active || PerformanceOverlayEnabled()) &&
++			return (overlay_visual.active || PerformanceOverlayEnabled() || FpsCounterEnabled()) &&
+ 			       swapchain.PrepareSystemOverlay();
+ 		}();
+ 		swapchain.RecordPresentCommands(command, layers[0].frame, layers[1],

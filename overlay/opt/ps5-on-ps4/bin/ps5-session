@@ -2,10 +2,13 @@
 # Copyright (C) 2026 Chokri Hammedi (blue0x1) <https://github.com/blue0x1>
 # The X session, with no keyboard needed:
 #   - The home screen (ps5-home) lists the games from the USB drive, the PS4
-#     drive and a PC's shared folder (see ps5-home). Picking one runs it in
-#     KytyPS5, full screen; when the game ends, the home screen comes back,
-#     with the reason if it stopped with an error.
-#   - Power off in the home screen turns the PS4 off.
+#     drive and a PC's shared folder. Picking one runs it in KytyPS5
+#     (ps5-launch), full screen; when the game ends, the home screen comes
+#     back, with the reason if it stopped with an error.
+#   - The PS button during a game opens the quick menu (ps5-guide): Resume,
+#     Home (the game waits, paused), Close game, controller, sound, power.
+#     PS + Square or Share takes a screenshot.
+#   - Power off and Restart in the home screen do that.
 #   - With PS5_GAME set in /etc/ps5-on-ps4.conf, that game runs straight away
 #     instead, and PS5_POWEROFF_ON_EXIT decides what happens when it ends.
 PS5_GAME=
@@ -13,19 +16,21 @@ PS5_KYTY_OPTIONS=
 PS5_POWEROFF_ON_EXIT=yes
 [ -f /etc/ps5-on-ps4.conf ] && . /etc/ps5-on-ps4.conf
 
-KYTY=/opt/kytyps5/kyty_emulator
-HOME_SCREEN=/opt/ps5-on-ps4/bin/ps5-home
+BIN=/opt/ps5-on-ps4/bin
+HOME_SCREEN=$BIN/ps5-home
 USB=/media/ps5-usb
-DATA="$HOME/data"       # the games' /data (settings, saves)
-WORK="$HOME/.kytyps5"   # the emulator's own files (shader caches, temporary data)
 LOG="$HOME/kytyps5.log" # this run; the run before is kytyps5.log.1
+RUNTIME="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+CLOSED="$RUNTIME/ps5-game-closed"   # written by ps5-guide: closed, poweroff or reboot
 TERM_UI="xterm -fullscreen -bg black -fg white -fa DejaVuSansMono -fs 16"
 
 # KytyPS5 needs sparse resources, which RADV only offers on the PS4 GPU with
 # this switch.
 export RADV_EXPERIMENTAL=sparse
-
-mkdir -p "$DATA" "$WORK"
+# Full-screen SDL windows (home screen, KytyPS5) stay shown when another window
+# takes the focus (the screenshot notice); this window manager cannot show a
+# hidden one again.
+export SDL_VIDEO_MINIMIZE_ON_FOCUS_LOSS=0
 
 # Shows a message full screen for some seconds (only if the home screen fails).
 message() {  # seconds text
@@ -37,24 +42,38 @@ poweroff() {
     exit 0
 }
 
-# Runs one game; sets $rc and $reason.
+reboot() {
+    sudo -n "$BIN/ps5-admin" reboot
+    exit 0
+}
+
+# Runs one game; sets $rc, $reason and $closed (how the quick menu ended it).
 run_game() {  # path
-    mounts="/data=$DATA"
-    grep -q " $USB " /proc/mounts && mounts="$mounts;/mnt/usb0=$USB"
     [ -f "$LOG" ] && mv -f "$LOG" "$LOG.1"
+    rm -f "$CLOSED"
     # shellcheck disable=SC2086
-    (cd "$WORK" && KYTY_MOUNTS="$mounts" exec "$KYTY" --game "$1" --fullscreen --hide-cursor $PS5_KYTY_OPTIONS) > "$LOG" 2>&1
+    python3 "$BIN/ps5-launch" "$1" $PS5_KYTY_OPTIONS > "$LOG" 2>&1 &
+    wait $!
     rc=$?
+    rm -f "$RUNTIME/ps5-game.json"
+    closed=""
+    [ -f "$CLOSED" ] && closed="$(cat "$CLOSED")" && rm -f "$CLOSED"
     reason=""
-    if [ $rc -ne 0 ]; then
+    if [ $rc -ne 0 ] && [ -z "$closed" ]; then
         reason="$(grep -A2 -- '--- .*Error ---' "$LOG" | tail -n 2 | tr '\n' ' ')"
         [ -n "$reason" ] || reason="$(tail -n 3 "$LOG" | tr '\n' ' ')"
     fi
+    case "$closed" in
+        poweroff) poweroff ;;
+        reboot) reboot ;;
+    esac
 }
 
 xset s off -dpms 2>/dev/null
 # Kiosk window manager: every window full screen, no title bars.
 matchbox-window-manager -use_titlebar no -use_cursor no &
+# The PS button and screenshots.
+python3 "$BIN/ps5-guide" > "$HOME/.ps5-guide.log" 2>&1 &
 
 # A fixed game (PS5_GAME): run it; the home screen is not used. (The home
 # screen needs no wait: it finds a drive whenever it is mounted.)
@@ -63,7 +82,7 @@ if [ -n "$PS5_GAME" ]; then
     i=0; while [ $i -lt 10 ] && ! grep -q " $USB " /proc/mounts; do sleep 1; i=$((i + 1)); done
     while :; do
         run_game "$PS5_GAME"
-        if [ $rc -eq 0 ]; then
+        if [ $rc -eq 0 ] || [ -n "$closed" ]; then
             [ "$PS5_POWEROFF_ON_EXIT" = yes ] && poweroff
             continue
         fi
@@ -81,13 +100,28 @@ while :; do
     "PLAY "*)
         failures=0
         game="${choice#PLAY }"
-        run_game "$game"
-        if [ $rc -ne 0 ]; then
-            note="The game stopped (error code $rc). $reason The log is ~/kytyps5.log."
-        fi
+        while [ -n "$game" ]; do
+            run_game "$game"
+            game=""
+            if [ $rc -ne 0 ] && [ -z "$closed" ]; then
+                note="The game stopped (error code $rc). $reason The log is ~/kytyps5.log."
+            fi
+            # Another game was started from the home screen while this one was paused (Home in
+            # the PS button menu): it comes straight after.
+            case "$closed" in
+                play:*) game="${closed#play:}" ;;
+            esac
+        done
         ;;
     POWEROFF)
         poweroff
+        ;;
+    REBOOT)
+        reboot
+        ;;
+    RELOAD)
+        # A live update asked the home screen to start again (SIGUSR1).
+        failures=0
         ;;
     *)
         # The home screen itself failed: say so, and try again; turn off after 3 times.

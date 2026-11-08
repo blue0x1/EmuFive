@@ -3,13 +3,37 @@
 # Pairs PlayStation controllers over Bluetooth with no screens: hold SHARE + PS
 # (DualShock 4) or Create + PS (DualSense) until the light bar double-blinks.
 # A paired controller reconnects by itself when its PS button is pressed.
-# While a controller is connected over Bluetooth, it does not search, so Wi-Fi
-# (the same chip on the PS4) keeps its full speed.
+#
+# It searches for new controllers only when none is paired yet, or for 60
+# seconds after "Pair a new controller" in Settings (ps5-admin pair). While
+# it searches, the PS4's Bluetooth (one chip with the Wi-Fi) answers a
+# controller that tries to reconnect late or not at all, so a paired
+# controller must not find it searching.
 NAMES='Wireless Controller'
+REQUEST=/run/ps5-pad-pair/search-until
 
 log() { echo "ps5-pad-pair: $*"; }
 
-bluetoothctl power on > /dev/null 2>&1
+# A paired controller connects back to the PS4 by itself (PS button). The
+# kernel listens for paired controllers (page scan); fast-connectable makes it
+# answer quickly, and connectable lets any paired device in. This is checked
+# again every minute (the settings reset when Bluetooth restarts).
+# btmgmt quits before it sends anything when its input is already at the end
+# (< /dev/null), so it gets an input that stays open a second; and it can wait
+# forever for an answer, hence the time limit.
+mgmt() { sleep 1 | timeout 5 btmgmt "$@" 2>&1; }
+make_connectable() {
+    bluetoothctl power on > /dev/null 2>&1
+    bluetoothctl pairable on > /dev/null 2>&1
+    mgmt connectable on > /dev/null
+    mgmt fast-conn on > /dev/null
+}
+fast_connectable() {
+    settings="$(mgmt info | grep "current settings")"
+    echo "$settings" | grep -Eq "(^| )connectable( |$)" && echo "$settings" | grep -q "fast-connectable"
+}
+make_connectable
+checked=$(date +%s)
 
 # A pairing agent that stays registered for as long as this runs. Without one,
 # the controller pairs but no key is saved ("Bonded: no"), and BlueZ then
@@ -18,15 +42,35 @@ bluetoothctl power on > /dev/null 2>&1
     | bluetoothctl > /dev/null 2>&1 &
 sleep 2
 
+paired_controllers() {
+    bluetoothctl devices Paired 2>/dev/null | grep -c "$NAMES"
+}
+
+search_requested() {
+    [ -f "$REQUEST" ] || return 1
+    until="$(cat "$REQUEST" 2>/dev/null)"
+    [ -n "$until" ] && [ "$(date +%s)" -lt "$until" ] && return 0
+    rm -f "$REQUEST"
+    return 1
+}
+
 while :; do
-    if bluetoothctl devices Connected 2>/dev/null | grep -q "$NAMES"; then
-        sleep 10
-        continue
+    if [ $(( $(date +%s) - checked )) -ge 60 ]; then
+        checked=$(date +%s)
+        fast_connectable || { log "Bluetooth settings were reset; setting them again"; make_connectable; }
+    fi
+    if ! search_requested; then
+        if [ "$(paired_controllers)" -gt 0 ] || \
+           bluetoothctl devices Connected 2>/dev/null | grep -q "$NAMES"; then
+            sleep 3
+            continue
+        fi
     fi
 
     # Search for a few seconds, then try the controllers that showed up and are
     # not bonded yet. (BlueZ clears their signal strength when the search
     # stops, so it cannot tell which ones answered just now.)
+    log "searching for controllers"
     bluetoothctl --timeout 10 scan on > /dev/null 2>&1
     bluetoothctl devices 2>/dev/null | grep "$NAMES" | while read -r _ mac _; do
         bluetoothctl info "$mac" 2>/dev/null | grep -q "Bonded: yes" && continue
@@ -38,10 +82,11 @@ while :; do
         if bluetoothctl info "$mac" 2>/dev/null | grep -q "Bonded: yes"; then
             bluetoothctl connect "$mac" > /dev/null 2>&1
             log "paired and connected $mac"
+            rm -f "$REQUEST"
         else
             log "could not pair $mac, trying again on the next search"
             bluetoothctl remove "$mac" > /dev/null 2>&1
         fi
     done
-    sleep 7
+    sleep 2
 done

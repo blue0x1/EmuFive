@@ -1,0 +1,3 @@
+# Copyright (C) 2026 Chokri Hammedi (blue0x1) <https://github.com/blue0x1>
+# The home screen's root helper (each action is checked in the script).
+ps5 ALL=(root) NOPASSWD: /opt/ps5-on-ps4/bin/ps5-admin

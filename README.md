@@ -67,7 +67,13 @@ scripts/build-rootfs.sh    # out/ps5-ps4-rootfs.tar.xz
 The system starts in the home screen and needs no keyboard:
 
 - The games show up as tiles, each labeled with where it is: **USB**, **PS4** or **PC**. Pick one and press Play; when it quits, the home screen comes back.
-- At the top: Wi-Fi (with an on-screen keyboard for the password) and Settings.
+- At the top: Wi-Fi (with an on-screen keyboard for the password) and Settings, and two tabs, **Games** and **Media** (L1 / R1). Media shows your screenshots; open one, and Square deletes it.
+- OPTIONS on a game: favorite, hide, its own settings, its trophies and how long you played it.
+- The PS button during a game pauses it and opens the quick menu: Resume, **Home** (the home screen, with the game still paused: PS or Resume goes back to it; starting another game asks first, then closes it), Close the game, volume, power.
+- Screenshots: PS + Square, or Share, also in a game. They go to `PS5-screenshots` on the USB drive (or `~/Screenshots` without one), with a small notice in the corner.
+- Settings, Appearance: accent color, theme (dark, midnight, light), background (the game's art, a gradient, a solid color or your own picture from the USB drive), background dim, floating orbs, animations, tile size and shape, text size and font, clock, what the top bar shows (the battery is the controller's), menu sounds, rumble, button hints, screen edges (overscan) and a screensaver.
+- Settings, Controllers: light bar color, vibration, swapping X and O, and a test page for every button and stick. Settings, Games: defaults for all games, game language, HDR and frame pacing. Settings, System: the menu language (English, Arabic, French, Turkish or Spanish), temperature and CPU load, back up the settings to the USB drive, or reset them all.
+- Menu languages: the translations are in `lib/ps5/translations.json`, one entry per English text. Arabic is right-aligned and drawn with DejaVu Sans; its letters are joined in `lib/ps5/i18n.py`, since SDL_ttf here does not join them.
 - The program sees the USB drive as `/mnt/usb0` and a folder of the system (`~/data`, kept between starts) as `/data`. For Snes9x PS5, ROMs go in `snes9x/roms` on the USB drive or in `~/data/snes9x/roms`.
 - If the emulator stops with an error, the home screen shows the reason.
 - `PS5_GAME` in `/etc/ps5-on-ps4.conf` runs one game straight away instead of the home screen.
