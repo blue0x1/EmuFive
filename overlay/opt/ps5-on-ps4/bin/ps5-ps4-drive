@@ -1,0 +1,25 @@
+#!/bin/sh
+# Copyright (C) 2026 Chokri Hammedi (blue0x1) <https://github.com/blue0x1>
+# Mounts the PS4's own drive (its user partition, /user on the PS4) read-only
+# at /media/ps4-drive, so the PS5 games put in /user/home/PS5 with GoldHEN FTP
+# show up in the home screen. PS4 Multiboot has already opened the drive as
+# /dev/mapper/ps4hdd (this system's image lives on it), and the PS4 system is
+# not running, so reading it is safe. Nothing on it is ever written here.
+# Started at boot by ps5-ps4-drive.service.
+MNT=/media/ps4-drive
+
+grep -q " $MNT " /proc/mounts && exit 0
+dev=/dev/mapper/ps4hdd
+if [ ! -b "$dev" ]; then
+    dev=""
+    for d in /sys/block/dm-*; do
+        [ "$(cat "$d/dm/name" 2>/dev/null)" = ps4hdd ] && dev="/dev/${d##*/}"
+    done
+fi
+if [ -z "$dev" ]; then
+    # Started from a USB drive install: the PS4 drive is not open.
+    echo "ps5-ps4-drive: the PS4 drive is not open; no games from it"
+    exit 0
+fi
+mkdir -p "$MNT"
+exec mount -t ufs -o ro,ufstype=ufs2,nosuid,nodev "$dev" "$MNT"

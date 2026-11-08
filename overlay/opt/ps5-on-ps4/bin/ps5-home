@@ -1,0 +1,1632 @@
+#!/usr/bin/env python3
+# Copyright (C) 2026 Chokri Hammedi (blue0x1) <https://github.com/blue0x1>
+# The PS5 on PS4 home screen: the PS5 games as a row of tiles over each game's
+# own art, Wi-Fi with an on-screen keyboard, Settings, and power off.
+# Everything works with a controller. The games come from:
+#   - the PS5 folder of the USB drive (/media/ps5-usb/PS5),
+#   - /user/home/PS5 on the PS4's own drive, put there with GoldHEN FTP
+#     (read-only at /media/ps4-drive, by ps5-ps4-drive),
+#   - a shared folder on a PC, Windows or Linux (Samba), set in Settings and
+#     opened with smbnetfs, since the PS4 kernel has no SMB client.
+#
+# It prints what to do and exits, so the emulator gets all the memory:
+#   PLAY <game folder>     start this game
+#   POWEROFF               turn the PS4 off
+#
+#   ps5-home [--games DIR] [--ps4-games DIR] [--pc-test DIR] [--message TEXT]
+#            [--windowed] [--dry-run-network]
+
+import argparse
+import array
+import errno
+import json
+import math
+import os
+import queue
+import random
+import subprocess
+import sys
+import threading
+import time
+
+os.environ.setdefault("PYGAME_HIDE_SUPPORT_PROMPT", "1")
+import pygame  # noqa: E402
+
+W, H = 1280, 720
+BG_W, BG_H = 1400, 788           # Backgrounds are a little larger than the screen, to drift.
+TILE, TILE_SEL = 104, 156        # Tile sizes, normal and selected.
+TILE_GAP = 18
+ROW_X, ROW_Y = 64, 104
+USB_GAMES = "/media/ps5-usb/PS5"
+PS4_GAMES = "/media/ps4-drive/home/PS5"
+PS4_GAMES_SHOWN = "/user/home/PS5"     # The same folder, as the PS4 and GoldHEN FTP name it.
+CONFIG_DIR = os.path.expanduser("~/.config/ps5-on-ps4")
+PC_SETTINGS = os.path.join(CONFIG_DIR, "pc-share.json")
+PC_MOUNT = os.path.expanduser("~/.pc-share")   # smbnetfs: PC_MOUNT/<address>/<share>
+SOURCE_COLORS = {"USB": (88, 150, 255), "PS4": (64, 64, 76), "PC": (46, 170, 120)}
+WHITE = (255, 255, 255)
+SOFT = (206, 203, 246)
+DIM = (150, 148, 180)
+INK = (20, 18, 46)
+
+FONT_FILES = [
+    "/usr/share/fonts/opentype/inter/Inter-Regular.otf",
+    "/usr/share/fonts/truetype/inter/Inter-Regular.ttf",
+    "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+]
+FONT_BOLD_FILES = [
+    "/usr/share/fonts/opentype/inter/Inter-SemiBold.otf",
+    "/usr/share/fonts/truetype/inter/Inter-SemiBold.ttf",
+    "/usr/share/fonts/truetype/noto/NotoSans-SemiBold.ttf",
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+]
+
+
+def first_existing(paths):
+    for path in paths:
+        if os.path.exists(path):
+            return path
+    return None
+
+
+def find_font(style):
+    """Inter in any of the file layouts Debian has used, else the fallbacks."""
+    import glob
+    for pattern in (f"/usr/share/fonts/*/inter/Inter-{style}.*", f"/usr/share/fonts/*/inter/Inter*{style}*.*"):
+        found = sorted(glob.glob(pattern))
+        if found:
+            return found[0]
+    return None
+
+
+class Text:
+    """Cached text rendering."""
+
+    def __init__(self):
+        self.regular = find_font("Regular") or first_existing(FONT_FILES)
+        self.bold = find_font("SemiBold") or first_existing(FONT_BOLD_FILES) or self.regular
+        self.fonts = {}
+        self.cache = {}
+
+    def font(self, size, bold):
+        key = (size, bold)
+        if key not in self.fonts:
+            self.fonts[key] = pygame.font.Font(self.bold if bold else self.regular, size)
+        return self.fonts[key]
+
+    def render(self, text, size, color=WHITE, bold=False):
+        key = (text, size, color, bold)
+        surface = self.cache.get(key)
+        if surface is None:
+            if len(self.cache) > 600:
+                self.cache.clear()
+            surface = self.font(size, bold).render(text, True, color)
+            self.cache[key] = surface
+        return surface
+
+    def wrap(self, text, size, width, bold=False):
+        font = self.font(size, bold)
+        lines, line = [], ""
+        for word in text.split():
+            test = (line + " " + word).strip()
+            if font.size(test)[0] <= width or not line:
+                line = test
+            else:
+                lines.append(line)
+                line = word
+        if line:
+            lines.append(line)
+        return lines
+
+
+def ease(current, target, rate, dt):
+    return current + (target - current) * min(1.0, rate * dt)
+
+
+# --------------------------------------------------------------------------------------------
+# Sounds, made here (no files): a tick when moving, a chime when choosing, a low note back.
+
+class Sounds:
+    def __init__(self):
+        self.ok = False
+        try:
+            pygame.mixer.init(44100, -16, 1, 512)
+            self.ok = True
+        except pygame.error:
+            return
+        self.move = self.tone([(1760, 0.035)], 0.18)
+        self.select = self.tone([(880, 0.06), (1318, 0.12)], 0.22)
+        self.back = self.tone([(660, 0.05), (440, 0.08)], 0.2)
+        self.error = self.tone([(300, 0.12), (220, 0.18)], 0.22)
+
+    @staticmethod
+    def tone(notes, volume):
+        rate = 44100
+        samples = array.array("h")
+        for frequency, length in notes:
+            count = int(rate * length)
+            for n in range(count):
+                t = n / rate
+                envelope = math.exp(-t * 18) * min(1.0, n / 120)
+                samples.append(int(32767 * volume * envelope * math.sin(2 * math.pi * frequency * t)))
+        return pygame.mixer.Sound(buffer=samples.tobytes())
+
+    def play(self, name):
+        if self.ok:
+            getattr(self, name).play()
+
+
+# --------------------------------------------------------------------------------------------
+# Games.
+
+class Game:
+    def __init__(self, path, source="USB", source_name="USB drive"):
+        self.path = path
+        self.source = source            # USB, PS4 or PC: the label on the tile.
+        self.source_name = source_name  # Shown under the title.
+        self.title = os.path.basename(path.rstrip("/"))
+        self.title_id = ""
+        self.version = ""
+        self.icon = None          # Loaded in the background.
+        self.backgrounds = []     # Up to two, BG_W x BG_H, darkened on the left.
+        self.color = (60, 52, 137)
+        self.loaded = False
+        self.converted = False    # Pictures turned into the screen's pixel format (main thread).
+        self.tiles = {}           # Rounded icon by size.
+        sys_dir = os.path.join(path, "sce_sys")
+        try:
+            with open(os.path.join(sys_dir, "param.json"), encoding="utf-8") as f:
+                param = json.load(f)
+            names = param.get("localizedParameters", {})
+            language = names.get("defaultLanguage", "en-US")
+            name = (names.get(language) or names.get("en-US") or {}).get("titleName")
+            if name:
+                self.title = name.replace("™", "").replace("®", "").strip()
+            self.title_id = param.get("titleId", "")
+            self.version = param.get("contentVersion", "")
+        except (OSError, ValueError, AttributeError):
+            pass
+
+    def convert(self):
+        self.backgrounds = [b.convert() for b in self.backgrounds]
+        if self.icon is not None:
+            self.icon = self.icon.convert_alpha()
+        self.converted = True
+
+    def tile(self, size):
+        """The icon with rounded corners at `size` (in steps of 4 pixels, cached)."""
+        size -= size % 4
+        tile = self.tiles.get(size)
+        if tile is None:
+            tile = pygame.transform.smoothscale(self.icon, (size, size)).convert_alpha()
+            mask = pygame.Surface((size, size), pygame.SRCALPHA)
+            rounded(mask, (255, 255, 255, 255), mask.get_rect(), 14)
+            tile.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+            self.tiles[size] = tile
+        return tile
+
+    def subtitle(self):
+        parts = [p for p in (self.title_id, "version " + self.version if self.version else "") if p]
+        return "  ·  ".join(parts)
+
+
+def find_games(folder):
+    games = []
+    try:
+        entries = sorted(os.listdir(folder), key=str.lower)
+    except OSError:
+        return games
+    for entry in entries:
+        path = os.path.join(folder, entry)
+        if os.path.isfile(os.path.join(path, "eboot.bin")) or (
+                os.path.isfile(path) and entry.lower().endswith(".zar")):
+            games.append(path)
+    return games
+
+
+def readability_shade():
+    """Dark on the left and at the bottom, where the text is."""
+    shade = pygame.Surface((BG_W, BG_H), pygame.SRCALPHA)
+    for x in range(BG_W):
+        a = int(230 * max(0.0, 1.0 - x / (BG_W * 0.88)) ** 1.1)
+        pygame.draw.line(shade, (8, 7, 20, a), (x, 0), (x, BG_H))
+    bottom = pygame.Surface((BG_W, BG_H), pygame.SRCALPHA)
+    for y in range(BG_H):
+        a = int(150 * max(0.0, (y - BG_H * 0.55) / (BG_H * 0.45)) ** 1.6)
+        pygame.draw.line(bottom, (8, 7, 20, a), (0, y), (BG_W, y))
+    shade.blit(bottom, (0, 0))
+    top = pygame.Surface((BG_W, 90), pygame.SRCALPHA)
+    for y in range(90):
+        pygame.draw.line(top, (8, 7, 20, int(120 * (1 - y / 90))), (0, y), (BG_W, y))
+    shade.blit(top, (0, 0))
+    return shade
+
+
+def load_game_art(game, shade):
+    """Runs in a background thread: icon, average color and backgrounds."""
+    sys_dir = os.path.join(game.path, "sce_sys")
+    icon = None
+    try:
+        icon = pygame.image.load(os.path.join(sys_dir, "icon0.png"))
+    except (pygame.error, FileNotFoundError, OSError):
+        pass
+    if icon is not None:
+        tiny = pygame.transform.smoothscale(icon, (1, 1))
+        r, g, b = tiny.get_at((0, 0))[:3]
+        game.color = (r, g, b)
+        game.icon = pygame.transform.smoothscale(icon, (TILE_SEL * 2, TILE_SEL * 2))
+    backgrounds = []
+    for name in ("pic0.png", "pic1.png"):
+        try:
+            picture = pygame.image.load(os.path.join(sys_dir, name))
+        except (pygame.error, FileNotFoundError, OSError):
+            continue
+        backgrounds.append(pygame.transform.smoothscale(picture, (BG_W, BG_H)))
+    if not backgrounds:
+        # No usable art: a soft, darkened picture made from the icon, or the game's color.
+        if icon is not None:
+            small = pygame.transform.smoothscale(icon, (16, 9))
+            backgrounds.append(pygame.transform.smoothscale(small, (BG_W, BG_H)))
+        else:
+            plain = pygame.Surface((BG_W, BG_H))
+            plain.fill(game.color)
+            backgrounds.append(plain)
+        dim = pygame.Surface((BG_W, BG_H), pygame.SRCALPHA)
+        dim.fill((0, 0, 0, 110))
+        backgrounds[0].blit(dim, (0, 0))
+    for background in backgrounds:
+        background.blit(shade, (0, 0))
+    game.backgrounds = backgrounds
+    game.loaded = True
+
+
+# --------------------------------------------------------------------------------------------
+# Wi-Fi through NetworkManager (nmcli). Changes go through sudo, since the system has no
+# polkit; /etc/sudoers.d/ps5-network allows exactly nmcli.
+
+def split_terse(line):
+    fields, current, escaped = [], "", False
+    for ch in line:
+        if escaped:
+            current += ch
+            escaped = False
+        elif ch == "\\":
+            escaped = True
+        elif ch == ":":
+            fields.append(current)
+            current = ""
+        else:
+            current += ch
+    fields.append(current)
+    return fields
+
+
+class Network:
+    def __init__(self, dry_run):
+        self.dry_run = dry_run
+        self.lock = threading.Lock()
+        self.ssid = ""          # Connected network.
+        self.state = "unknown"  # connected, connecting, disconnected, unavailable.
+        self.networks = []      # [(ssid, signal, secured, in_use)]
+        self.scanning = False
+        self.results = queue.Queue()
+        threading.Thread(target=self._watch, daemon=True).start()
+
+    def _run(self, args, timeout=45, root=False):
+        command = (["sudo", "-n"] if root and not self.dry_run else []) + ["nmcli"] + args
+        try:
+            done = subprocess.run(command, capture_output=True, text=True, timeout=timeout)
+            return done.returncode, done.stdout, done.stderr
+        except (OSError, subprocess.TimeoutExpired) as error:
+            return 1, "", str(error)
+
+    def _watch(self):
+        while True:
+            code, out, _ = self._run(["-t", "-f", "TYPE,STATE,CONNECTION", "device"], timeout=10)
+            state, ssid = "unavailable", ""
+            if code == 0:
+                for line in out.splitlines():
+                    kind, device_state, connection = (split_terse(line) + ["", "", ""])[:3]
+                    if kind == "wifi":
+                        if device_state.startswith("connected"):
+                            state, ssid = "connected", connection
+                        elif device_state.startswith("connecting"):
+                            state, ssid = "connecting", connection
+                        elif state == "unavailable":
+                            state = "disconnected" if device_state != "unavailable" else "unavailable"
+            with self.lock:
+                self.state, self.ssid = state, ssid
+            time.sleep(4)
+
+    def scan(self):
+        if self.scanning:
+            return
+        self.scanning = True
+
+        def work():
+            if not self.dry_run:
+                self._run(["device", "wifi", "rescan"], timeout=15, root=True)
+                time.sleep(2.5)
+            code, out, _ = self._run(
+                ["-t", "-f", "IN-USE,SSID,SIGNAL,SECURITY", "device", "wifi", "list", "--rescan", "no"],
+                timeout=20)
+            best = {}
+            if code == 0:
+                for line in out.splitlines():
+                    in_use, ssid, signal, security = (split_terse(line) + ["", "", "", ""])[:4]
+                    if not ssid:
+                        continue
+                    try:
+                        strength = int(signal)
+                    except ValueError:
+                        strength = 0
+                    secured = security not in ("", "--")
+                    entry = (ssid, strength, secured, in_use.strip() == "*")
+                    if ssid not in best or entry[3] or strength > best[ssid][1]:
+                        best[ssid] = entry
+            with self.lock:
+                self.networks = sorted(best.values(), key=lambda n: (not n[3], -n[1]))
+            self.scanning = False
+
+        threading.Thread(target=work, daemon=True).start()
+
+    def saved(self):
+        code, out, _ = self._run(["-t", "-f", "NAME,TYPE", "connection", "show"], timeout=10)
+        names = set()
+        if code == 0:
+            for line in out.splitlines():
+                name, kind = (split_terse(line) + ["", ""])[:2]
+                if "wireless" in kind:
+                    names.add(name)
+        return names
+
+    def connect(self, ssid, password):
+        """Connects in the background; the result arrives in self.results as (ok, message)."""
+
+        def work():
+            if self.dry_run:
+                time.sleep(2)
+                ok = not password or not password.startswith("wrong")
+                self.results.put((ok, f"Connected to {ssid}" if ok else "Wrong password. Try again."))
+                return
+            known = ssid in self.saved()
+            if known and password is None:
+                code, _, err = self._run(["--wait", "40", "connection", "up", "id", ssid], root=True)
+            else:
+                args = ["--wait", "40", "device", "wifi", "connect", ssid]
+                if password:
+                    args += ["password", password]
+                code, _, err = self._run(args, timeout=60, root=True)
+            if code == 0:
+                self.results.put((True, f"Connected to {ssid}"))
+                return
+            if not known:
+                # Do not keep a profile with a wrong password.
+                self._run(["connection", "delete", "id", ssid], timeout=15, root=True)
+            text = err.strip().splitlines()[-1] if err.strip() else "Could not connect."
+            if "Secrets were required" in text or "psk" in text.lower() or "password" in text.lower():
+                text = "Wrong password. Try again."
+            elif "No network with SSID" in text:
+                text = f"{ssid} is out of range."
+            else:
+                text = text.replace("Error: ", "")
+            self.results.put((False, text))
+
+        threading.Thread(target=work, daemon=True).start()
+
+
+# --------------------------------------------------------------------------------------------
+# Games from a PC: a shared folder on Windows or Linux (Samba), opened with smbnetfs (FUSE).
+# A blank username means a guest share. The settings, password included, are kept in
+# ~/.config/ps5-on-ps4/pc-share.json, readable only by the PS5 user, like smbnetfs's own file.
+
+def write_private(path, text):
+    os.makedirs(os.path.dirname(path), mode=0o700, exist_ok=True)
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        f.write(text)
+    os.chmod(path, 0o600)
+
+
+def clean_address(text):
+    text = text.strip()
+    for prefix in ("smb://", "\\\\", "//"):
+        if text.lower().startswith(prefix):
+            text = text[len(prefix):]
+    return text.strip("\\/ ")
+
+
+def clean_share(text):
+    return "/".join(part for part in text.replace("\\", "/").split("/") if part.strip())
+
+
+def smb_quote(text):
+    return '"' + text.replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+
+class PcShare:
+    FIELDS = ("address", "share", "user", "password")
+
+    def __init__(self, test_dir=None):
+        self.test_dir = test_dir      # For testing: a folder that stands for the mounted share.
+        self.mount = test_dir or PC_MOUNT
+        self.lock = threading.Lock()
+        self.settings = {"enabled": False, "address": "", "share": "", "user": "", "password": ""}
+        try:
+            with open(PC_SETTINGS, encoding="utf-8") as f:
+                saved = json.load(f)
+            for key in self.settings:
+                if isinstance(saved.get(key), type(self.settings[key])):
+                    self.settings[key] = saved[key]
+        except (OSError, ValueError, AttributeError):
+            pass
+        self.state = "off"      # off, connecting, connected, error
+        self.message = ""
+        self.games = []         # Game objects, made here (reading param.json over the network).
+        self.restart = False
+        self.wake = threading.Event()
+        threading.Thread(target=self._loop, daemon=True).start()
+
+    def get(self):
+        with self.lock:
+            return dict(self.settings)
+
+    def status(self):
+        with self.lock:
+            return self.state, self.message, len(self.games)
+
+    def save(self, **changes):
+        with self.lock:
+            self.settings.update(changes)
+            settings = dict(self.settings)
+        try:
+            write_private(PC_SETTINGS, json.dumps(settings, indent=2) + "\n")
+        except OSError:
+            pass
+
+    def connect(self):
+        """Uses the saved settings now: connects, or disconnects when turned off."""
+        with self.lock:
+            self.restart = True
+            if self.settings["enabled"]:
+                self.state, self.message = "connecting", ""
+        self.wake.set()
+
+    def label(self):
+        s = self.get()
+        share = clean_share(s["share"]).replace("/", "\\")
+        return f"PC  {clean_address(s['address'])}\\{share}"
+
+    def _set(self, state, message="", games=None):
+        with self.lock:
+            self.state, self.message = state, message
+            if games is not None:
+                self.games = games
+
+    def _mounted(self):
+        return self.test_dir is not None or os.path.ismount(self.mount)
+
+    def _unmount(self):
+        if self.test_dir is None and os.path.ismount(self.mount):
+            subprocess.run(["fusermount", "-u", "-z", self.mount], capture_output=True, timeout=20)
+
+    def _mount(self, s):
+        if self.test_dir is not None:
+            return None
+        self._unmount()
+        user = s["user"].strip().replace("\\", "/")
+        auth = f"auth {smb_quote(clean_address(s['address']))} {smb_quote(user)} {smb_quote(s['password'])}" \
+            if user else 'auth "guest" ""'
+        smb_dir = os.path.expanduser("~/.smb")
+        write_private(os.path.join(smb_dir, "smbnetfs.conf"),
+                      'smb_query_browsers "false"\nsmb_timeout 10000\n' + auth + "\n")
+        if not os.path.exists(os.path.join(smb_dir, "smb.conf")):
+            write_private(os.path.join(smb_dir, "smb.conf"), "")
+        os.makedirs(self.mount, exist_ok=True)
+        try:
+            done = subprocess.run(["smbnetfs", self.mount, "-o", "ro"], capture_output=True, text=True,
+                                  timeout=30, start_new_session=True)
+        except (OSError, subprocess.TimeoutExpired) as error:
+            return f"Could not start smbnetfs: {error}"
+        if done.returncode != 0 or not os.path.ismount(self.mount):
+            return "Could not open network shares: " + (done.stderr.strip().splitlines() or ["smbnetfs failed"])[-1]
+        return None
+
+    def _list(self, s):
+        address, share = clean_address(s["address"]), clean_share(s["share"])
+        folder = os.path.join(self.mount, address, *share.split("/"))
+        label = self.label()
+        try:
+            os.listdir(folder)
+        except OSError as error:
+            if error.errno == errno.EACCES:
+                return ("This share needs a username and password." if not s["user"].strip()
+                        else "Wrong username or password."), []
+            if error.errno == errno.ENOENT:
+                return f"{address} has no shared folder named {share}.", []
+            return f"Cannot reach {address}. Check the address, and that the PC is on and sharing.", []
+        paths = find_games(folder) + find_games(os.path.join(folder, "PS5"))
+        with self.lock:
+            known = {g.path: g for g in self.games}
+        return None, [known.get(p) or Game(p, "PC", label) for p in paths]
+
+    def _loop(self):
+        while True:
+            with self.lock:
+                restart, self.restart = self.restart, False
+                s = dict(self.settings)
+            if not s["enabled"]:
+                if restart:
+                    self._unmount()
+                self._set("off", "", [])
+            elif not clean_address(s["address"]) or not clean_share(s["share"]):
+                self._set("error", "Type the PC address and the shared folder name.", [])
+            else:
+                error = None
+                if restart or not self._mounted():
+                    self._set("connecting", "")
+                    error = self._mount(s)
+                if error is None:
+                    error, games = self._list(s)
+                    if error is None:
+                        self._set("connected", "", games)
+                    else:
+                        self._set("error", error, [])
+                else:
+                    self._set("error", error, [])
+            self.wake.wait(6)
+            self.wake.clear()
+
+
+# --------------------------------------------------------------------------------------------
+# Input: keyboard and controllers, turned into a few actions.
+
+LEFT, RIGHT, UP, DOWN, OK, BACK, SQUARE, TRIANGLE, OPTIONS = range(9)
+
+
+class Input:
+    REPEAT_DELAY, REPEAT_RATE = 0.35, 0.09
+
+    def __init__(self):
+        self.pads = {}
+        self.held = {}        # Direction -> time of next repeat.
+        self.stick = [0.0, 0.0]
+        self.typed = []
+        try:
+            from pygame._sdl2 import controller
+            controller.init()
+            self.controller = controller
+        except (ImportError, pygame.error):
+            self.controller = None
+
+    def pad_count(self):
+        return len(self.pads)
+
+    def rumble(self):
+        for pad in self.pads.values():
+            try:
+                pad.rumble(0, 0.12, 35)
+            except (pygame.error, AttributeError):
+                pass
+
+    def handle(self, event, now):
+        actions = []
+        if event.type == pygame.KEYDOWN:
+            keys = {pygame.K_LEFT: LEFT, pygame.K_RIGHT: RIGHT, pygame.K_UP: UP, pygame.K_DOWN: DOWN,
+                    pygame.K_RETURN: OK, pygame.K_KP_ENTER: OK, pygame.K_ESCAPE: BACK,
+                    pygame.K_BACKSPACE: SQUARE, pygame.K_TAB: TRIANGLE, pygame.K_F1: OPTIONS}
+            if event.key in keys:
+                actions.append(keys[event.key])
+        elif event.type == pygame.TEXTINPUT:
+            self.typed.append(event.text)
+        elif self.controller is not None and event.type == pygame.CONTROLLERDEVICEADDED:
+            try:
+                pad = self.controller.Controller(event.device_index)
+                self.pads[pad.as_joystick().get_instance_id()] = pad
+            except pygame.error:
+                pass
+        elif event.type == pygame.CONTROLLERDEVICEREMOVED:
+            self.pads.pop(event.instance_id, None)
+        elif event.type == pygame.CONTROLLERBUTTONDOWN:
+            buttons = {pygame.CONTROLLER_BUTTON_DPAD_LEFT: LEFT, pygame.CONTROLLER_BUTTON_DPAD_RIGHT: RIGHT,
+                       pygame.CONTROLLER_BUTTON_DPAD_UP: UP, pygame.CONTROLLER_BUTTON_DPAD_DOWN: DOWN,
+                       pygame.CONTROLLER_BUTTON_A: OK, pygame.CONTROLLER_BUTTON_B: BACK,
+                       pygame.CONTROLLER_BUTTON_X: SQUARE, pygame.CONTROLLER_BUTTON_Y: TRIANGLE,
+                       pygame.CONTROLLER_BUTTON_START: OPTIONS}
+            action = buttons.get(event.button)
+            if action is not None:
+                actions.append(action)
+                if action in (LEFT, RIGHT, UP, DOWN):
+                    self.held[action] = now + self.REPEAT_DELAY
+        elif event.type == pygame.CONTROLLERBUTTONUP:
+            directions = {pygame.CONTROLLER_BUTTON_DPAD_LEFT: LEFT, pygame.CONTROLLER_BUTTON_DPAD_RIGHT: RIGHT,
+                          pygame.CONTROLLER_BUTTON_DPAD_UP: UP, pygame.CONTROLLER_BUTTON_DPAD_DOWN: DOWN}
+            self.held.pop(directions.get(event.button), None)
+        elif event.type == pygame.CONTROLLERAXISMOTION and event.axis in (
+                pygame.CONTROLLER_AXIS_LEFTX, pygame.CONTROLLER_AXIS_LEFTY):
+            index = 0 if event.axis == pygame.CONTROLLER_AXIS_LEFTX else 1
+            value = event.value / 32767.0
+            before = self.stick[index]
+            self.stick[index] = value
+            minus, plus = (LEFT, RIGHT) if index == 0 else (UP, DOWN)
+            for direction, active, was in ((minus, value < -0.6, before < -0.6),
+                                           (plus, value > 0.6, before > 0.6)):
+                if active and not was:
+                    actions.append(direction)
+                    self.held[direction] = now + self.REPEAT_DELAY
+                elif was and not active:
+                    self.held.pop(direction, None)
+        return actions
+
+    def repeats(self, now):
+        actions = []
+        for direction, when in list(self.held.items()):
+            if now >= when:
+                actions.append(direction)
+                self.held[direction] = now + self.REPEAT_RATE
+        return actions
+
+
+# --------------------------------------------------------------------------------------------
+# Drawing helpers.
+
+def rounded(surface, color, rect, radius, width=0):
+    pygame.draw.rect(surface, color, rect, width, border_radius=radius)
+
+
+def draw_wifi(surface, x, y, color, bars):
+    """A Wi-Fi symbol with `bars` of 3 lit; its dot sits at (x, y)."""
+    pygame.draw.circle(surface, color if bars > 0 else DIM, (x, y), 3)
+    for i in range(3):
+        r = 8 + i * 6
+        rect = pygame.Rect(x - r, y - r, r * 2, r * 2)
+        pygame.draw.arc(surface, color if bars > i + 1 else DIM, rect, math.radians(50), math.radians(130), 3)
+
+
+def draw_pad(surface, x, y, color):
+    """A small controller symbol centered at (x, y)."""
+    rounded(surface, color, pygame.Rect(x - 13, y - 7, 26, 14), 7, 2)
+    pygame.draw.line(surface, color, (x - 8, y), (x - 4, y), 2)
+    pygame.draw.line(surface, color, (x - 6, y - 2), (x - 6, y + 2), 2)
+    pygame.draw.circle(surface, color, (x + 6, y), 2)
+
+
+def draw_button(surface, kind, x, y, size=11):
+    """PlayStation face button symbols, drawn: cross, circle, square, triangle, options."""
+    pygame.draw.circle(surface, (60, 58, 92), (x, y), size)
+    s = size * 0.48
+    if kind == "cross":
+        pygame.draw.line(surface, (150, 180, 255), (x - s, y - s), (x + s, y + s), 2)
+        pygame.draw.line(surface, (150, 180, 255), (x - s, y + s), (x + s, y - s), 2)
+    elif kind == "circle":
+        pygame.draw.circle(surface, (255, 120, 140), (x, y), int(s) + 1, 2)
+    elif kind == "square":
+        pygame.draw.rect(surface, (240, 150, 220), pygame.Rect(x - s, y - s, s * 2, s * 2), 2)
+    elif kind == "triangle":
+        pygame.draw.polygon(surface, (120, 230, 200), [(x, y - s - 1), (x - s - 1, y + s), (x + s + 1, y + s)], 2)
+    elif kind == "options":
+        for dy in (-3, 0, 3):
+            pygame.draw.line(surface, WHITE, (x - 5, y + dy), (x + 5, y + dy), 1)
+
+
+def draw_gear(surface, cx, cy, color, r=11):
+    """A Settings gear centered at (cx, cy)."""
+    for i in range(8):
+        a = i * math.pi / 4
+        pygame.draw.line(surface, color, (cx + math.cos(a) * (r - 3), cy + math.sin(a) * (r - 3)),
+                         (cx + math.cos(a) * (r + 2), cy + math.sin(a) * (r + 2)), 4)
+    pygame.draw.circle(surface, color, (cx, cy), r - 2, 3)
+    pygame.draw.circle(surface, color, (cx, cy), 3)
+
+
+def draw_power(surface, cx, cy, radius, color, width=4):
+    rect = pygame.Rect(cx - radius, cy - radius, radius * 2, radius * 2)
+    pygame.draw.arc(surface, color, rect, math.radians(120), math.radians(420), width)
+    pygame.draw.line(surface, color, (cx, cy - radius - 2), (cx, cy - 2), width)
+
+
+# --------------------------------------------------------------------------------------------
+# The app.
+
+KEY_ROWS = {
+    "lower": ["1234567890", "qwertyuiop", "asdfghjkl'", "zxcvbnm,.-"],
+    "upper": ["1234567890", "QWERTYUIOP", "ASDFGHJKL\"", "ZXCVBNM;:_"],
+    "symbols": ["!@#$%^&*()", "~`=+[]{}\\|", "<>/?'\";:,.", "-_€£¥§°±µ¿"],
+}
+KEY_SPECIAL = ["Shift", "#+=", "Space", "Delete", "Show", "Connect"]
+KEY_SPECIAL_SECRET = ["Shift", "#+=", "Space", "Delete", "Show", "Done"]
+KEY_SPECIAL_TEXT = ["Shift", "#+=", "Space", "Delete", "Clear", "Done"]
+
+# Settings rows: (key, label). "enabled" is a switch, "connect" a button, the rest text fields.
+SETTINGS_ROWS = [("enabled", "Use games from PC"), ("address", "PC address"), ("share", "Shared folder"),
+                 ("user", "Username"), ("password", "Password"), ("connect", "Connect")]
+
+
+class Home:
+    def __init__(self, args):
+        self.args = args
+        pygame.init()
+        flags = pygame.SCALED | (0 if args.windowed else pygame.FULLSCREEN)
+        try:
+            self.screen = pygame.display.set_mode((W, H), flags, vsync=1)
+        except pygame.error:
+            self.screen = pygame.display.set_mode((W, H), flags)
+        pygame.display.set_caption("PS5 on PS4")
+        pygame.mouse.set_visible(False)
+        pygame.key.set_repeat(320, 70)
+        pygame.key.start_text_input()
+        self.text = Text()
+        self.sounds = Sounds()
+        self.input = Input()
+        self.network = Network(args.dry_run_network)
+        self.pc = PcShare(args.pc_test)
+        self.shade = readability_shade()
+        self.clock = pygame.time.Clock()
+        self.t = 0.0
+
+        self.games = []
+        self.game_paths = []
+        self.selected = 0
+        self.focus = "tiles"     # tiles, wifi, settings
+        self.screen_name = "home"  # home, wifi, keyboard, settings, settings_kb, power
+        self.result = None
+        self.fade_out = None
+
+        self.row_offset = 0.0
+        self.tile_sizes = []
+        self.info_alpha = 0.0
+        self.bg_current = None
+        self.bg_previous = None
+        self.bg_mix = 1.0
+        self.bg_switch_at = 0.0
+        self.bg_index = 0
+        self.particles = [self.new_particle(True) for _ in range(34)]
+        self.next_scan = 0.0
+
+        self.toast = None
+        self.toast_until = 0.0
+        self.dialog = args.message
+
+        self.wifi_selected = 0
+        self.wifi_slide = 0.0
+        self.wifi_status = ""
+        self.connecting = None
+        self.kb_ssid = ""
+        self.kb_title = ""        # Above the text field.
+        self.kb_field = None      # None: a Wi-Fi password; else the PC share setting being typed.
+        self.kb_secret = True     # Shown as dots, unless Show is on.
+        self.kb_text = ""
+        self.kb_row = 1
+        self.kb_col = 0
+        self.kb_mode = "lower"
+        self.kb_show = False
+
+        self.settings_slide = 0.0
+        self.settings_row = 0
+        self.settings_status_at = 0.0
+
+        self.refresh_games(force=True)
+
+    # Games -----------------------------------------------------------------------------------
+
+    def refresh_games(self, force=False):
+        found = [(p, "USB", "USB drive") for p in find_games(self.args.games)]
+        found += [(p, "PS4", "PS4 drive") for p in find_games(self.args.ps4_games)]
+        with self.pc.lock:
+            pc_games = list(self.pc.games)
+        paths = [f[0] for f in found] + [g.path for g in pc_games]
+        if not force and paths == self.game_paths:
+            return
+        current = self.games[self.selected].path if self.games and self.selected < len(self.games) else None
+        known = {g.path: g for g in self.games}
+        self.game_paths = paths
+        self.games = [known.get(p) or Game(p, source, name) for p, source, name in found] + \
+            [known.get(g.path) or g for g in pc_games]
+        new = [g for g in self.games if not g.loaded and g.path not in known]
+        self.selected = next((i for i, g in enumerate(self.games) if g.path == current), 0)
+        self.tile_sizes = [float(TILE)] * (len(self.games) + 1)
+        if new:
+            threading.Thread(target=self.load_art, args=(new,), daemon=True).start()
+        self.select(self.selected, sound=False)
+
+    def load_art(self, games):
+        for game in games:
+            try:
+                load_game_art(game, self.shade)
+            except Exception:  # A broken picture must not stop the menu.
+                game.loaded = True
+
+    def items(self):
+        return len(self.games) + 1  # The last tile is Power off.
+
+    def on_power(self):
+        return self.selected == len(self.games)
+
+    def select(self, index, sound=True):
+        index = max(0, min(self.items() - 1, index))
+        if sound and index != self.selected:
+            self.sounds.play("move")
+            self.input.rumble()
+        self.selected = index
+        self.info_alpha = 0.0
+        self.bg_index = 0
+        self.set_background(self.current_background(), animate=True)
+        self.bg_switch_at = self.t + 12.0
+
+    def current_background(self):
+        if self.on_power() or not self.games:
+            return None
+        game = self.games[self.selected]
+        if not game.backgrounds:
+            return None
+        return game.backgrounds[self.bg_index % len(game.backgrounds)]
+
+    def set_background(self, surface, animate):
+        if surface is self.bg_current:
+            return
+        self.bg_previous = self.bg_current if animate else None
+        self.bg_current = surface
+        self.bg_mix = 0.0 if animate else 1.0
+
+    # Actions ---------------------------------------------------------------------------------
+
+    def act(self, action):
+        if self.dialog:
+            if action in (OK, BACK):
+                self.dialog = None
+                self.sounds.play("back")
+            return
+        if self.screen_name == "home":
+            self.act_home(action)
+        elif self.screen_name == "wifi":
+            self.act_wifi(action)
+        elif self.screen_name in ("keyboard", "settings_kb"):
+            self.act_keyboard(action)
+        elif self.screen_name == "settings":
+            self.act_settings(action)
+        elif self.screen_name == "power":
+            if action == OK:
+                self.sounds.play("select")
+                self.finish("POWEROFF")
+            elif action == BACK:
+                self.sounds.play("back")
+                self.screen_name = "home"
+
+    def act_home(self, action):
+        if self.focus in ("wifi", "settings"):
+            if action in (DOWN, BACK):
+                self.focus = "tiles"
+                self.sounds.play("move")
+            elif action == LEFT and self.focus == "wifi":
+                self.focus = "settings"
+                self.sounds.play("move")
+            elif action == RIGHT and self.focus == "settings":
+                self.focus = "wifi"
+                self.sounds.play("move")
+            elif action == OK:
+                self.open_wifi() if self.focus == "wifi" else self.open_settings()
+            return
+        if action == LEFT:
+            self.select(self.selected - 1)
+        elif action == RIGHT:
+            self.select(self.selected + 1)
+        elif action == UP:
+            self.focus = "wifi"
+            self.sounds.play("move")
+        elif action == OK:
+            if self.on_power():
+                self.sounds.play("select")
+                self.screen_name = "power"
+            else:
+                self.sounds.play("select")
+                self.finish("PLAY " + self.games[self.selected].path)
+
+    def open_wifi(self):
+        self.sounds.play("select")
+        self.screen_name = "wifi"
+        self.wifi_selected = 0
+        self.wifi_status = ""
+        self.network.scan()
+
+    def act_wifi(self, action):
+        if self.connecting:
+            return
+        with self.network.lock:
+            networks = list(self.network.networks)
+        if action == BACK:
+            self.sounds.play("back")
+            self.screen_name = "home"
+        elif action == UP and self.wifi_selected > 0:
+            self.wifi_selected -= 1
+            self.sounds.play("move")
+        elif action == DOWN and self.wifi_selected < len(networks) - 1:
+            self.wifi_selected += 1
+            self.sounds.play("move")
+        elif action == TRIANGLE:
+            self.sounds.play("select")
+            self.network.scan()
+        elif action == OK and networks:
+            ssid, _, secured, in_use = networks[min(self.wifi_selected, len(networks) - 1)]
+            if in_use:
+                self.wifi_status = f"Already connected to {ssid}."
+                return
+            self.sounds.play("select")
+            if not secured or ssid in self.network.saved():
+                self.start_connect(ssid, None)
+            else:
+                self.kb_ssid, self.kb_text = ssid, ""
+                self.kb_title, self.kb_field, self.kb_secret = f"Password for {ssid}", None, True
+                self.kb_row, self.kb_col, self.kb_mode, self.kb_show = 1, 0, "lower", False
+                self.input.typed.clear()
+                self.screen_name = "keyboard"
+
+    def open_settings(self):
+        self.sounds.play("select")
+        self.screen_name = "settings"
+        self.settings_row = 0
+
+    def act_settings(self, action):
+        if action == BACK:
+            self.sounds.play("back")
+            self.screen_name = "home"
+        elif action in (UP, DOWN):
+            row = max(0, min(len(SETTINGS_ROWS) - 1, self.settings_row + (1 if action == DOWN else -1)))
+            if row != self.settings_row:
+                self.settings_row = row
+                self.sounds.play("move")
+        elif action == OK:
+            key, label = SETTINGS_ROWS[self.settings_row]
+            self.sounds.play("select")
+            if key == "enabled":
+                self.pc.save(enabled=not self.pc.get()["enabled"])
+                self.pc.connect()
+            elif key == "connect":
+                self.pc.save(enabled=True)
+                self.pc.connect()
+            else:
+                self.kb_title, self.kb_field = label, key
+                self.kb_secret = key == "password"
+                self.kb_text = self.pc.get()[key]
+                self.kb_row, self.kb_col, self.kb_mode, self.kb_show = 1, 0, "lower", False
+                self.input.typed.clear()
+                self.screen_name = "settings_kb"
+
+    def start_connect(self, ssid, password):
+        self.connecting = ssid
+        self.wifi_status = ""
+        self.network.connect(ssid, password)
+
+    def key_rows(self):
+        if self.kb_field is None:
+            special = KEY_SPECIAL
+        else:
+            special = KEY_SPECIAL_SECRET if self.kb_secret else KEY_SPECIAL_TEXT
+        return KEY_ROWS[self.kb_mode] + [special]
+
+    def act_keyboard(self, action):
+        if self.connecting:
+            return
+        rows = self.key_rows()
+        if action == BACK:
+            self.sounds.play("back")
+            self.screen_name = "wifi" if self.kb_field is None else "settings"
+            return
+        if action in (UP, DOWN):
+            self.kb_row = (self.kb_row + (1 if action == DOWN else -1)) % len(rows)
+            self.kb_col = min(self.kb_col, len(rows[self.kb_row]) - 1)
+            self.sounds.play("move")
+        elif action in (LEFT, RIGHT):
+            self.kb_col = (self.kb_col + (1 if action == RIGHT else -1)) % len(rows[self.kb_row])
+            self.sounds.play("move")
+        elif action == SQUARE:
+            self.kb_text = self.kb_text[:-1]
+            self.sounds.play("back")
+        elif action == TRIANGLE:
+            self.kb_mode = "symbols" if self.kb_mode != "symbols" else "lower"
+            self.sounds.play("move")
+        elif action == OPTIONS:
+            self.submit_text()
+        elif action == OK:
+            key = rows[self.kb_row][self.kb_col]
+            if self.kb_row < len(rows) - 1:
+                self.kb_text += key
+                if self.kb_mode == "upper":
+                    self.kb_mode = "lower"
+                self.sounds.play("move")
+            elif key == "Shift":
+                self.kb_mode = "lower" if self.kb_mode == "upper" else "upper"
+            elif key == "#+=":
+                self.kb_mode = "symbols" if self.kb_mode != "symbols" else "lower"
+            elif key == "Space":
+                self.kb_text += " "
+            elif key == "Delete":
+                self.kb_text = self.kb_text[:-1]
+            elif key == "Show":
+                self.kb_show = not self.kb_show
+            elif key == "Clear":
+                self.kb_text = ""
+            elif key in ("Connect", "Done"):
+                self.submit_text()
+
+    def submit_text(self):
+        if self.kb_field is None:
+            self.submit_password()
+            return
+        self.sounds.play("select")
+        value = self.kb_text.strip() if self.kb_field != "password" else self.kb_text
+        self.pc.save(**{self.kb_field: value})
+        self.screen_name = "settings"
+
+    def submit_password(self):
+        if len(self.kb_text) < 8:
+            self.sounds.play("error")
+            self.wifi_status = "A Wi-Fi password has at least 8 characters."
+            return
+        self.sounds.play("select")
+        self.start_connect(self.kb_ssid, self.kb_text)
+
+    def finish(self, result):
+        self.result = result
+        self.fade_out = 0.0
+
+    # Frame -----------------------------------------------------------------------------------
+
+    def new_particle(self, anywhere=False):
+        return [random.uniform(W * 0.35, W), random.uniform(H * 0.3, H) if anywhere else H + 10,
+                random.uniform(8, 26), random.uniform(1.2, 3.2), random.uniform(0, math.tau)]
+
+    def update(self, dt):
+        self.t += dt
+        if self.t >= self.next_scan:
+            self.next_scan = self.t + 3.0
+            self.refresh_games()
+        if self.screen_name in ("keyboard", "settings_kb") and self.input.typed:
+            for chunk in self.input.typed:
+                self.kb_text += chunk
+            self.input.typed.clear()
+        elif self.input.typed:
+            self.input.typed.clear()
+
+        try:
+            ok, message = self.network.results.get_nowait()
+        except queue.Empty:
+            pass
+        else:
+            self.connecting = None
+            if ok:
+                self.sounds.play("select")
+                self.screen_name = "home"
+                self.toast, self.toast_until = message, self.t + 4.0
+            else:
+                self.sounds.play("error")
+                self.wifi_status = message
+                if self.screen_name != "keyboard" and "password" in message.lower():
+                    self.screen_name = "keyboard"
+
+        for g in self.games:
+            if g.loaded and not g.converted:
+                g.convert()
+                if g is self.games[min(self.selected, len(self.games) - 1)]:
+                    self.bg_current = None
+
+        # Background: cross-fade on change, and between a game's two pictures.
+        game = None if self.on_power() or not self.games else self.games[self.selected]
+        if game is not None and game.converted and game.backgrounds and self.bg_current is None:
+            self.set_background(self.current_background(), animate=True)
+        if game is not None and len(game.backgrounds) > 1 and self.t >= self.bg_switch_at:
+            self.bg_index += 1
+            self.set_background(self.current_background(), animate=True)
+            self.bg_switch_at = self.t + 12.0
+        self.bg_mix = min(1.0, self.bg_mix + dt / 0.7)
+
+        target = max(0, self.selected - 2) * (TILE + TILE_GAP)
+        self.row_offset = ease(self.row_offset, target, 12, dt)
+        for i in range(len(self.tile_sizes)):
+            want = TILE_SEL if i == self.selected and self.focus == "tiles" else TILE
+            if i == self.selected and self.focus != "tiles":
+                want = TILE + 18
+            self.tile_sizes[i] = ease(self.tile_sizes[i], want, 14, dt)
+        self.info_alpha = min(1.0, self.info_alpha + dt / 0.35)
+        self.wifi_slide = ease(self.wifi_slide, 1.0 if self.screen_name in ("wifi", "keyboard") else 0.0, 10, dt)
+        self.settings_slide = ease(self.settings_slide,
+                                   1.0 if self.screen_name in ("settings", "settings_kb") else 0.0, 10, dt)
+
+        for p in self.particles:
+            p[1] -= p[2] * dt
+            p[0] += math.sin(self.t * 0.6 + p[4]) * 6 * dt
+            if p[1] < H * 0.18:
+                p[:] = self.new_particle()
+        if self.fade_out is not None:
+            self.fade_out += dt / 0.45
+
+    def draw(self):
+        s = self.screen
+        s.fill((14, 12, 34))
+        drift_x = (BG_W - W) * (0.5 + 0.5 * math.sin(self.t * 0.045))
+        drift_y = (BG_H - H) * (0.5 + 0.5 * math.sin(self.t * 0.031 + 1.0))
+        if self.bg_previous is not None and self.bg_mix < 1.0:
+            s.blit(self.bg_previous, (-drift_x, -drift_y))
+        if self.bg_current is not None:
+            if self.bg_mix < 1.0:
+                self.bg_current.set_alpha(int(255 * self.bg_mix))
+                s.blit(self.bg_current, (-drift_x, -drift_y))
+                self.bg_current.set_alpha(None)
+            else:
+                s.blit(self.bg_current, (-drift_x, -drift_y))
+        elif self.bg_previous is not None and self.bg_mix < 1.0:
+            veil = pygame.Surface((W, H))
+            veil.fill((14, 12, 34))
+            veil.set_alpha(int(255 * self.bg_mix))
+            s.blit(veil, (0, 0))
+
+        for x, y, _, size, phase in self.particles:
+            glow = int(110 + 90 * math.sin(self.t * 1.3 + phase))
+            pygame.draw.circle(s, (glow, glow, min(255, glow + 40)), (int(x), int(y)), int(size))
+
+        self.draw_top_bar(s)
+        self.draw_tiles(s)
+        self.draw_info(s)
+        if self.wifi_slide > 0.01:
+            self.draw_wifi_panel(s)
+        if self.settings_slide > 0.01:
+            self.draw_settings_panel(s)
+        if self.screen_name == "power":
+            self.draw_dialog(s, "Turn off the PS4?", "Turn off", "Cancel")
+        if self.dialog:
+            self.draw_dialog(s, self.dialog, "OK", None)
+        self.draw_hints(s)
+        if self.toast and self.t < self.toast_until:
+            surf = self.text.render(self.toast, 18)
+            box = pygame.Rect(0, 0, surf.get_width() + 48, 48)
+            box.midtop = (W // 2, 24)
+            rounded(s, (40, 38, 80), box, 24)
+            s.blit(surf, surf.get_rect(center=box.center))
+        if self.fade_out is not None:
+            veil = pygame.Surface((W, H))
+            veil.set_alpha(int(255 * min(1.0, self.fade_out)))
+            s.blit(veil, (0, 0))
+
+    def draw_top_bar(self, s):
+        s.blit(self.text.render("Games", 18, WHITE, True), (ROW_X, 36))
+        clock = self.text.render(time.strftime("%H:%M"), 20, WHITE, True)
+        x = W - 56 - clock.get_width()
+        s.blit(clock, (x, 34))
+        with self.network.lock:
+            state, ssid = self.network.state, self.network.ssid
+        bars = 3 if state == "connected" else 1 if state == "connecting" else 0
+        wifi_x = x - 40
+        if self.focus == "wifi" and self.screen_name == "home":
+            rounded(s, (255, 255, 255), pygame.Rect(wifi_x - 22, 22, 44, 44), 22, 2)
+            label = ssid if state == "connected" else "Wi-Fi: not connected"
+            tip = self.text.render(label, 14, WHITE)
+            pill = pygame.Rect(0, 0, tip.get_width() + 24, 26)
+            pill.midtop = (wifi_x, 74)
+            pill.right = min(pill.right, W - 16)
+            rounded(s, (24, 22, 52), pill, 13)
+            s.blit(tip, tip.get_rect(center=pill.center))
+        draw_wifi(s, wifi_x, 54, WHITE, bars)
+        pad_color = WHITE if self.input.pad_count() else DIM
+        draw_pad(s, wifi_x - 46, 45, pad_color)
+        gear_x = wifi_x - 92
+        if self.focus == "settings" and self.screen_name == "home":
+            rounded(s, WHITE, pygame.Rect(gear_x - 22, 22, 44, 44), 22, 2)
+            tip = self.text.render("Settings", 14, WHITE)
+            pill = pygame.Rect(0, 0, tip.get_width() + 24, 26)
+            pill.midtop = (gear_x, 74)
+            rounded(s, (24, 22, 52), pill, 13)
+            s.blit(tip, tip.get_rect(center=pill.center))
+        draw_gear(s, gear_x, 44, WHITE)
+
+    def draw_tiles(self, s):
+        x = ROW_X - self.row_offset
+        for i in range(self.items()):
+            size = int(self.tile_sizes[i]) if i < len(self.tile_sizes) else TILE
+            rect = pygame.Rect(int(x), ROW_Y, size, size)
+            if rect.right > -20 and rect.left < W + 20:
+                selected = i == self.selected and self.focus == "tiles"
+                if i < len(self.games):
+                    game = self.games[i]
+                    if game.icon is not None and game.converted:
+                        s.blit(game.tile(size), rect)
+                    else:
+                        rounded(s, game.color, rect, 14)
+                        for n, line in enumerate(self.text.wrap(game.title, 14, size - 16)[:3]):
+                            s.blit(self.text.render(line, 14), (rect.x + 8, rect.y + 8 + n * 18))
+                    self.draw_source_badge(s, game.source, rect)
+                else:
+                    rounded(s, (44, 44, 52), rect, 14)
+                    draw_power(s, rect.centerx, rect.centery, size // 5, WHITE, 3 if size < 130 else 4)
+                if selected:
+                    pulse = 2 + int(1.5 + 1.5 * math.sin(self.t * 4))
+                    rounded(s, WHITE, rect.inflate(10, 10), 18, pulse)
+            x += size + TILE_GAP
+
+    def draw_source_badge(self, s, source, rect):
+        text = self.text.render(source, 12, WHITE, True)
+        pill = pygame.Rect(0, 0, text.get_width() + 14, 20)
+        pill.bottomleft = (rect.x + 6, rect.bottom - 6)
+        rounded(s, (14, 12, 34), pill.inflate(2, 2), 10)
+        rounded(s, SOURCE_COLORS.get(source, (64, 64, 76)), pill, 10)
+        s.blit(text, text.get_rect(center=pill.center))
+
+    def draw_info(self, s):
+        a = self.info_alpha
+        y = 330 + int((1 - a) * 14)
+        fading = a < 1.0
+        # The layer starts M pixels left of the text, so the Play button's ring is not cut off.
+        M = 24
+        layer = pygame.Surface((W - ROW_X + M, 330), pygame.SRCALPHA) if fading else \
+            s.subsurface((ROW_X - M, y, W - ROW_X + M, H - y))
+        game = None
+        if not self.games and self.on_power():
+            title, sub, button = "No games yet", "", None
+        elif self.on_power():
+            title, sub, button = "Power", "Turn off the PS4", "Power off"
+        else:
+            game = self.games[self.selected]
+            title, sub, button = game.title, game.subtitle(), "Play"
+        lines = self.text.wrap(title, 44, 620, True)[:2]
+        ty = 0
+        for line in lines:
+            layer.blit(self.text.render(line, 44, (0, 0, 0), True), (M + 2, ty + 2))
+            layer.blit(self.text.render(line, 44, WHITE, True), (M, ty))
+            ty += 54
+        if sub or game is not None:
+            sx = M + 2
+            if sub:
+                layer.blit(self.text.render(sub, 17, (0, 0, 0)), (sx + 1, ty + 7))
+                text = self.text.render(sub, 17, SOFT)
+                layer.blit(text, (sx, ty + 6))
+                sx += text.get_width() + 16
+            if game is not None:
+                name = game.source_name if len(game.source_name) <= 48 else game.source_name[:47] + "…"
+                text = self.text.render(name, 15, WHITE, True)
+                pill = pygame.Rect(sx, ty + 4, text.get_width() + 26, 26)
+                rounded(layer, SOURCE_COLORS.get(game.source, (64, 64, 76)), pill, 13)
+                layer.blit(text, text.get_rect(center=pill.center))
+            ty += 34
+        if not self.games and self.on_power():
+            for line in ("Put PS5 game folders in one of these places:",
+                         "  •  the PS5 folder of a USB drive",
+                         f"  •  {PS4_GAMES_SHOWN} on the PS4, with GoldHEN FTP",
+                         "  •  a shared folder on a PC (Settings, at the top)",
+                         "They show up here by themselves."):
+                layer.blit(self.text.render(line, 17, SOFT), (M + 2, ty + 6))
+                ty += 28
+        if button:
+            by = ty + 24
+            label = self.text.render(button, 20, INK, True)
+            rect = pygame.Rect(M, by, max(170, label.get_width() + 70), 48)
+            if self.focus == "tiles" and self.screen_name == "home":
+                ring = (math.sin(self.t * 2.6) + 1) / 2
+                rounded(layer, (255, 255, 255, int(120 * (1 - ring))), rect.inflate(int(16 * ring), int(16 * ring)), 30, 2)
+            rounded(layer, WHITE, rect, 24)
+            layer.blit(label, label.get_rect(center=rect.center))
+        if fading:
+            layer.set_alpha(int(255 * a))
+            s.blit(layer, (ROW_X - M, y))
+
+    def draw_hints(self, s):
+        settings_ok = "Connect" if SETTINGS_ROWS[self.settings_row][0] == "connect" else \
+            "Turn on or off" if SETTINGS_ROWS[self.settings_row][0] == "enabled" else "Change"
+        hints = {"home": [("cross", "Play" if not self.on_power() else "Select"),
+                          ("options", "Up: Wi-Fi and Settings")],
+                 "wifi": [("cross", "Connect"), ("triangle", "Search again"), ("circle", "Back")],
+                 "keyboard": [("cross", "Type"), ("square", "Delete"), ("triangle", "Symbols"),
+                              ("options", "Connect"), ("circle", "Back")],
+                 "settings": [("cross", settings_ok), ("circle", "Back")],
+                 "settings_kb": [("cross", "Type"), ("square", "Delete"), ("triangle", "Symbols"),
+                                 ("options", "Done"), ("circle", "Back")],
+                 "power": [("cross", "Turn off"), ("circle", "Cancel")]}[self.screen_name]
+        if self.screen_name == "home" and self.focus == "wifi":
+            hints = [("cross", "Wi-Fi settings"), ("options", "Left: Settings"), ("circle", "Back")]
+        if self.screen_name == "home" and self.focus == "settings":
+            hints = [("cross", "Settings"), ("options", "Right: Wi-Fi"), ("circle", "Back")]
+        if self.dialog:
+            hints = [("cross", "OK")]
+        x = ROW_X
+        for kind, label in hints:
+            if kind == "options" and label.split(":")[0] in ("Up", "Left", "Right"):
+                text = self.text.render(label, 15, DIM)
+                s.blit(text, (x, H - 46))
+                x += text.get_width() + 30
+                continue
+            draw_button(s, kind, x + 11, H - 37)
+            text = self.text.render(label, 15, SOFT)
+            s.blit(text, (x + 28, H - 46))
+            x += text.get_width() + 58
+
+    def draw_wifi_panel(self, s):
+        width = 520
+        left = W - int(width * self.wifi_slide)
+        dim = pygame.Surface((W, H), pygame.SRCALPHA)
+        dim.fill((6, 5, 16, int(150 * self.wifi_slide)))
+        s.blit(dim, (0, 0))
+        panel = pygame.Rect(left, 0, width, H)
+        rounded(s, (24, 22, 52), panel, 0)
+        pygame.draw.line(s, (70, 66, 120), (left, 0), (left, H), 1)
+        x = left + 40
+        s.blit(self.text.render("Wi-Fi", 30, WHITE, True), (x, 40))
+        with self.network.lock:
+            networks = list(self.network.networks)
+            state, ssid = self.network.state, self.network.ssid
+        status = f"Connected to {ssid}" if state == "connected" else \
+            "Connecting…" if state == "connecting" else "Not connected"
+        if state == "unavailable":
+            status = "No Wi-Fi device found"
+        s.blit(self.text.render(status, 16, SOFT), (x, 84))
+
+        if self.screen_name == "keyboard":
+            self.draw_keyboard(s, x, width - 80)
+            return
+        y = 130
+        if self.network.scanning and not networks:
+            s.blit(self.text.render("Searching for networks…", 18, SOFT), (x, y + 10))
+        elif not networks:
+            s.blit(self.text.render("No networks found.", 18, SOFT), (x, y + 10))
+        first = max(0, self.wifi_selected - 7)
+        for i, (name, signal, secured, in_use) in enumerate(networks[first:first + 9], start=first):
+            row = pygame.Rect(x - 14, y, width - 52, 52)
+            if i == self.wifi_selected:
+                rounded(s, (60, 56, 120), row, 12)
+                rounded(s, WHITE, row, 12, 2)
+            bars = 3 if signal >= 67 else 2 if signal >= 34 else 1
+            draw_wifi(s, row.x + 26, row.y + 36, WHITE, bars + 1)
+            label = name if len(name) <= 26 else name[:25] + "…"
+            s.blit(self.text.render(label, 18, WHITE, in_use), (row.x + 56, row.y + 8))
+            detail = "Connected" if in_use else ("Secured" if secured else "Open")
+            s.blit(self.text.render(detail, 13, SOFT), (row.x + 56, row.y + 31))
+            if secured:
+                lx, ly = row.right - 30, row.y + 22
+                rounded(s, SOFT, pygame.Rect(lx - 7, ly, 14, 11), 2)
+                pygame.draw.arc(s, SOFT, pygame.Rect(lx - 5, ly - 8, 10, 14), 0, math.pi, 2)
+            y += 58
+        self.draw_wifi_status(s, x, width - 80)
+
+    def draw_wifi_status(self, s, x, width):
+        if self.connecting:
+            dots = "." * (1 + int(self.t * 3) % 3)
+            text = f"Connecting to {self.connecting}{dots}"
+            s.blit(self.text.render(text, 17, WHITE), (x, H - 96))
+        elif self.wifi_status:
+            for n, line in enumerate(self.text.wrap(self.wifi_status, 16, width)[:2]):
+                s.blit(self.text.render(line, 16, (255, 170, 170)), (x, H - 104 + n * 22))
+
+    def ps4_drive_info(self):
+        """(available, games, free GB) for the PS4 drive, looked up at most every 2 seconds."""
+        cached = getattr(self, "_ps4_info", None)
+        if cached is not None and self.t < cached[0]:
+            return cached[1]
+        folder = self.args.ps4_games
+        available = os.path.isdir(os.path.dirname(folder))
+        games = sum(1 for g in self.games if g.source == "PS4")
+        free = None
+        if available:
+            try:
+                st = os.statvfs(os.path.dirname(folder))
+                free = st.f_bavail * st.f_frsize // 1000 ** 3
+            except OSError:
+                pass
+        info = (available, games, free)
+        self._ps4_info = (self.t + 2.0, info)
+        return info
+
+    def draw_settings_panel(self, s):
+        width = 560
+        left = W - int(width * self.settings_slide)
+        dim = pygame.Surface((W, H), pygame.SRCALPHA)
+        dim.fill((6, 5, 16, int(150 * self.settings_slide)))
+        s.blit(dim, (0, 0))
+        rounded(s, (24, 22, 52), pygame.Rect(left, 0, width, H), 0)
+        pygame.draw.line(s, (70, 66, 120), (left, 0), (left, H), 1)
+        x = left + 40
+        inner = width - 80
+        s.blit(self.text.render("Settings", 30, WHITE, True), (x, 40))
+        if self.screen_name == "settings_kb":
+            s.blit(self.text.render("Games from PC", 16, SOFT), (x, 84))
+            self.draw_keyboard(s, x, inner)
+            return
+
+        # The PS4 drive.
+        y = 96
+        s.blit(self.text.render("GAMES ON THE PS4 DRIVE", 14, DIM, True), (x, y))
+        available, games, free = self.ps4_drive_info()
+        if available:
+            count = "No games yet" if not games else f"{games} game" + ("s" if games != 1 else "")
+            lines = [(f"Folder: {PS4_GAMES_SHOWN}", 16, SOFT),
+                     (count + (f"  ·  {free} GB free" if free is not None else ""), 16, SOFT),
+                     ("Copy games there with GoldHEN FTP from your PC.", 14, DIM)]
+        else:
+            lines = [("The PS4 drive is not open: this system was", 16, SOFT),
+                     ("started from a USB drive.", 16, SOFT)]
+        for n, (line, size, color) in enumerate(lines):
+            s.blit(self.text.render(line, size, color), (x, y + 26 + n * 23))
+
+        # The PC share.
+        y = 210
+        s.blit(self.text.render("GAMES FROM PC  (WINDOWS OR LINUX SHARE)", 14, DIM, True), (x, y))
+        y += 26
+        settings = self.pc.get()
+        state, message, count = self.pc.status()
+        for i, (key, label) in enumerate(SETTINGS_ROWS):
+            selected = i == self.settings_row and self.screen_name == "settings"
+            if key == "connect":
+                button = pygame.Rect(x - 14, y + 8, 190, 46)
+                if selected:
+                    rounded(s, (90, 84, 170), button, 23)
+                    rounded(s, WHITE, button, 23, 2)
+                else:
+                    rounded(s, WHITE, button, 23)
+                text = self.text.render(label, 18, WHITE if selected else INK, True)
+                s.blit(text, text.get_rect(center=button.center))
+                sx = button.right + 22
+                if state == "connected":
+                    pygame.draw.circle(s, (46, 200, 130), (sx + 6, button.centery), 6)
+                    games = f"{count} game" + ("s" if count != 1 else "")
+                    s.blit(self.text.render(f"Connected  ·  {games}", 16, SOFT), (sx + 20, button.centery - 11))
+                elif state == "connecting":
+                    dots = "." * (1 + int(self.t * 3) % 3)
+                    s.blit(self.text.render("Connecting" + dots, 16, SOFT), (sx, button.centery - 11))
+                elif state == "off":
+                    s.blit(self.text.render("Off", 16, DIM), (sx, button.centery - 11))
+                y = button.bottom + 14
+                if state == "error":
+                    for line in self.text.wrap(message, 16, inner)[:2]:
+                        s.blit(self.text.render(line, 16, (255, 170, 170)), (x, y))
+                        y += 22
+                    y += 6
+                s.blit(self.text.render("Leave Username and Password blank for a guest share.", 14, DIM),
+                       (x, max(y, H - 104)))
+                continue
+            row = pygame.Rect(x - 14, y, inner + 28, 46)
+            if selected:
+                rounded(s, (60, 56, 120), row, 12)
+                rounded(s, WHITE, row, 12, 2)
+            s.blit(self.text.render(label, 17, WHITE), (row.x + 16, row.y + 12))
+            if key == "enabled":
+                on = settings["enabled"]
+                switch = pygame.Rect(row.right - 70, row.y + 11, 50, 24)
+                rounded(s, (46, 170, 120) if on else (70, 66, 110), switch, 12)
+                pygame.draw.circle(s, WHITE, (switch.right - 12 if on else switch.x + 12, switch.centery), 9)
+            else:
+                value = settings[key]
+                if key == "password":
+                    shown = "•" * min(12, len(value)) if value else "None"
+                elif key == "user":
+                    shown = value or "None (guest)"
+                else:
+                    shown = value or "Not set"
+                text = self.text.render(shown, 16, SOFT if value else DIM)
+                room = row.width - 32 - self.text.render(label, 17).get_width() - 24
+                if text.get_width() > room:
+                    s.blit(text, (row.right - 16 - room, row.y + 13),
+                           area=pygame.Rect(text.get_width() - room, 0, room, text.get_height()))
+                else:
+                    s.blit(text, (row.right - 16 - text.get_width(), row.y + 13))
+            y += 50
+
+    def draw_keyboard(self, s, x, width):
+        s.blit(self.text.render(self.kb_title, 17, WHITE), (x, 130))
+        field = pygame.Rect(x - 4, 160, width + 8, 52)
+        rounded(s, (14, 12, 34), field, 10)
+        rounded(s, (110, 104, 190), field, 10, 2)
+        shown = self.kb_text if self.kb_show or not self.kb_secret else \
+            ("•" * max(0, len(self.kb_text) - 1) + self.kb_text[-1:])
+        surf = self.text.render(shown or " ", 22)
+        clip = max(0, surf.get_width() - (width - 24))
+        s.blit(surf, (field.x + 14, field.y + 12), area=pygame.Rect(clip, 0, width - 20, 40))
+        if int(self.t * 2) % 2 == 0:
+            cx = field.x + 14 + min(surf.get_width(), width - 24) + 2 if self.kb_text else field.x + 14
+            pygame.draw.line(s, WHITE, (cx, field.y + 12), (cx, field.y + 40), 2)
+        rows = self.key_rows()
+        y = 236
+        for r, row in enumerate(rows):
+            if r < len(rows) - 1:
+                key_w = (width - 9 * 6) // 10
+                for c, ch in enumerate(row):
+                    rect = pygame.Rect(x + c * (key_w + 6), y, key_w, 46)
+                    on = r == self.kb_row and c == self.kb_col
+                    rounded(s, (90, 84, 170) if on else (44, 41, 86), rect, 8)
+                    if on:
+                        rounded(s, WHITE, rect, 8, 2)
+                    label = self.text.render(ch, 20, WHITE)
+                    s.blit(label, label.get_rect(center=rect.center))
+                y += 52
+            else:
+                y += 6
+                gaps = 6 * (len(row) - 1)
+                shares = [0.15, 0.13, 0.19, 0.16, 0.14]
+                widths = [int((width - gaps) * share) for share in shares]
+                widths.append(width - gaps - sum(widths))
+                kx = x
+                for c, name in enumerate(row):
+                    rect = pygame.Rect(kx, y, widths[c], 46)
+                    on = r == self.kb_row and c == self.kb_col
+                    active = (name == "Shift" and self.kb_mode == "upper") or \
+                             (name == "#+=" and self.kb_mode == "symbols") or (name == "Show" and self.kb_show)
+                    main = name in ("Connect", "Done")
+                    color = (90, 84, 170) if on else (230, 228, 255) if main else \
+                        (70, 66, 130) if active else (44, 41, 86)
+                    rounded(s, color, rect, 8)
+                    if on:
+                        rounded(s, WHITE, rect, 8, 2)
+                    label_text = "Hide" if name == "Show" and self.kb_show else name
+                    ink = INK if main and not on else WHITE
+                    label = self.text.render(label_text, 15, ink, main)
+                    s.blit(label, label.get_rect(center=rect.center))
+                    kx += widths[c] + 6
+        if self.kb_field is None:
+            self.draw_wifi_status(s, x, width)
+
+    def draw_dialog(self, s, message, ok_label, cancel_label):
+        dim = pygame.Surface((W, H), pygame.SRCALPHA)
+        dim.fill((6, 5, 16, 170))
+        s.blit(dim, (0, 0))
+        lines = self.text.wrap(message, 22, 520)[:6]
+        box = pygame.Rect(0, 0, 600, 150 + len(lines) * 30)
+        box.center = (W // 2, H // 2)
+        rounded(s, (30, 28, 64), box, 20)
+        for n, line in enumerate(lines):
+            surf = self.text.render(line, 22)
+            s.blit(surf, surf.get_rect(midtop=(box.centerx, box.y + 36 + n * 30)))
+        by = box.bottom - 72
+        label = self.text.render(ok_label, 18, INK, True)
+        ok = pygame.Rect(0, by, 180, 46)
+        if cancel_label:
+            ok.right = box.centerx - 10
+        else:
+            ok.centerx = box.centerx
+        rounded(s, WHITE, ok, 23)
+        s.blit(label, label.get_rect(center=ok.center))
+        draw_button(s, "cross", ok.x - 18, ok.centery)
+        if cancel_label:
+            cancel = pygame.Rect(box.centerx + 10, by, 180, 46)
+            rounded(s, (255, 255, 255), cancel, 23, 2)
+            text = self.text.render(cancel_label, 18, WHITE)
+            s.blit(text, text.get_rect(center=cancel.center))
+            draw_button(s, "circle", cancel.right + 18, cancel.centery)
+
+    def run(self):
+        last = time.monotonic()
+        while True:
+            now = time.monotonic()
+            dt = min(0.1, now - last)
+            last = now
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    return None
+                for action in self.input.handle(event, now):
+                    if self.fade_out is None:
+                        self.act(action)
+            for action in self.input.repeats(now):
+                if self.fade_out is None:
+                    self.act(action)
+            self.update(dt)
+            self.draw()
+            pygame.display.flip()
+            if self.fade_out is not None and self.fade_out >= 1.0:
+                return self.result
+            self.clock.tick(60)
+
+
+def main():
+    parser = argparse.ArgumentParser(description="PS5 on PS4 home screen")
+    parser.add_argument("--games", default=USB_GAMES, help="the USB drive's folder of PS5 games")
+    parser.add_argument("--ps4-games", default=PS4_GAMES, help="the PS4 drive's folder of PS5 games")
+    parser.add_argument("--pc-test", default=None, metavar="DIR",
+                        help="for testing: DIR stands for the mounted PC shares (no smbnetfs)")
+    parser.add_argument("--message", default=None, help="a message to show first (after an error)")
+    parser.add_argument("--windowed", action="store_true", help="a window instead of full screen")
+    parser.add_argument("--dry-run-network", action="store_true",
+                        help="look up Wi-Fi but never change it (for testing)")
+    args = parser.parse_args()
+    result = Home(args).run()
+    pygame.quit()
+    if result:
+        print(result, flush=True)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

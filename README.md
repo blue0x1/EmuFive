@@ -10,7 +10,7 @@ The [KytyPS5](https://github.com/KytyPS5/KytyPS5) PS5 emulator on a jailbroken P
 
 Created by **[Chokri Hammedi (blue0x1)](https://github.com/blue0x1)**. Built on [PS4 Multiboot](https://github.com/blue0x1/ps4-multiboot).
 
-> **Status: experimental research.** On a PS4 Pro, a native PS5 homebrew app (Snes9x PS5, rebuilt for the PS4's CPU) runs in KytyPS5 and draws its screen. PS5 games do not run, and may never run at a playable speed; see [The CPU problem](#the-cpu-problem).
+> **Status: experimental research.** On a PS4 Pro, a native PS5 homebrew app (Snes9x PS5, rebuilt for the PS4's CPU) runs in KytyPS5 and draws its screen. KytyPS5 now rewrites the PS5-only CPU instructions in game code (patch `0004`); whether and how fast a game runs on the PS4 is being tested. See [The CPU problem](#the-cpu-problem).
 
 ## How it works
 
@@ -19,13 +19,19 @@ Created by **[Chokri Hammedi (blue0x1)](https://github.com/blue0x1)**. Built on 
 - **KytyPS5**, upstream at a pinned commit with this project's patches (`patches/kytyps5/`), built with `-march=btver2` for the PS4's AMD Jaguar CPU. The official build uses AVX2 and stops with "Illegal instruction" on the PS4.
   - `0001`: the `KYTY_HOST_ARCH` build option (the CPU the emulator is compiled for).
   - `0002`: a C library for homebrew. PS5 homebrew built with the ps5-native-app-boilerplate ships a stand-in `sce_module/libc.prx` whose functions all return 0 (the console uses its own C library), so in KytyPS5 its `malloc` failed. The patch adds the C library functions such homebrew imports and uses them only for such a stand-in module.
+  - `0003`: more for homebrew: files and folders, system calls, the foreground user, and extra mounts (`KYTY_MOUNTS`).
+  - `0004`: PS5 code on the PS4's CPU. Every AVX2, FMA and BMI2 instruction is rewritten into SSE4.2/AVX/BMI1 code when a module loads; one that cannot be rewritten there is replaced the first time it runs. See [The CPU problem](#the-cpu-problem).
 - **PS5 on PS4** packs all of it into a small Linux system that boots straight into the emulator, full screen, with no desktop. It installs through PS4 Multiboot like any other system.
 
 ## The CPU problem
 
 KytyPS5 does not emulate the PS5's CPU: it runs the game's own x86-64 code directly. PS5 games are built for the PS5's Zen 2 CPU and use AVX2, BMI2 and FMA instructions throughout. The PS4's Jaguar CPU has none of them, so game code stops at the first such instruction.
 
-Running real games needs a translator in KytyPS5's guest patcher that rewrites those instructions into ones the Jaguar has. That is months of work, and the Jaguar is far slower than the PS5's CPU, so expect a few frames per second at best.
+Patch `0004` adds that to KytyPS5's guest instruction patcher. When the host CPU lacks AVX2, FMA or BMI2, each such instruction is replaced by code with the same effect: 256-bit integer operations as two 128-bit halves, permutes across halves with AVX moves and blends, per-element shifts one element at a time, FMA computed in double precision, gathers one element at a time, BMI2 with saved registers. The jump to a replacement goes where the instruction was; an instruction too short for one, in a spot the patcher cannot rearrange, faults and is replaced at run time.
+
+`tools/jaguar-test/` checks every replacement on a PC that has these instructions: it takes each instruction form found in a program's code, runs the original and the replacement from the same random state, and compares all registers, flags and memory. The forms found in the programs tested so far match: 287 in God of War Sons of Sparta (gathers and VFMADDSUB included) and 227 in the programs tested before. The exceptions are rare last-bit differences in FMA (single precision is rounded twice, double precision is a multiply and an add) and a NaN corner case of 0 times infinity.
+
+The Jaguar is still far slower than the PS5's CPU, and the replacements add to that, so even a game that runs may run slowly.
 
 ## Plan
 
@@ -37,8 +43,9 @@ Running real games needs a translator in KytyPS5's guest patcher that rewrites t
 | PS5 on PS4 system image, installs through PS4 Multiboot | Done, PS4 Pro |
 | A PS5 homebrew app without AVX2 runs and draws | Done: Snes9x PS5 2.11 rebuilt for btver2, PS4 Pro |
 | Controller, `/data` and USB storage, loading a game in that app | Done on a PC test build (same patches); PS4 next |
-| AVX2, BMI2 and FMA translation for game code | Research |
-| Game picker with the controller | Later |
+| AVX2, BMI2 and FMA translation for game code | Done (`0004`), checked on a PC; first game test on the PS4 next |
+| Home screen: pick a game with the controller; Wi-Fi; Settings | Done, checked on a PC |
+| Games from the USB drive, the PS4 drive or a PC share | Done, checked on a PC; PS4 next |
 
 ## Building
 
@@ -55,15 +62,26 @@ scripts/build-rootfs.sh    # out/ps5-ps4-rootfs.tar.xz
 
 1. Copy `ps5-ps4-rootfs.tar.xz` to `/user/home/` on the PS4 (GoldHEN FTP).
 2. Start PS4 Multiboot and install **PS5 on PS4** from the menu.
-3. Put the PS5 program in the `PS5` folder of a USB drive: a folder with `eboot.bin`, or a ZArchive (`.zar`) dump. The first one found runs; set `PS5_GAME` in `/etc/ps5-on-ps4.conf` to choose another.
+3. Put your games in one of the places below. A game is a folder with `eboot.bin` (and `sce_sys`), or a ZArchive (`.zar`) dump.
 
-The system needs no keyboard:
+The system starts in the home screen and needs no keyboard:
 
-- With no program on the USB drive it waits, and starts the program as soon as a drive with one is plugged in.
+- The games show up as tiles, each labeled with where it is: **USB**, **PS4** or **PC**. Pick one and press Play; when it quits, the home screen comes back.
+- At the top: Wi-Fi (with an on-screen keyboard for the password) and Settings.
 - The program sees the USB drive as `/mnt/usb0` and a folder of the system (`~/data`, kept between starts) as `/data`. For Snes9x PS5, ROMs go in `snes9x/roms` on the USB drive or in `~/data/snes9x/roms`.
-- When the program quits, the PS4 turns off (`PS5_POWEROFF_ON_EXIT`).
-- If the emulator stops with an error, the reason is shown and it starts again; after 3 errors in a row the PS4 turns off.
+- If the emulator stops with an error, the home screen shows the reason.
+- `PS5_GAME` in `/etc/ps5-on-ps4.conf` runs one game straight away instead of the home screen.
 - Controllers: a DualShock 4 on a cable, or over Bluetooth after holding SHARE + PS until the light bar double-blinks.
+- Sound goes to the TV over HDMI, also when a controller on a cable brings its own sound card (`/etc/wireplumber/wireplumber.conf.d/51-ps5-hdmi.conf`).
+
+### Where games can be
+
+- **USB drive:** the `PS5` folder at the top of the drive. exFAT is best (files over 4 GB); NTFS works too.
+- **PS4 drive:** `/user/home/PS5` on the PS4, copied there with GoldHEN FTP. The system reads the PS4 drive read-only and never changes it. Not available when the system itself was installed on a USB drive.
+- **A PC:** a shared folder on Windows or Linux. In Settings, turn on **Use games from PC** and set the PC address, the shared folder and, unless it is a guest share, a username and password; then Connect. Games can be at the top of the shared folder or in a `PS5` folder in it. A network cable is faster than Wi-Fi.
+  - Windows: share the folder (Properties, Sharing). For a guest share, share it with Everyone and turn off *Password protected sharing* in Advanced sharing settings.
+  - Linux (Samba): a share with `guest ok = yes` for a guest share, or a Samba user (`smbpasswd -a`).
+  - The PS4 kernel has no SMB client, so the system uses smbnetfs (FUSE). The settings, password included, are kept in `~/.config/ps5-on-ps4/pc-share.json`, readable only by the `ps5` user.
 
 `tools/make-pad-test-rom.py` writes a tiny SNES ROM for checking a controller: blue, green while a button is held.
 
@@ -81,8 +99,9 @@ This project contains no PS5 system software and no games. Use only games you ow
 | `patches/kytyps5/` | This project's changes to KytyPS5 |
 | `scripts/build-rootfs.sh` | Builds the system image for PS4 Multiboot |
 | `docker/` | Build environments for both |
-| `overlay/` | Files added to the system: session, settings, USB mount, controller pairing |
-| `tools/` | Logo converter, controller test ROM |
+| `overlay/` | Files added to the system: session, home screen, settings, USB and PS4 drive mounts, controller pairing |
+| `tools/` | Logo converter, controller test ROM, `extract-code.py` (the code of a PS5 SELF/ELF) |
+| `tools/jaguar-test/` | Checks patch `0004`'s replacements against the real instructions |
 
 ## Credits
 

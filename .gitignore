@@ -2,3 +2,6 @@
 /build/
 /build.log
 /build-pc.log
+/build-rootfs.log
+/tools/jaguar-test/jaguarTest
+__pycache__/

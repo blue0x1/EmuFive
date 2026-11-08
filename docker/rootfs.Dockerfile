@@ -11,7 +11,8 @@ ARG USER_PASS=ps5
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Base system, network, X, audio, and the libraries KytyPS5 loads at run time
-# (X11, Vulkan, audio, input).
+# (X11, Vulkan, audio, input). The home screen: Python and pygame; smbnetfs
+# opens a PC's shared folder (the PS4 kernel has no SMB client, but has FUSE).
 RUN apt-get update && apt-get install -y --no-install-recommends \
         systemd systemd-sysv dbus dbus-user-session udev kmod sudo locales less nano xz-utils \
         systemd-timesyncd network-manager wpasupplicant iproute2 iputils-ping openssh-server ca-certificates curl \
@@ -24,6 +25,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libx11-6 libx11-xcb1 libxcursor1 libxext6 libxfixes3 libxi6 libxrandr2 libxss1 libxtst6 \
         libxkbcommon0 libwayland-client0 libwayland-cursor0 libwayland-egl1 libdecor-0-0 \
         libxcb-keysyms1 libudev1 libdbus-1-3 libusb-1.0-0 \
+        python3 python3-pygame fonts-inter \
+        smbnetfs fuse3 \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # KytyPS5 for the PS4's CPU (scripts/build-kyty.sh), in /opt/kytyps5.
@@ -46,7 +49,7 @@ RUN useradd -m -s /bin/bash -G sudo,video,render,input,audio,netdev,plugdev "$US
  && echo "LANG=C.UTF-8" > /etc/default/locale
 
 COPY overlay/ /
-RUN chmod 0440 /etc/sudoers.d/ps5-poweroff && visudo -c \
+RUN chmod 0440 /etc/sudoers.d/ps5-poweroff /etc/sudoers.d/ps5-network && visudo -c \
  && chown -R "$USER_NAME:$USER_NAME" "/home/$USER_NAME"
 
 # Bluetooth powers on at boot; ps5-pad-pair pairs controllers held in pairing
@@ -61,5 +64,5 @@ RUN sed -i 's/^#AutoEnable=.*/AutoEnable=true/' /etc/bluetooth/main.conf \
 RUN rm -f /etc/ssh/ssh_host_* \
  && : > /etc/machine-id && rm -f /var/lib/dbus/machine-id \
  && systemctl enable ps5-hostkeys.service NetworkManager.service ssh.service systemd-timesyncd.service \
-        bluetooth.service ps5-pad-pair.service \
+        bluetooth.service ps5-pad-pair.service ps5-ps4-drive.service \
  && systemctl set-default multi-user.target

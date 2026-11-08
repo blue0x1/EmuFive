@@ -1,0 +1,13 @@
+# Copyright (C) 2026 Chokri Hammedi (blue0x1) <https://github.com/blue0x1>
+# The PS4 drive, read-only, for PS5 games in /user/home/PS5 (ps5-ps4-drive).
+[Unit]
+Description=PS5 games on the PS4 drive (read-only)
+After=local-fs.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/opt/ps5-on-ps4/bin/ps5-ps4-drive
+
+[Install]
+WantedBy=multi-user.target

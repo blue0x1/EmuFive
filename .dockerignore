@@ -2,3 +2,4 @@
 /build/rootfs.tar
 /build/meta/
 .git/
+**/__pycache__

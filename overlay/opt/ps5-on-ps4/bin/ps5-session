@@ -1,20 +1,22 @@
 #!/bin/sh
 # Copyright (C) 2026 Chokri Hammedi (blue0x1) <https://github.com/blue0x1>
-# The X session: runs a PS5 program from the USB drive in KytyPS5, full screen,
-# with no keyboard needed.
-#   - No program yet: a message, and the USB drive is checked every few seconds.
-#   - The program quits: the PS4 turns off (PS5_POWEROFF_ON_EXIT in
-#     /etc/ps5-on-ps4.conf).
-#   - The emulator stops with an error: the reason for 20 seconds, then it starts
-#     again; after 3 errors in a row, a message and the PS4 turns off.
+# The X session, with no keyboard needed:
+#   - The home screen (ps5-home) lists the games from the USB drive, the PS4
+#     drive and a PC's shared folder (see ps5-home). Picking one runs it in
+#     KytyPS5, full screen; when the game ends, the home screen comes back,
+#     with the reason if it stopped with an error.
+#   - Power off in the home screen turns the PS4 off.
+#   - With PS5_GAME set in /etc/ps5-on-ps4.conf, that game runs straight away
+#     instead, and PS5_POWEROFF_ON_EXIT decides what happens when it ends.
 PS5_GAME=
 PS5_KYTY_OPTIONS=
 PS5_POWEROFF_ON_EXIT=yes
 [ -f /etc/ps5-on-ps4.conf ] && . /etc/ps5-on-ps4.conf
 
 KYTY=/opt/kytyps5/kyty_emulator
+HOME_SCREEN=/opt/ps5-on-ps4/bin/ps5-home
 USB=/media/ps5-usb
-DATA="$HOME/data"       # the program's /data (settings, saves, ROMs)
+DATA="$HOME/data"       # the games' /data (settings, saves)
 WORK="$HOME/.kytyps5"   # the emulator's own files (shader caches, temporary data)
 LOG="$HOME/kytyps5.log" # this run; the run before is kytyps5.log.1
 TERM_UI="xterm -fullscreen -bg black -fg white -fa DejaVuSansMono -fs 16"
@@ -25,65 +27,76 @@ export RADV_EXPERIMENTAL=sparse
 
 mkdir -p "$DATA" "$WORK"
 
-# Shows a message full screen for some seconds.
+# Shows a message full screen for some seconds (only if the home screen fails).
 message() {  # seconds text
     $TERM_UI -e sh -c 'printf "%b\n" "$2"; sleep "$1"' sh "$1" "$2"
 }
 
-# The program to run: PS5_GAME, or the first folder with eboot.bin (or .zar
-# dump) in the PS5 folder of the USB drive.
-find_game() {
-    if [ -n "$PS5_GAME" ]; then
-        [ -e "$PS5_GAME" ] && echo "$PS5_GAME"
-        return
+poweroff() {
+    sudo -n /usr/bin/systemctl poweroff
+    exit 0
+}
+
+# Runs one game; sets $rc and $reason.
+run_game() {  # path
+    mounts="/data=$DATA"
+    grep -q " $USB " /proc/mounts && mounts="$mounts;/mnt/usb0=$USB"
+    [ -f "$LOG" ] && mv -f "$LOG" "$LOG.1"
+    # shellcheck disable=SC2086
+    (cd "$WORK" && KYTY_MOUNTS="$mounts" exec "$KYTY" --game "$1" --fullscreen --hide-cursor $PS5_KYTY_OPTIONS) > "$LOG" 2>&1
+    rc=$?
+    reason=""
+    if [ $rc -ne 0 ]; then
+        reason="$(grep -A2 -- '--- .*Error ---' "$LOG" | tail -n 2 | tr '\n' ' ')"
+        [ -n "$reason" ] || reason="$(tail -n 3 "$LOG" | tr '\n' ' ')"
     fi
-    [ -d "$USB/PS5" ] || return
-    g="$(find "$USB/PS5" -maxdepth 3 \( -name eboot.bin -o -name '*.zar' \) 2>/dev/null | sort | head -n 1)"
-    case "$g" in */eboot.bin) g="${g%/eboot.bin}" ;; esac
-    echo "$g"
 }
 
 xset s off -dpms 2>/dev/null
 # Kiosk window manager: every window full screen, no title bars.
 matchbox-window-manager -use_titlebar no -use_cursor no &
 
-# Give a drive plugged in at boot a few seconds to mount.
-i=0; while [ $i -lt 10 ] && ! grep -q " $USB " /proc/mounts; do sleep 1; i=$((i + 1)); done
+# A fixed game (PS5_GAME): run it; the home screen is not used. (The home
+# screen needs no wait: it finds a drive whenever it is mounted.)
+if [ -n "$PS5_GAME" ]; then
+    # Give a drive plugged in at boot a few seconds to mount.
+    i=0; while [ $i -lt 10 ] && ! grep -q " $USB " /proc/mounts; do sleep 1; i=$((i + 1)); done
+    while :; do
+        run_game "$PS5_GAME"
+        if [ $rc -eq 0 ]; then
+            [ "$PS5_POWEROFF_ON_EXIT" = yes ] && poweroff
+            continue
+        fi
+        message 20 "KytyPS5 stopped (exit code $rc):\n\n$reason\n\nStarting again in 20 seconds. The log is $LOG."
+    done
+fi
 
+note=""
 failures=0
 while :; do
-    game="$(find_game)"
-    if [ -z "$game" ]; then
-        $TERM_UI -e sh -c 'printf "%b\n" "$1"; while :; do sleep 60; done' sh \
-            "PS5 on PS4\n\nNo PS5 program found. Waiting for a USB drive with one...\n\nPut the program's folder (with eboot.bin) in the PS5 folder of a USB drive\nand plug it in. It starts by itself.\n\nSettings: /etc/ps5-on-ps4.conf (log in on tty2 with Ctrl+Alt+F2)." &
-        waiting=$!
-        while [ -z "$(find_game)" ]; do sleep 3; done
-        kill "$waiting" 2>/dev/null
-        sleep 2 # let the drive settle
-        continue
-    fi
-
-    mounts="/data=$DATA"
-    grep -q " $USB " /proc/mounts && mounts="$mounts;/mnt/usb0=$USB"
-    [ -f "$LOG" ] && mv -f "$LOG" "$LOG.1"
-    started=$(date +%s)
-    # shellcheck disable=SC2086
-    (cd "$WORK" && KYTY_MOUNTS="$mounts" exec "$KYTY" --game "$game" --fullscreen --hide-cursor $PS5_KYTY_OPTIONS) > "$LOG" 2>&1
-    rc=$?
-    [ $rc -eq 0 ] && break
-
-    # A run of more than 5 minutes was not part of a crash loop.
-    [ $(($(date +%s) - started)) -gt 300 ] && failures=0
-    failures=$((failures + 1))
-    reason="$(grep -A2 -- '--- .*Error ---' "$LOG" | tail -n 2)"
-    [ -n "$reason" ] || reason="$(tail -n 5 "$LOG")"
-    if [ $failures -ge 3 ]; then
-        message 60 "KytyPS5 stopped 3 times in a row (exit code $rc):\n\n$reason\n\nThe log is $LOG. The PS4 turns off in a minute."
-        break
-    fi
-    message 20 "KytyPS5 stopped (exit code $rc):\n\n$reason\n\nStarting again in 20 seconds."
+    choice="$(python3 "$HOME_SCREEN" ${note:+--message "$note"})"
+    status=$?
+    note=""
+    case "$choice" in
+    "PLAY "*)
+        failures=0
+        game="${choice#PLAY }"
+        run_game "$game"
+        if [ $rc -ne 0 ]; then
+            note="The game stopped (error code $rc). $reason The log is ~/kytyps5.log."
+        fi
+        ;;
+    POWEROFF)
+        poweroff
+        ;;
+    *)
+        # The home screen itself failed: say so, and try again; turn off after 3 times.
+        failures=$((failures + 1))
+        if [ $failures -ge 3 ]; then
+            message 60 "The home screen could not start (exit code $status).\n\nThe log is ~/.ps5-session.log. The PS4 turns off in a minute."
+            poweroff
+        fi
+        message 10 "The home screen stopped (exit code $status). Starting it again..."
+        ;;
+    esac
 done
-
-if [ "$PS5_POWEROFF_ON_EXIT" = yes ]; then
-    sudo -n /usr/bin/systemctl poweroff
-fi

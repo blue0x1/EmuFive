@@ -1,0 +1,4 @@
+# Copyright (C) 2026 Chokri Hammedi (blue0x1) <https://github.com/blue0x1>
+# The home screen joins Wi-Fi networks with nmcli. There is no polkit in this
+# system, so the PS5 user may run nmcli as root without a password.
+ps5 ALL=(root) NOPASSWD: /usr/bin/nmcli

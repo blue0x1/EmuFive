@@ -1,0 +1,1858 @@
+From: Chokri Hammedi <52697989+blue0x1@users.noreply.github.com>
+Subject: [PATCH] loader: run PS5 code on the PS4's CPU (no AVX2, FMA, BMI2)
+
+PS5 games and apps are built for Zen 2 and use AVX2, FMA and BMI2, which the
+PS4's Jaguar CPU does not have. When the host lacks any of them, every such
+instruction in a loaded module is rewritten at load time to a replacement
+built from SSE4.2/AVX/BMI1 (the existing guest instruction patcher places the
+jumps and trampolines). Instructions that cannot be rewritten there fault at
+run time and are replaced then (with a jump written in place when the site
+has 5 bytes or more).
+
+- jaguarCompat.cpp: the replacements. 256-bit integer ops run as two 128-bit
+  halves; cross-lane permutes use vperm2f128/vpermilps/vblend; per-element
+  shifts go through the stack; FMA in single precision is computed in double
+  precision (exact product, the sum rounded twice); VFMADDSUB/VFMSUBADD
+  alternate add and subtract; gathers load one element at a time; BMI2 uses
+  saved RAX/RCX/RDX and keeps RFLAGS when they are still needed.
+- The 128-byte red zone below RSP is never touched.
+- KYTY_JAGUAR_COMPAT=1 turns it on on a newer CPU, =0 off, =trap makes every
+  such instruction take the run-time path (both for testing).
+---
+diff --git a/src/loader/guestInstructionPatcher.cpp b/src/loader/guestInstructionPatcher.cpp
+index dba6337..35a736e 100644
+--- a/src/loader/guestInstructionPatcher.cpp
++++ b/src/loader/guestInstructionPatcher.cpp
+@@ -6,11 +6,13 @@
+ #include "common/assert.h"
+ #include "common/logging/log.h"
+ #include "common/virtualMemory.h"
++#include "loader/jaguarCompat.h"
+ 
+ #include <Zydis/Zydis.h>
+ #include <algorithm>
+ #include <array>
+ #include <bitset>
++#include <cinttypes>
+ #include <climits>
+ #include <cstring>
+ #include <limits>
+@@ -22,8 +24,17 @@
+ #include <unordered_set>
+ #include <vector>
+ #include <xbyak/xbyak.h>
++#include <unordered_map>
+ #include <xbyak/xbyak_util.h>
+ 
++#if KYTY_PLATFORM == KYTY_PLATFORM_WINDOWS
++#include <windows.h> // IWYU pragma: keep
++#elif defined(__APPLE__)
++#include <sys/ucontext.h>
++#else
++#include <ucontext.h>
++#endif
++
+ using namespace Xbyak::util;
+ 
+ namespace Loader {
+@@ -41,6 +52,12 @@ using s64 = int64_t;
+ 
+ constexpr size_t NearJumpSize = 5;
+ 
++// With Jaguar compatibility, the end of the trampoline area holds replacements built when a
++// guest instruction that was not rewritten at load time faults.
++static u64 FallbackSize(u64 trampoline_size) {
++	return JaguarCompat::Enabled() ? trampoline_size / 8 : 0;
++}
++
+ struct PatchModule {
+ 	std::mutex           mutex {};
+ 	u8*                  start = nullptr;
+@@ -49,10 +66,18 @@ struct PatchModule {
+ 	Xbyak::CodeGenerator patch_gen;
+ 	Xbyak::CodeGenerator trampoline_gen;
+ 	bool                 trampoline_exhaustion_reported = false;
++	u64                  fallback_size = 0;
++	Xbyak::CodeGenerator fallback_gen;
++	std::unordered_map<u64, const u8*> fallback_sites;
++	// KYTY_JAGUAR_COMPAT=trap: the original bytes of instructions overwritten with UD2.
++	std::unordered_map<u64, std::array<u8, ZYDIS_MAX_INSTRUCTION_LENGTH>> trap_originals;
+ 
+ 	PatchModule(u8* module_ptr, u64 module_size, u8* trampoline_ptr, u64 trampoline_size)
+ 	    : start(module_ptr), end(module_ptr + module_size), patch_gen(module_size, module_ptr),
+-	      trampoline_gen(trampoline_size, trampoline_ptr) {}
++	      trampoline_gen(trampoline_size - FallbackSize(trampoline_size), trampoline_ptr),
++	      fallback_size(FallbackSize(trampoline_size)),
++	      fallback_gen(fallback_size != 0 ? fallback_size : 1,
++	                   trampoline_ptr + trampoline_size - fallback_size) {}
+ };
+ 
+ static std::map<u64, PatchModule> g_patch_modules;
+@@ -126,13 +151,15 @@ enum class InstructionReplacement {
+ 	InsertQ,
+ 	ReadProcessorId,
+ 	CacheLineWriteBack,
+-	ReadTimeStampCounter
++	ReadTimeStampCounter,
++	Jaguar
+ };
+ 
+ struct InstructionRewrite {
+ 	bool                   protect_red_zone {};
+ 	bool                   protected_indirect_call {};
+ 	InstructionReplacement replacement {};
++	bool                   flags_live = true; // Jaguar: RFLAGS are read before being rewritten.
+ };
+ 
+ InstructionPatchCounts& ReplacementCounts(GuestInstructionPatchResult& result,
+@@ -144,6 +171,7 @@ InstructionPatchCounts& ReplacementCounts(GuestInstructionPatchResult& result,
+ 		case InstructionReplacement::InsertQ: return result.insertq;
+ 		case InstructionReplacement::ReadProcessorId: return result.rdpid;
+ 		case InstructionReplacement::ReadTimeStampCounter: return result.rdtsc;
++		case InstructionReplacement::Jaguar: return result.jaguar;
+ 		default: return result.clwb;
+ 	}
+ }
+@@ -154,6 +182,8 @@ bool UsesInstructionTrap(InstructionReplacement replacement, bool trap_replaceme
+ 	       replacement != InstructionReplacement::ReadTimeStampCounter &&
+ 	       (trap_replacements || replacement == InstructionReplacement::InsertQ ||
+ 	        replacement == InstructionReplacement::ReadProcessorId);
++	// Jaguar: a trapped instruction keeps its bytes and faults; RedirectJaguarInstruction
++	// then runs its replacement.
+ }
+ 
+ bool IsStackPointerRegister(ZydisRegister reg) {
+@@ -977,6 +1007,74 @@ void CollectTscInstructions(const DecodedFunction&                   function,
+ 	}
+ }
+ 
++// Whether the status flags as they are after `site` are read before being set again. Calls and
++// returns end the search (no flags are passed through them); anything not followed is live.
++bool FlagsLiveAfter(const DecodedFunction& function, const DecodedCodeInstruction& site) {
++	constexpr ZydisAccessedFlagsMask StatusFlags = ZYDIS_CPUFLAG_CF | ZYDIS_CPUFLAG_PF |
++	                                               ZYDIS_CPUFLAG_AF | ZYDIS_CPUFLAG_ZF |
++	                                               ZYDIS_CPUFLAG_SF | ZYDIS_CPUFLAG_OF;
++	ZydisAccessedFlagsMask pending = StatusFlags;
++	uintptr_t              address = site.address + site.instruction.length;
++	for (int count = 0; count < 64; ++count) {
++		const auto next = function.instructions.find(address);
++		if (next == function.instructions.end()) {
++			return true;
++		}
++		const auto& instruction = next->second.instruction;
++		if (const auto* flags = instruction.cpu_flags; flags != nullptr) {
++			if ((flags->tested & pending) != 0) {
++				return true;
++			}
++			pending &= ~(flags->modified | flags->set_0 | flags->set_1 | flags->undefined);
++		}
++		if (pending == 0) {
++			return false;
++		}
++		const auto category = instruction.meta.category;
++		if (category == ZYDIS_CATEGORY_CALL || category == ZYDIS_CATEGORY_RET) {
++			return false;
++		}
++		if (category == ZYDIS_CATEGORY_COND_BR || IsControlFlowTerminator(instruction)) {
++			return true;
++		}
++		address += instruction.length;
++	}
++	return true;
++}
++
++void CollectJaguarInstructions(const DecodedFunction&                   function,
++                               std::map<uintptr_t, InstructionRewrite>& rewrite_sites,
++                               GuestInstructionPatchResult&             result) {
++	for (const auto& [address, decoded]: function.instructions) {
++		if (!JaguarCompat::IsMissing(decoded.instruction)) {
++			continue;
++		}
++		++result.jaguar.found;
++		auto& rewrite       = rewrite_sites[address];
++		rewrite.replacement = InstructionReplacement::Jaguar;
++		rewrite.flags_live  = FlagsLiveAfter(function, decoded);
++	}
++}
++
++// Whether a linear pass over [start, end) meets an AVX2, FMA or BMI2 instruction. Functions
++// without one are not decoded when nothing else is patched; anything missed traps at run time.
++bool MayUseJaguarMissing(uintptr_t start, uintptr_t end) {
++	ZydisDecodedInstruction instruction;
++	for (uintptr_t address = start; address < end;) {
++		if (!ZYAN_SUCCESS(ZydisDecoderDecodeInstruction(&GetDecoder(), nullptr,
++		                                                reinterpret_cast<void*>(address),
++		                                                end - address, &instruction))) {
++			++address;
++			continue;
++		}
++		if (JaguarCompat::IsMissing(instruction)) {
++			return true;
++		}
++		address += instruction.length;
++	}
++	return false;
++}
++
+ // Whether [start, end) holds an RDTSC (0F 31) or RDTSCP (0F 01 F9) encoding: only those functions
+ // are decoded when nothing else is patched.
+ bool MayReadTimeStampCounter(uintptr_t start, uintptr_t end) {
+@@ -1093,6 +1191,10 @@ void RelocateGuestInstructions(PatchModule* module, const DecodedFunction& funct
+ 						GenerateExtractQ(*decoded, generator);
+ 					} else if (replacement == InstructionReplacement::ReadTimeStampCounter) {
+ 						GenerateReadTimeStampCounter(*decoded, tsc_multiplier, generator);
++					} else if (replacement == InstructionReplacement::Jaguar) {
++						encoded = JaguarCompat::Generate(decoded->instruction,
++						                                 decoded->operands.data(), decoded->address,
++						                                 generator, rewrite->second.flags_live);
+ 					} else {
+ 						// CLFLUSH writes back dirty data too; invalidation is a permitted stronger
+ 						// action.
+@@ -1528,7 +1630,8 @@ GuestInstructionHostFeatures GetGuestInstructionHostFeatures() {
+ 			rdpid = (leaf[2] & (1u << 22)) != 0;
+ 		}
+ 		return GuestInstructionHostFeatures {cpu.has(Xbyak::util::Cpu::tSSE4a), rdpid,
+-		                                     cpu.has(Xbyak::util::Cpu::tCLWB)};
++		                                     cpu.has(Xbyak::util::Cpu::tCLWB),
++		                                     JaguarCompat::Enabled()};
+ 	}();
+ 	return features;
+ }
+@@ -1539,7 +1642,10 @@ GuestInstructionPatchResult PatchGuestInstructions(u64 segment_addr, u64 segment
+                                                    GuestInstructionHostFeatures host_features,
+                                                    u64                          tsc_multiplier) {
+ 	GuestInstructionPatchResult result {};
+-	const bool                  tsc_only = !protect_memory && !emulate_amd;
++	const bool                  emulate_jaguar = host_features.jaguar;
++	const bool                  tsc_only = !protect_memory && !emulate_amd && !emulate_jaguar;
++	// Only Jaguar (and maybe TSC) rewrites: skip decoding functions that have nothing to rewrite.
++	const bool jaguar_only = !protect_memory && !emulate_amd && emulate_jaguar;
+ 	if (tsc_only && tsc_multiplier == 0) {
+ 		return result;
+ 	}
+@@ -1571,7 +1677,9 @@ GuestInstructionPatchResult PatchGuestInstructions(u64 segment_addr, u64 segment
+ 		const uintptr_t function_end =
+ 		    function_index + 1 < starts.size() ? starts[function_index + 1] : segment_end;
+ 		if (function_end <= function_start ||
+-		    (tsc_only && !MayReadTimeStampCounter(function_start, function_end))) {
++		    (tsc_only && !MayReadTimeStampCounter(function_start, function_end)) ||
++		    (jaguar_only && !MayUseJaguarMissing(function_start, function_end) &&
++		     (tsc_multiplier == 0 || !MayReadTimeStampCounter(function_start, function_end)))) {
+ 			continue;
+ 		}
+ 
+@@ -1597,6 +1705,22 @@ GuestInstructionPatchResult PatchGuestInstructions(u64 segment_addr, u64 segment
+ 		if (tsc_multiplier != 0) {
+ 			CollectTscInstructions(function, rewrite_sites, result);
+ 		}
++		if (emulate_jaguar && JaguarCompat::TrapTest()) {
++			for (const auto& [address, decoded]: function.instructions) {
++				if (JaguarCompat::IsMissing(decoded.instruction) &&
++				    !module->trap_originals.contains(address)) {
++					auto& original = module->trap_originals[address];
++					std::memcpy(original.data(), reinterpret_cast<const void*>(address),
++					            decoded.instruction.length);
++					auto* code = reinterpret_cast<u8*>(address);
++					code[0]    = 0x0f; // UD2
++					code[1]    = 0x0b;
++					++result.jaguar.found;
++				}
++			}
++		} else if (emulate_jaguar) {
++			CollectJaguarInstructions(function, rewrite_sites, result);
++		}
+ 		if (!rewrite_sites.empty()) {
+ 			RelocateGuestInstructions(module, function, rewrite_sites, result, tsc_multiplier);
+ 			TrapUnrelocatedInstructions(*module, function, rewrite_sites, result);
+@@ -1612,6 +1736,112 @@ GuestInstructionPatchResult PatchGuestInstructions(u64 segment_addr, u64 segment
+ 	return result;
+ }
+ 
++static u64& GuestRip(void* native_context) {
++#if KYTY_PLATFORM == KYTY_PLATFORM_WINDOWS
++	return reinterpret_cast<u64&>(static_cast<PCONTEXT>(native_context)->Rip);
++#elif defined(__APPLE__)
++	return reinterpret_cast<u64&>(static_cast<ucontext_t*>(native_context)->uc_mcontext->__ss.__rip);
++#else
++	return reinterpret_cast<u64&>(static_cast<ucontext_t*>(native_context)->uc_mcontext.gregs[REG_RIP]);
++#endif
++}
++
++bool RedirectJaguarInstruction(void* native_context) {
++	if (native_context == nullptr || !JaguarCompat::Enabled()) {
++		return false;
++	}
++	u64&  rip    = GuestRip(native_context);
++	auto* module = GetContainingModule(reinterpret_cast<void*>(rip));
++	if (module == nullptr || module->fallback_size == 0) {
++		return false;
++	}
++	static std::mutex fallback_mutex;
++	static u64        hits = 0;
++	std::lock_guard   lock {fallback_mutex};
++	// Sites shorter than a jump keep faulting; report how often, so slow spots show in the log.
++	if (++hits % 1000000 == 0) {
++		std::printf("PS4 CPU compatibility: %" PRIu64 " run-time replacements so far\n", hits);
++	}
++	if (const auto known = module->fallback_sites.find(rip); known != module->fallback_sites.end()) {
++		rip = reinterpret_cast<u64>(known->second);
++		return true;
++	}
++
++	ZydisDecodedInstruction                                  instruction {};
++	std::array<ZydisDecodedOperand, ZYDIS_MAX_OPERAND_COUNT> operands {};
++	const void* bytes     = reinterpret_cast<const void*>(rip);
++	u64         available = std::min<u64>(ZYDIS_MAX_INSTRUCTION_LENGTH,
++	                                      reinterpret_cast<u64>(module->end) - rip);
++	if (const auto original = module->trap_originals.find(rip);
++	    original != module->trap_originals.end()) {
++		bytes     = original->second.data();
++		available = original->second.size();
++	}
++	if (!ZYAN_SUCCESS(ZydisDecoderDecodeFull(&GetDecoder(), bytes, available, &instruction,
++	                                         operands.data())) ||
++	    !JaguarCompat::IsMissing(instruction)) {
++		return false;
++	}
++
++	auto&        generator = module->fallback_gen;
++	const size_t begin     = generator.getSize();
++	Xbyak::ClearError();
++	const bool generated = JaguarCompat::Generate(instruction, operands.data(), rip, generator,
++	                                              /*flags_live=*/true);
++	if (generated && Xbyak::GetError() == 0) {
++		generator.jmp(reinterpret_cast<void*>(rip + instruction.length));
++	}
++	if (!generated || Xbyak::GetError() != 0) {
++		generator.reset();
++		generator.setSize(begin);
++		std::printf("PS4 CPU compatibility: no replacement for %s at %p\n",
++		            ZydisMnemonicGetString(instruction.mnemonic), reinterpret_cast<void*>(rip));
++		return false;
++	}
++	const u8* code = generator.getCode() + begin;
++	Common::VirtualMemory::FlushInstructionCache(reinterpret_cast<u64>(code),
++	                                             generator.getSize() - begin);
++	module->fallback_sites.emplace(rip, code);
++
++	// A site of 5 bytes or more gets a jump to its replacement, written with one atomic store
++	// (other threads may be running this code), so it stops faulting.
++	bool       jumps = false;
++	const s64  rel   = reinterpret_cast<s64>(code) - static_cast<s64>(rip + NearJumpSize);
++	if (instruction.length >= NearJumpSize && rel >= INT32_MIN && rel <= INT32_MAX) {
++		std::array<u8, NearJumpSize> jump {0xe9};
++		const auto                   rel32 = static_cast<s32>(rel);
++		std::memcpy(jump.data() + 1, &rel32, sizeof(rel32));
++		const u64 qword = rip & ~u64 {7};
++		const u64 oword = rip & ~u64 {15};
++		if (rip + NearJumpSize <= qword + 8) {
++			auto*     target   = reinterpret_cast<u64*>(qword);
++			const u64 expected = __atomic_load_n(target, __ATOMIC_ACQUIRE);
++			u64       desired  = expected;
++			std::memcpy(reinterpret_cast<u8*>(&desired) + (rip - qword), jump.data(), jump.size());
++			u64 compare = expected;
++			jumps = __atomic_compare_exchange_n(target, &compare, desired, false, __ATOMIC_ACQ_REL,
++			                                    __ATOMIC_ACQUIRE);
++		} else if (rip + NearJumpSize <= oword + 16) {
++			auto*          target   = reinterpret_cast<unsigned __int128*>(oword);
++			unsigned __int128 expected = 0;
++			std::memcpy(&expected, target, sizeof(expected));
++			unsigned __int128 desired = expected;
++			std::memcpy(reinterpret_cast<u8*>(&desired) + (rip - oword), jump.data(), jump.size());
++			jumps = __sync_bool_compare_and_swap(target, expected, desired);
++		}
++		if (jumps) {
++			Common::VirtualMemory::FlushInstructionCache(rip, NearJumpSize);
++		}
++	}
++	if (module->fallback_sites.size() <= 32) {
++		std::printf("PS4 CPU compatibility: %s at %p replaced at run time%s\n",
++		            ZydisMnemonicGetString(instruction.mnemonic), reinterpret_cast<void*>(rip),
++		            jumps ? "" : " (short: faults each time)");
++	}
++	rip = reinterpret_cast<u64>(code);
++	return true;
++}
++
+ namespace {
+ 
+ constexpr uint8_t DW_EH_PE_FORMAT_MASK      = 0x0f;
+diff --git a/src/loader/guestInstructionPatcher.h b/src/loader/guestInstructionPatcher.h
+index 6655d56..27f5d8f 100644
+--- a/src/loader/guestInstructionPatcher.h
++++ b/src/loader/guestInstructionPatcher.h
+@@ -12,9 +12,10 @@
+ namespace Loader {
+ 
+ struct GuestInstructionHostFeatures {
+-	bool sse4a = false;
+-	bool rdpid = false;
+-	bool clwb  = false;
++	bool sse4a  = false;
++	bool rdpid  = false;
++	bool clwb   = false;
++	bool jaguar = false; // No AVX2/FMA/BMI2 (the PS4's CPU): rewrite guest code that uses them.
+ };
+ 
+ GuestInstructionHostFeatures GetGuestInstructionHostFeatures();
+@@ -51,6 +52,7 @@ struct GuestInstructionPatchResult {
+ 	InstructionPatchCounts rdpid;
+ 	InstructionPatchCounts clwb;
+ 	InstructionPatchCounts rdtsc;
++	InstructionPatchCounts jaguar;
+ };
+ 
+ void RegisterGuestInstructionPatchModule(void* module_ptr, uint64_t module_size,
+@@ -65,6 +67,10 @@ GuestInstructionPatchResult PatchGuestInstructions(
+     GuestInstructionHostFeatures host_features  = GetGuestInstructionHostFeatures(),
+     uint64_t                     tsc_multiplier = 0);
+ 
++// For a guest AVX2/FMA/BMI2 instruction that faulted because it was not rewritten at load time:
++// builds its replacement and continues there. False if the fault was something else.
++bool RedirectJaguarInstruction(void* native_context);
++
+ bool DecodeEhFrameFunctionStarts(uint64_t eh_frame_header_addr, uint64_t eh_frame_header_size,
+                                  std::vector<uintptr_t>* function_starts);
+ 
+diff --git a/src/loader/jaguarCompat.cpp b/src/loader/jaguarCompat.cpp
+new file mode 100644
+index 0000000..c05ddd3
+--- /dev/null
++++ b/src/loader/jaguarCompat.cpp
+@@ -0,0 +1,1334 @@
++// SPDX-License-Identifier: GPL-2.0-or-later
++// Replacements for AVX2, FMA and BMI2 instructions built from what the PS4's Jaguar CPU has
++// (SSE4.2, AVX, BMI1, F16C). See jaguarCompat.h.
++
++#include "loader/jaguarCompat.h"
++
++#include <algorithm>
++#include <array>
++#include <cstdlib>
++#include <initializer_list>
++#include <string_view>
++#include <xbyak/xbyak.h>
++#include <xbyak/xbyak_util.h>
++
++using namespace Xbyak::util;
++
++namespace Loader::JaguarCompat {
++
++namespace {
++
++constexpr int64_t RedZone = 128;
++
++ZydisRegister XmmReg(int index) {
++	return static_cast<ZydisRegister>(ZYDIS_REGISTER_XMM0 + index);
++}
++ZydisRegister YmmReg(int index) {
++	return static_cast<ZydisRegister>(ZYDIS_REGISTER_YMM0 + index);
++}
++ZydisRegister Gpr(ZydisRegister reg64, int bits) {
++	const int id = ZydisRegisterGetId(reg64);
++	return bits == 64 ? static_cast<ZydisRegister>(ZYDIS_REGISTER_RAX + id)
++	                  : static_cast<ZydisRegister>(ZYDIS_REGISTER_EAX + id);
++}
++
++bool IsVector(ZydisRegister reg) {
++	const auto cls = ZydisRegisterGetClass(reg);
++	return cls == ZYDIS_REGCLASS_XMM || cls == ZYDIS_REGCLASS_YMM;
++}
++bool IsYmm(ZydisRegister reg) {
++	return ZydisRegisterGetClass(reg) == ZYDIS_REGCLASS_YMM;
++}
++int VectorId(ZydisRegister reg) {
++	return ZydisRegisterGetId(reg);
++}
++
++ZydisEncoderOperand RegOp(ZydisRegister reg) {
++	ZydisEncoderOperand operand {};
++	operand.type      = ZYDIS_OPERAND_TYPE_REGISTER;
++	operand.reg.value = reg;
++	return operand;
++}
++ZydisEncoderOperand ImmOp(uint64_t value) {
++	ZydisEncoderOperand operand {};
++	operand.type  = ZYDIS_OPERAND_TYPE_IMMEDIATE;
++	operand.imm.u = value;
++	return operand;
++}
++
++// Builds the replacement for one guest instruction.
++class Emitter {
++public:
++	Emitter(const ZydisDecodedInstruction& instruction, const ZydisDecodedOperand* operands,
++	        uint64_t address, Xbyak::CodeGenerator& g)
++	    : in(instruction), ops(operands), address(address), g(g) {
++		for (int i = 0; i < in.operand_count_visible; ++i) {
++			const auto& op = ops[i];
++			if (op.type == ZYDIS_OPERAND_TYPE_REGISTER && IsVector(op.reg.value)) {
++				used_vectors |= 1u << VectorId(op.reg.value);
++			}
++		}
++	}
++
++	const ZydisDecodedInstruction& in;
++	const ZydisDecodedOperand*     ops;
++	uint64_t                       address;
++	Xbyak::CodeGenerator&          g;
++	int64_t                        stack_adjust = 0; // How far this code has lowered RSP.
++	bool                           ok           = true;
++	uint32_t                       used_vectors = 0;
++
++	// A vector register the guest instruction does not name, for scratch use.
++	int Scratch() {
++		for (int i = 0; i < 16; ++i) {
++			if ((used_vectors & (1u << i)) == 0) {
++				used_vectors |= 1u << i;
++				return i;
++			}
++		}
++		ok = false;
++		return 0;
++	}
++
++	// Guest memory operand `index`, `extra` bytes further on, `size` bytes wide.
++	ZydisEncoderOperand Mem(int index, int64_t extra, uint16_t size) {
++		const auto&         op = ops[index];
++		ZydisEncoderOperand operand {};
++		operand.type     = ZYDIS_OPERAND_TYPE_MEMORY;
++		operand.mem.size = size;
++		if (op.type != ZYDIS_OPERAND_TYPE_MEMORY || in.address_width != 64 ||
++		    (op.mem.segment != ZYDIS_REGISTER_DS && op.mem.segment != ZYDIS_REGISTER_SS &&
++		     op.mem.segment != ZYDIS_REGISTER_NONE)) {
++			ok = false;
++			return operand;
++		}
++		if (op.mem.base == ZYDIS_REGISTER_RIP) {
++			ZyanU64 target = 0;
++			if (!ZYAN_SUCCESS(ZydisCalcAbsoluteAddress(&in, &op, address, &target))) {
++				ok = false;
++			}
++			operand.mem.base         = ZYDIS_REGISTER_RIP;
++			operand.mem.displacement = static_cast<ZyanI64>(target) + extra;
++			return operand;
++		}
++		operand.mem.base         = op.mem.base;
++		operand.mem.index        = op.mem.index;
++		operand.mem.scale        = op.mem.index == ZYDIS_REGISTER_NONE ? 0 : op.mem.scale;
++		operand.mem.displacement = op.mem.disp.value + extra;
++		if (op.mem.base == ZYDIS_REGISTER_RSP) {
++			operand.mem.displacement += stack_adjust;
++		}
++		return operand;
++	}
++
++	// Guest operand `index` unchanged (memory adjusted for this code's stack use).
++	ZydisEncoderOperand Copy(int index) {
++		const auto& op = ops[index];
++		switch (op.type) {
++			case ZYDIS_OPERAND_TYPE_REGISTER: return RegOp(op.reg.value);
++			case ZYDIS_OPERAND_TYPE_MEMORY: return Mem(index, 0, op.size / 8);
++			case ZYDIS_OPERAND_TYPE_IMMEDIATE: {
++				uint64_t value = op.imm.value.u;
++				if (op.size < 64) {
++					value &= (uint64_t {1} << op.size) - 1;
++				}
++				return ImmOp(value);
++			}
++			default: ok = false; return {};
++		}
++	}
++
++	void Emit(ZydisMnemonic mnemonic, std::initializer_list<ZydisEncoderOperand> operands) {
++		if (!ok) {
++			return;
++		}
++		ZydisEncoderRequest request {};
++		request.machine_mode      = ZYDIS_MACHINE_MODE_LONG_64;
++		request.mnemonic          = mnemonic;
++		request.allowed_encodings = static_cast<ZydisEncodableEncoding>(
++		    ZYDIS_ENCODABLE_ENCODING_LEGACY | ZYDIS_ENCODABLE_ENCODING_VEX);
++		request.operand_count = static_cast<ZyanU8>(operands.size());
++		int i                 = 0;
++		for (const auto& operand: operands) {
++			request.operands[i] = operand;
++			if (i == 3 && operand.type == ZYDIS_OPERAND_TYPE_REGISTER) {
++				request.operands[i].reg.is4 = ZYAN_TRUE;
++			}
++			++i;
++		}
++		std::array<uint8_t, ZYDIS_MAX_INSTRUCTION_LENGTH> code {};
++		ZyanUSize                                         size = code.size();
++		if (!ZYAN_SUCCESS(ZydisEncoderEncodeInstructionAbsolute(
++		        &request, code.data(), &size, reinterpret_cast<ZyanU64>(g.getCurr())))) {
++			ok = false;
++			return;
++		}
++		g.db(code.data(), size);
++	}
++
++	// Moves RSP below the red zone plus `bytes` of room for saved values at [rsp].
++	void Reserve(int64_t bytes) {
++		g.lea(rsp, ptr[rsp - static_cast<int>(RedZone + bytes)]);
++		stack_adjust += RedZone + bytes;
++	}
++	void Release(int64_t bytes) {
++		g.lea(rsp, ptr[rsp + static_cast<int>(RedZone + bytes)]);
++		stack_adjust -= RedZone + bytes;
++	}
++	void PushFlags() {
++		g.pushfq();
++		stack_adjust += 8;
++	}
++	void PopFlags() {
++		g.popfq();
++		stack_adjust -= 8;
++	}
++
++	// Saves (and later restores) full YMM scratch registers in the reserved room.
++	void SaveVectors(std::initializer_list<int> regs) {
++		int slot = 0;
++		for (int reg: regs) {
++			g.vmovdqu(ptr[rsp + slot * 32], Xbyak::Ymm(reg));
++			++slot;
++		}
++	}
++	void RestoreVectors(std::initializer_list<int> regs) {
++		int slot = 0;
++		for (int reg: regs) {
++			g.vmovdqu(Xbyak::Ymm(reg), ptr[rsp + slot * 32]);
++			++slot;
++		}
++	}
++};
++
++// ---------------------------------------------------------------------------------------------
++// AVX2 forms that AVX has under another name with the same effect.
++
++bool GenerateRenamed(Emitter& e, ZydisMnemonic replacement) {
++	const int count = e.in.operand_count_visible;
++	if (count == 2) {
++		e.Emit(replacement, {e.Copy(0), e.Copy(1)});
++	} else if (count == 3) {
++		e.Emit(replacement, {e.Copy(0), e.Copy(1), e.Copy(2)});
++	} else if (count == 4) {
++		e.Emit(replacement, {e.Copy(0), e.Copy(1), e.Copy(2), e.Copy(3)});
++	} else {
++		return false;
++	}
++	return e.ok;
++}
++
++// ---------------------------------------------------------------------------------------------
++// 256-bit integer instructions that work on each 128-bit half separately: run the 128-bit (AVX)
++// form on the upper halves into a scratch register, then on the lower halves into the
++// destination, and put the upper result back in.
++
++bool IsLaneWise(ZydisMnemonic mnemonic) {
++	switch (mnemonic) {
++		case ZYDIS_MNEMONIC_VPADDB:
++		case ZYDIS_MNEMONIC_VPADDW:
++		case ZYDIS_MNEMONIC_VPADDD:
++		case ZYDIS_MNEMONIC_VPADDQ:
++		case ZYDIS_MNEMONIC_VPADDSB:
++		case ZYDIS_MNEMONIC_VPADDSW:
++		case ZYDIS_MNEMONIC_VPADDUSB:
++		case ZYDIS_MNEMONIC_VPADDUSW:
++		case ZYDIS_MNEMONIC_VPSUBB:
++		case ZYDIS_MNEMONIC_VPSUBW:
++		case ZYDIS_MNEMONIC_VPSUBD:
++		case ZYDIS_MNEMONIC_VPSUBQ:
++		case ZYDIS_MNEMONIC_VPSUBSB:
++		case ZYDIS_MNEMONIC_VPSUBSW:
++		case ZYDIS_MNEMONIC_VPSUBUSB:
++		case ZYDIS_MNEMONIC_VPSUBUSW:
++		case ZYDIS_MNEMONIC_VPAND:
++		case ZYDIS_MNEMONIC_VPANDN:
++		case ZYDIS_MNEMONIC_VPOR:
++		case ZYDIS_MNEMONIC_VPXOR:
++		case ZYDIS_MNEMONIC_VPCMPEQB:
++		case ZYDIS_MNEMONIC_VPCMPEQW:
++		case ZYDIS_MNEMONIC_VPCMPEQD:
++		case ZYDIS_MNEMONIC_VPCMPEQQ:
++		case ZYDIS_MNEMONIC_VPCMPGTB:
++		case ZYDIS_MNEMONIC_VPCMPGTW:
++		case ZYDIS_MNEMONIC_VPCMPGTD:
++		case ZYDIS_MNEMONIC_VPCMPGTQ:
++		case ZYDIS_MNEMONIC_VPSHUFB:
++		case ZYDIS_MNEMONIC_VPSHUFD:
++		case ZYDIS_MNEMONIC_VPSHUFHW:
++		case ZYDIS_MNEMONIC_VPSHUFLW:
++		case ZYDIS_MNEMONIC_VPACKSSWB:
++		case ZYDIS_MNEMONIC_VPACKSSDW:
++		case ZYDIS_MNEMONIC_VPACKUSWB:
++		case ZYDIS_MNEMONIC_VPACKUSDW:
++		case ZYDIS_MNEMONIC_VPUNPCKLBW:
++		case ZYDIS_MNEMONIC_VPUNPCKLWD:
++		case ZYDIS_MNEMONIC_VPUNPCKLDQ:
++		case ZYDIS_MNEMONIC_VPUNPCKLQDQ:
++		case ZYDIS_MNEMONIC_VPUNPCKHBW:
++		case ZYDIS_MNEMONIC_VPUNPCKHWD:
++		case ZYDIS_MNEMONIC_VPUNPCKHDQ:
++		case ZYDIS_MNEMONIC_VPUNPCKHQDQ:
++		case ZYDIS_MNEMONIC_VPMULLW:
++		case ZYDIS_MNEMONIC_VPMULLD:
++		case ZYDIS_MNEMONIC_VPMULHW:
++		case ZYDIS_MNEMONIC_VPMULHUW:
++		case ZYDIS_MNEMONIC_VPMULHRSW:
++		case ZYDIS_MNEMONIC_VPMULUDQ:
++		case ZYDIS_MNEMONIC_VPMULDQ:
++		case ZYDIS_MNEMONIC_VPMADDWD:
++		case ZYDIS_MNEMONIC_VPMADDUBSW:
++		case ZYDIS_MNEMONIC_VPSADBW:
++		case ZYDIS_MNEMONIC_VPAVGB:
++		case ZYDIS_MNEMONIC_VPAVGW:
++		case ZYDIS_MNEMONIC_VPMAXSB:
++		case ZYDIS_MNEMONIC_VPMAXSW:
++		case ZYDIS_MNEMONIC_VPMAXSD:
++		case ZYDIS_MNEMONIC_VPMAXUB:
++		case ZYDIS_MNEMONIC_VPMAXUW:
++		case ZYDIS_MNEMONIC_VPMAXUD:
++		case ZYDIS_MNEMONIC_VPMINSB:
++		case ZYDIS_MNEMONIC_VPMINSW:
++		case ZYDIS_MNEMONIC_VPMINSD:
++		case ZYDIS_MNEMONIC_VPMINUB:
++		case ZYDIS_MNEMONIC_VPMINUW:
++		case ZYDIS_MNEMONIC_VPMINUD:
++		case ZYDIS_MNEMONIC_VPABSB:
++		case ZYDIS_MNEMONIC_VPABSW:
++		case ZYDIS_MNEMONIC_VPABSD:
++		case ZYDIS_MNEMONIC_VPSIGNB:
++		case ZYDIS_MNEMONIC_VPSIGNW:
++		case ZYDIS_MNEMONIC_VPSIGND:
++		case ZYDIS_MNEMONIC_VPHADDW:
++		case ZYDIS_MNEMONIC_VPHADDD:
++		case ZYDIS_MNEMONIC_VPHADDSW:
++		case ZYDIS_MNEMONIC_VPHSUBW:
++		case ZYDIS_MNEMONIC_VPHSUBD:
++		case ZYDIS_MNEMONIC_VPHSUBSW:
++		case ZYDIS_MNEMONIC_VPALIGNR:
++		case ZYDIS_MNEMONIC_VPBLENDW:
++		case ZYDIS_MNEMONIC_VPBLENDVB:
++		case ZYDIS_MNEMONIC_VPSLLW:
++		case ZYDIS_MNEMONIC_VPSLLD:
++		case ZYDIS_MNEMONIC_VPSLLQ:
++		case ZYDIS_MNEMONIC_VPSRLW:
++		case ZYDIS_MNEMONIC_VPSRLD:
++		case ZYDIS_MNEMONIC_VPSRLQ:
++		case ZYDIS_MNEMONIC_VPSRAW:
++		case ZYDIS_MNEMONIC_VPSRAD:
++		case ZYDIS_MNEMONIC_VPSLLDQ:
++		case ZYDIS_MNEMONIC_VPSRLDQ:
++		case ZYDIS_MNEMONIC_VMOVNTDQA: return true;
++		default: return false;
++	}
++}
++
++bool GenerateLaneWise(Emitter& e) {
++	const int count = e.in.operand_count_visible;
++	if (count < 2 || count > 4 || e.ops[0].type != ZYDIS_OPERAND_TYPE_REGISTER ||
++	    !IsYmm(e.ops[0].reg.value)) {
++		return false;
++	}
++	const int destination = VectorId(e.ops[0].reg.value);
++
++	enum class Kind { SplitRegister, SplitMemory, Same };
++	struct Source {
++		Kind kind {};
++		int  reg     = -1; // Guest register (split register sources).
++		int  scratch = -1; // Its upper half (split register sources).
++	};
++	std::array<Source, 4> sources {};
++	int                   result_scratch = -1;
++	int                   scratch_count  = 0;
++	std::array<int, 3>    scratches {};
++	for (int i = 1; i < count; ++i) {
++		const auto& op = e.ops[i];
++		if (op.type == ZYDIS_OPERAND_TYPE_REGISTER && IsYmm(op.reg.value)) {
++			sources[i].kind    = Kind::SplitRegister;
++			sources[i].reg     = VectorId(op.reg.value);
++			sources[i].scratch = e.Scratch();
++			scratches[scratch_count++] = sources[i].scratch;
++			if (result_scratch < 0) {
++				result_scratch = sources[i].scratch;
++			}
++		} else if (op.type == ZYDIS_OPERAND_TYPE_MEMORY && op.size == 256) {
++			sources[i].kind = Kind::SplitMemory;
++		} else {
++			// XMM or 128-bit memory shift counts and immediates apply to both halves.
++			sources[i].kind = Kind::Same;
++		}
++	}
++	if (result_scratch < 0) {
++		result_scratch             = e.Scratch();
++		scratches[scratch_count++] = result_scratch;
++	}
++	if (!e.ok) {
++		return false;
++	}
++
++	const int64_t room = 32 * scratch_count;
++	e.Reserve(room);
++	for (int i = 0; i < scratch_count; ++i) {
++		e.g.vmovdqu(ptr[rsp + i * 32], Xbyak::Ymm(scratches[i]));
++	}
++	for (int i = 1; i < count; ++i) {
++		if (sources[i].kind == Kind::SplitRegister) {
++			e.g.vextractf128(Xbyak::Xmm(sources[i].scratch), Xbyak::Ymm(sources[i].reg), 1);
++		}
++	}
++
++	const auto half_operand = [&](int i, bool upper) -> ZydisEncoderOperand {
++		switch (sources[i].kind) {
++			case Kind::SplitRegister:
++				return RegOp(XmmReg(upper ? sources[i].scratch : sources[i].reg));
++			case Kind::SplitMemory: return e.Mem(i, upper ? 16 : 0, 16);
++			default: return e.Copy(i);
++		}
++	};
++	for (bool upper: {true, false}) {
++		const auto dst = RegOp(XmmReg(upper ? result_scratch : destination));
++		if (count == 2) {
++			e.Emit(e.in.mnemonic, {dst, half_operand(1, upper)});
++		} else if (count == 3) {
++			e.Emit(e.in.mnemonic, {dst, half_operand(1, upper), half_operand(2, upper)});
++		} else {
++			e.Emit(e.in.mnemonic, {dst, half_operand(1, upper), half_operand(2, upper),
++			                       half_operand(3, upper)});
++		}
++	}
++	e.g.vinsertf128(Xbyak::Ymm(destination), Xbyak::Ymm(destination),
++	                Xbyak::Xmm(result_scratch), 1);
++	for (int i = 0; i < scratch_count; ++i) {
++		e.g.vmovdqu(Xbyak::Ymm(scratches[i]), ptr[rsp + i * 32]);
++	}
++	e.Release(room);
++	return e.ok;
++}
++
++// ---------------------------------------------------------------------------------------------
++// Broadcasts.
++
++bool GenerateBroadcast(Emitter& e) {
++	if (e.in.operand_count_visible != 2 || e.ops[0].type != ZYDIS_OPERAND_TYPE_REGISTER) {
++		return false;
++	}
++	const bool      wide   = IsYmm(e.ops[0].reg.value);
++	const int       d      = VectorId(e.ops[0].reg.value);
++	const auto      dx     = RegOp(XmmReg(d));
++	const auto&     source = e.ops[1];
++	const bool      memory = source.type == ZYDIS_OPERAND_TYPE_MEMORY;
++	ZydisEncoderOperand sx {};
++	if (!memory) {
++		if (source.type != ZYDIS_OPERAND_TYPE_REGISTER || !IsVector(source.reg.value)) {
++			return false;
++		}
++		sx = RegOp(XmmReg(VectorId(source.reg.value)));
++	}
++	bool fill_upper = wide;
++	switch (e.in.mnemonic) {
++		case ZYDIS_MNEMONIC_VBROADCASTSS:
++			if (memory) {
++				return false; // AVX already has the memory form.
++			}
++			e.Emit(ZYDIS_MNEMONIC_VPERMILPS, {dx, sx, ImmOp(0)});
++			break;
++		case ZYDIS_MNEMONIC_VBROADCASTSD:
++			if (memory || !wide) {
++				return false;
++			}
++			e.Emit(ZYDIS_MNEMONIC_VMOVDDUP, {dx, sx});
++			break;
++		case ZYDIS_MNEMONIC_VPBROADCASTD:
++			if (memory) {
++				e.Emit(ZYDIS_MNEMONIC_VBROADCASTSS,
++				       {RegOp(wide ? YmmReg(d) : XmmReg(d)), e.Mem(1, 0, 4)});
++				fill_upper = false;
++			} else {
++				e.Emit(ZYDIS_MNEMONIC_VPSHUFD, {dx, sx, ImmOp(0)});
++			}
++			break;
++		case ZYDIS_MNEMONIC_VPBROADCASTQ:
++			if (memory && wide) {
++				e.Emit(ZYDIS_MNEMONIC_VBROADCASTSD, {RegOp(YmmReg(d)), e.Mem(1, 0, 8)});
++				fill_upper = false;
++			} else {
++				e.Emit(ZYDIS_MNEMONIC_VMOVDDUP, {dx, memory ? e.Mem(1, 0, 8) : sx});
++			}
++			break;
++		case ZYDIS_MNEMONIC_VPBROADCASTW:
++			if (memory) {
++				e.Emit(ZYDIS_MNEMONIC_VPINSRW, {dx, dx, e.Mem(1, 0, 2), ImmOp(0)});
++				e.Emit(ZYDIS_MNEMONIC_VPSHUFLW, {dx, dx, ImmOp(0)});
++			} else {
++				e.Emit(ZYDIS_MNEMONIC_VPSHUFLW, {dx, sx, ImmOp(0)});
++			}
++			e.Emit(ZYDIS_MNEMONIC_VPUNPCKLQDQ, {dx, dx, dx});
++			break;
++		case ZYDIS_MNEMONIC_VPBROADCASTB:
++			if (memory) {
++				e.Emit(ZYDIS_MNEMONIC_VPINSRB, {dx, dx, e.Mem(1, 0, 1), ImmOp(0)});
++				e.Emit(ZYDIS_MNEMONIC_VPUNPCKLBW, {dx, dx, dx});
++			} else {
++				e.Emit(ZYDIS_MNEMONIC_VPUNPCKLBW, {dx, sx, sx});
++			}
++			e.Emit(ZYDIS_MNEMONIC_VPSHUFLW, {dx, dx, ImmOp(0)});
++			e.Emit(ZYDIS_MNEMONIC_VPUNPCKLQDQ, {dx, dx, dx});
++			break;
++		default: return false;
++	}
++	if (fill_upper) {
++		e.g.vinsertf128(Xbyak::Ymm(d), Xbyak::Ymm(d), Xbyak::Xmm(d), 1);
++	}
++	return e.ok;
++}
++
++// ---------------------------------------------------------------------------------------------
++// Permutes across the two 128-bit halves.
++
++// The 256-bit source (register or memory operand `index`) as a vperm2f128 operand.
++ZydisEncoderOperand WholeSource(Emitter& e, int index) {
++	const auto& op = e.ops[index];
++	if (op.type == ZYDIS_OPERAND_TYPE_REGISTER) {
++		return RegOp(op.reg.value);
++	}
++	return e.Mem(index, 0, 32);
++}
++
++// VPERMQ / VPERMPD ymm, ymm/m256, imm8.
++bool GeneratePermuteQwords(Emitter& e) {
++	if (e.in.operand_count_visible != 3 || e.ops[2].type != ZYDIS_OPERAND_TYPE_IMMEDIATE ||
++	    !IsYmm(e.ops[0].reg.value)) {
++		return false;
++	}
++	const int      d    = VectorId(e.ops[0].reg.value);
++	const uint32_t imm  = static_cast<uint32_t>(e.ops[2].imm.value.u) & 0xffu;
++	uint32_t       pick = 0;
++	uint32_t       high = 0;
++	for (int k = 0; k < 4; ++k) {
++		const uint32_t index = (imm >> (2 * k)) & 3u;
++		pick |= (index & 1u) << k;
++		high |= (index >> 1) << k;
++	}
++	const int lo = e.Scratch();
++	const int hi = e.Scratch();
++	if (!e.ok) {
++		return false;
++	}
++	e.Reserve(64);
++	e.SaveVectors({lo, hi});
++	// lo = both halves the source's lower half, hi = both its upper half.
++	e.Emit(ZYDIS_MNEMONIC_VPERM2F128,
++	       {RegOp(YmmReg(lo)), RegOp(YmmReg(lo)), WholeSource(e, 1), ImmOp(0x22)});
++	e.Emit(ZYDIS_MNEMONIC_VPERM2F128,
++	       {RegOp(YmmReg(hi)), RegOp(YmmReg(hi)), WholeSource(e, 1), ImmOp(0x33)});
++	e.g.vpermilpd(Xbyak::Ymm(lo), Xbyak::Ymm(lo), pick);
++	e.g.vpermilpd(Xbyak::Ymm(hi), Xbyak::Ymm(hi), pick);
++	e.g.vblendpd(Xbyak::Ymm(d), Xbyak::Ymm(lo), Xbyak::Ymm(hi), high);
++	e.RestoreVectors({lo, hi});
++	e.Release(64);
++	return e.ok;
++}
++
++// VPERMD / VPERMPS ymm, ymm (indices), ymm/m256.
++bool GeneratePermuteDwords(Emitter& e) {
++	if (e.in.operand_count_visible != 3 || !IsYmm(e.ops[0].reg.value) ||
++	    e.ops[1].type != ZYDIS_OPERAND_TYPE_REGISTER) {
++		return false;
++	}
++	const int d     = VectorId(e.ops[0].reg.value);
++	const int index = VectorId(e.ops[1].reg.value);
++	const int lo    = e.Scratch();
++	const int hi    = e.Scratch();
++	const int mask  = e.Scratch();
++	if (!e.ok) {
++		return false;
++	}
++	e.Reserve(96);
++	e.SaveVectors({lo, hi, mask});
++	// mask = indices << 29: bit 2 of each index (which half) moves to the sign bit.
++	e.g.vextractf128(Xbyak::Xmm(mask), Xbyak::Ymm(index), 1);
++	e.g.vpslld(Xbyak::Xmm(mask), Xbyak::Xmm(mask), 29);
++	e.g.vpslld(Xbyak::Xmm(hi), Xbyak::Xmm(index), 29);
++	e.g.vinsertf128(Xbyak::Ymm(mask), Xbyak::Ymm(hi), Xbyak::Xmm(mask), 1);
++	e.Emit(ZYDIS_MNEMONIC_VPERM2F128,
++	       {RegOp(YmmReg(lo)), RegOp(YmmReg(lo)), WholeSource(e, 2), ImmOp(0x22)});
++	e.Emit(ZYDIS_MNEMONIC_VPERM2F128,
++	       {RegOp(YmmReg(hi)), RegOp(YmmReg(hi)), WholeSource(e, 2), ImmOp(0x33)});
++	e.g.vpermilps(Xbyak::Ymm(lo), Xbyak::Ymm(lo), Xbyak::Ymm(index));
++	e.g.vpermilps(Xbyak::Ymm(hi), Xbyak::Ymm(hi), Xbyak::Ymm(index));
++	e.g.vblendvps(Xbyak::Ymm(d), Xbyak::Ymm(lo), Xbyak::Ymm(hi), Xbyak::Ymm(mask));
++	e.RestoreVectors({lo, hi, mask});
++	e.Release(96);
++	return e.ok;
++}
++
++// ---------------------------------------------------------------------------------------------
++// Shifts with a count per element (VPSLLVD/Q, VPSRLVD/Q, VPSRAVD), one element at a time.
++
++bool GenerateVariableShift(Emitter& e) {
++	if (e.in.operand_count_visible != 3 || e.ops[0].type != ZYDIS_OPERAND_TYPE_REGISTER ||
++	    e.ops[1].type != ZYDIS_OPERAND_TYPE_REGISTER) {
++		return false;
++	}
++	const auto mnemonic = e.in.mnemonic;
++	const bool qwords   = mnemonic == ZYDIS_MNEMONIC_VPSLLVQ || mnemonic == ZYDIS_MNEMONIC_VPSRLVQ;
++	const bool left     = mnemonic == ZYDIS_MNEMONIC_VPSLLVD || mnemonic == ZYDIS_MNEMONIC_VPSLLVQ;
++	const bool arith    = mnemonic == ZYDIS_MNEMONIC_VPSRAVD;
++	const bool wide     = IsYmm(e.ops[0].reg.value);
++	const int  bytes    = wide ? 32 : 16;
++	const int  element  = qwords ? 8 : 4;
++	const int  d        = VectorId(e.ops[0].reg.value);
++	const int  a        = VectorId(e.ops[1].reg.value);
++
++	// [rsp] RFLAGS, [rsp+8] values, [rsp+40] counts, [rsp+72] RAX, [rsp+80] RCX.
++	constexpr int Values = 8;
++	constexpr int Counts = 40;
++	constexpr int SaveAx = 72;
++	constexpr int SaveCx = 80;
++	e.Reserve(88);
++	e.PushFlags();
++	e.g.mov(ptr[rsp + SaveAx], rax);
++	e.g.mov(ptr[rsp + SaveCx], rcx);
++	if (wide) {
++		e.g.vmovdqu(ptr[rsp + Values], Xbyak::Ymm(a));
++	} else {
++		e.g.vmovdqu(ptr[rsp + Values], Xbyak::Xmm(a));
++	}
++	const auto& counts = e.ops[2];
++	if (counts.type == ZYDIS_OPERAND_TYPE_REGISTER) {
++		const int c = VectorId(counts.reg.value);
++		if (wide) {
++			e.g.vmovdqu(ptr[rsp + Counts], Xbyak::Ymm(c));
++		} else {
++			e.g.vmovdqu(ptr[rsp + Counts], Xbyak::Xmm(c));
++		}
++	} else {
++		e.Emit(ZYDIS_MNEMONIC_LEA, {RegOp(ZYDIS_REGISTER_RCX), e.Mem(2, 0, 8)});
++		for (int offset = 0; offset < bytes; offset += 8) {
++			e.g.mov(rax, ptr[rcx + offset]);
++			e.g.mov(ptr[rsp + Counts + offset], rax);
++		}
++	}
++	for (int offset = 0; offset < bytes; offset += element) {
++		Xbyak::Label zero;
++		Xbyak::Label store;
++		const auto   value = qwords ? Xbyak::Reg(rax) : Xbyak::Reg(eax);
++		const auto   count = qwords ? Xbyak::Reg(rcx) : Xbyak::Reg(ecx);
++		e.g.mov(value, ptr[rsp + Values + offset]);
++		e.g.mov(count, ptr[rsp + Counts + offset]);
++		e.g.cmp(count, qwords ? 63 : 31);
++		if (arith) {
++			e.g.jbe(store);
++			e.g.mov(count, 31);
++			e.g.L(store);
++			e.g.sar(value, cl);
++		} else {
++			e.g.ja(zero);
++			if (left) {
++				e.g.shl(value, cl);
++			} else {
++				e.g.shr(value, cl);
++			}
++			e.g.jmp(store);
++			e.g.L(zero);
++			e.g.xor_(eax, eax);
++			e.g.L(store);
++		}
++		e.g.mov(ptr[rsp + Values + offset], value);
++	}
++	if (wide) {
++		e.g.vmovdqu(Xbyak::Ymm(d), ptr[rsp + Values]);
++	} else {
++		e.g.vmovdqu(Xbyak::Xmm(d), ptr[rsp + Values]);
++	}
++	e.g.mov(rax, ptr[rsp + SaveAx]);
++	e.g.mov(rcx, ptr[rsp + SaveCx]);
++	e.PopFlags();
++	e.Release(88);
++	return e.ok;
++}
++
++// ---------------------------------------------------------------------------------------------
++// Zero and sign extension into 256 bits (VPMOVZX*/VPMOVSX* ymm, xmm/mem).
++
++int ExtensionRatio(ZydisMnemonic mnemonic) {
++	switch (mnemonic) {
++		case ZYDIS_MNEMONIC_VPMOVZXBW:
++		case ZYDIS_MNEMONIC_VPMOVSXBW:
++		case ZYDIS_MNEMONIC_VPMOVZXWD:
++		case ZYDIS_MNEMONIC_VPMOVSXWD:
++		case ZYDIS_MNEMONIC_VPMOVZXDQ:
++		case ZYDIS_MNEMONIC_VPMOVSXDQ: return 2;
++		case ZYDIS_MNEMONIC_VPMOVZXBD:
++		case ZYDIS_MNEMONIC_VPMOVSXBD:
++		case ZYDIS_MNEMONIC_VPMOVZXWQ:
++		case ZYDIS_MNEMONIC_VPMOVSXWQ: return 4;
++		case ZYDIS_MNEMONIC_VPMOVZXBQ:
++		case ZYDIS_MNEMONIC_VPMOVSXBQ: return 8;
++		default: return 0;
++	}
++}
++
++bool GenerateExtension(Emitter& e) {
++	const int ratio = ExtensionRatio(e.in.mnemonic);
++	if (ratio == 0 || e.in.operand_count_visible != 2 || !IsYmm(e.ops[0].reg.value)) {
++		return false;
++	}
++	const int  d      = VectorId(e.ops[0].reg.value);
++	const int  half   = 16 / ratio; // Source bytes for each 128-bit half of the result.
++	const bool memory = e.ops[1].type == ZYDIS_OPERAND_TYPE_MEMORY;
++	const int  t      = e.Scratch();
++	if (!e.ok) {
++		return false;
++	}
++	e.Reserve(32);
++	e.SaveVectors({t});
++	if (memory) {
++		e.Emit(e.in.mnemonic, {RegOp(XmmReg(t)), e.Mem(1, half, static_cast<uint16_t>(half))});
++		e.Emit(e.in.mnemonic, {RegOp(XmmReg(d)), e.Mem(1, 0, static_cast<uint16_t>(half))});
++	} else {
++		const int s = VectorId(e.ops[1].reg.value);
++		e.g.vpsrldq(Xbyak::Xmm(t), Xbyak::Xmm(s), half);
++		e.Emit(e.in.mnemonic, {RegOp(XmmReg(t)), RegOp(XmmReg(t))});
++		e.Emit(e.in.mnemonic, {RegOp(XmmReg(d)), RegOp(XmmReg(s))});
++	}
++	e.g.vinsertf128(Xbyak::Ymm(d), Xbyak::Ymm(d), Xbyak::Xmm(t), 1);
++	e.RestoreVectors({t});
++	e.Release(32);
++	return e.ok;
++}
++
++// ---------------------------------------------------------------------------------------------
++// FMA. Single precision is computed in double precision: the product of two floats is exact
++// there, so only the final sum is rounded (twice: to double, then to float), which matches a
++// fused result except in extremely rare halfway cases. Double precision is a multiply and an add.
++
++struct FmaForm {
++	int  order = 0;     // 132, 213 or 231.
++	bool negate_product = false;
++	bool subtract       = false;
++	bool single         = true;
++	bool scalar         = false;
++	int  alternate      = 0; // 1: VFMADDSUB (even elements subtract), 2: VFMSUBADD (odd subtract).
++};
++
++bool GetFmaForm(ZydisMnemonic mnemonic, FmaForm* form) {
++	struct Entry {
++		ZydisMnemonic mnemonic;
++		int           order;
++		bool          negate;
++		bool          subtract;
++		bool          single;
++		bool          scalar;
++		int           alternate;
++	};
++	static constexpr Entry Table[] = {
++#define KYTY_FMA_ROW(op, neg, sub)                                                                 \
++	{ZYDIS_MNEMONIC_VF##op##132PS, 132, neg, sub, true, false, 0},                                 \
++	    {ZYDIS_MNEMONIC_VF##op##213PS, 213, neg, sub, true, false, 0},                             \
++	    {ZYDIS_MNEMONIC_VF##op##231PS, 231, neg, sub, true, false, 0},                             \
++	    {ZYDIS_MNEMONIC_VF##op##132PD, 132, neg, sub, false, false, 0},                            \
++	    {ZYDIS_MNEMONIC_VF##op##213PD, 213, neg, sub, false, false, 0},                            \
++	    {ZYDIS_MNEMONIC_VF##op##231PD, 231, neg, sub, false, false, 0},                            \
++	    {ZYDIS_MNEMONIC_VF##op##132SS, 132, neg, sub, true, true, 0},                              \
++	    {ZYDIS_MNEMONIC_VF##op##213SS, 213, neg, sub, true, true, 0},                              \
++	    {ZYDIS_MNEMONIC_VF##op##231SS, 231, neg, sub, true, true, 0},                              \
++	    {ZYDIS_MNEMONIC_VF##op##132SD, 132, neg, sub, false, true, 0},                             \
++	    {ZYDIS_MNEMONIC_VF##op##213SD, 213, neg, sub, false, true, 0},                             \
++	    {ZYDIS_MNEMONIC_VF##op##231SD, 231, neg, sub, false, true, 0},
++#define KYTY_FMA_ALT_ROW(op, alt)                                                                  \
++	{ZYDIS_MNEMONIC_VF##op##132PS, 132, false, false, true, false, alt},                           \
++	    {ZYDIS_MNEMONIC_VF##op##213PS, 213, false, false, true, false, alt},                       \
++	    {ZYDIS_MNEMONIC_VF##op##231PS, 231, false, false, true, false, alt},                       \
++	    {ZYDIS_MNEMONIC_VF##op##132PD, 132, false, false, false, false, alt},                      \
++	    {ZYDIS_MNEMONIC_VF##op##213PD, 213, false, false, false, false, alt},                      \
++	    {ZYDIS_MNEMONIC_VF##op##231PD, 231, false, false, false, false, alt},
++	    KYTY_FMA_ROW(MADD, false, false) KYTY_FMA_ROW(MSUB, false, true)
++	        KYTY_FMA_ROW(NMADD, true, false) KYTY_FMA_ROW(NMSUB, true, true)
++	            KYTY_FMA_ALT_ROW(MADDSUB, 1) KYTY_FMA_ALT_ROW(MSUBADD, 2)
++#undef KYTY_FMA_ALT_ROW
++#undef KYTY_FMA_ROW
++	};
++	for (const auto& entry: Table) {
++		if (entry.mnemonic == mnemonic) {
++			*form = {entry.order, entry.negate, entry.subtract, entry.single, entry.scalar,
++			         entry.alternate};
++			return true;
++		}
++	}
++	return false;
++}
++
++bool GenerateFma(Emitter& e) {
++	FmaForm form;
++	if (!GetFmaForm(e.in.mnemonic, &form) || e.in.operand_count_visible != 3 ||
++	    e.ops[0].type != ZYDIS_OPERAND_TYPE_REGISTER || e.ops[1].type != ZYDIS_OPERAND_TYPE_REGISTER) {
++		return false;
++	}
++	const bool wide = IsYmm(e.ops[0].reg.value);
++	if (wide && form.scalar) {
++		return false;
++	}
++	const int d = VectorId(e.ops[0].reg.value);
++	// product = a * b, result = product +/- c.
++	int a = 0;
++	int b = 0;
++	int c = 0;
++	switch (form.order) {
++		case 132: a = 0, b = 2, c = 1; break;
++		case 213: a = 1, b = 0, c = 2; break;
++		default: a = 1, b = 2, c = 0; break;
++	}
++	const int t1 = e.Scratch();
++	const int t2 = e.Scratch();
++	const int t3 = wide && form.single ? e.Scratch() : t2; // Upper result of 8 floats.
++	const int t4 = form.alternate == 2 ? e.Scratch() : t2; // VFMSUBADD: the differences.
++	if (!e.ok) {
++		return false;
++	}
++	const int64_t room = 128;
++	e.Reserve(room);
++	e.SaveVectors({t1, t2, t3, t4});
++
++	// How the double-precision work is done: 4 doubles (packed single, 256-bit packed double),
++	// 2 doubles (128-bit packed double) or one (scalar).
++	enum class Width { Y, X, Scalar };
++	const Width width = form.scalar                ? Width::Scalar
++	                    : form.single || wide      ? Width::Y
++	                                               : Width::X;
++
++	// Loads part `part` (0: low 128 bits, 1: high 128 bits) of operand i into scratch t.
++	const auto load = [&](int t, int i, int part) {
++		const auto& op     = e.ops[i];
++		const bool  memory = op.type == ZYDIS_OPERAND_TYPE_MEMORY;
++		const int   reg    = memory ? 0 : VectorId(op.reg.value);
++		if (form.single && !form.scalar) {
++			if (memory) {
++				e.Emit(ZYDIS_MNEMONIC_VCVTPS2PD, {RegOp(YmmReg(t)), e.Mem(i, 16 * part, 16)});
++			} else if (part == 1) {
++				e.g.vextractf128(Xbyak::Xmm(t), Xbyak::Ymm(reg), 1);
++				e.g.vcvtps2pd(Xbyak::Ymm(t), Xbyak::Xmm(t));
++			} else {
++				e.g.vcvtps2pd(Xbyak::Ymm(t), Xbyak::Xmm(reg));
++			}
++		} else if (form.single) {
++			e.Emit(ZYDIS_MNEMONIC_VCVTSS2SD, {RegOp(XmmReg(t)), RegOp(XmmReg(t)),
++			                                  memory ? e.Mem(i, 0, 4) : RegOp(XmmReg(reg))});
++		} else if (!form.scalar) {
++			const auto dst = RegOp(wide ? YmmReg(t) : XmmReg(t));
++			e.Emit(ZYDIS_MNEMONIC_VMOVUPD,
++			       {dst, memory ? e.Mem(i, 0, wide ? 32 : 16)
++			                    : RegOp(wide ? YmmReg(reg) : XmmReg(reg))});
++		} else if (memory) {
++			e.Emit(ZYDIS_MNEMONIC_VMOVSD, {RegOp(XmmReg(t)), e.Mem(i, 0, 8)});
++		} else {
++			e.g.vmovapd(Xbyak::Xmm(t), Xbyak::Xmm(reg));
++		}
++	};
++
++	Xbyak::Label sign;
++	if (form.negate_product) {
++		Xbyak::Label next;
++		e.g.jmp(next);
++		e.g.align(8);
++		e.g.L(sign);
++		for (int i = 0; i < 4; ++i) {
++			e.g.dq(0x8000000000000000ULL);
++		}
++		e.g.L(next);
++	}
++
++	// t1 = a * b +/- c in double precision for part `part`.
++	const auto compute = [&](int part) {
++		const auto Y = [](int t) { return Xbyak::Ymm(t); };
++		const auto X = [](int t) { return Xbyak::Xmm(t); };
++		load(t1, a, part);
++		load(t2, b, part);
++		switch (width) {
++			case Width::Y: e.g.vmulpd(Y(t1), Y(t1), Y(t2)); break;
++			case Width::X: e.g.vmulpd(X(t1), X(t1), X(t2)); break;
++			default: e.g.vmulsd(X(t1), X(t1), X(t2)); break;
++		}
++		if (form.negate_product) {
++			// Negate the product, except a NaN: FMA returns NaNs with their sign unchanged.
++			if (width == Width::Y) {
++				e.g.vcmpordpd(Y(t2), Y(t1), Y(t1));
++				e.g.vandpd(Y(t2), Y(t2), ptr[rip + sign]);
++				e.g.vxorpd(Y(t1), Y(t1), Y(t2));
++			} else {
++				e.g.vcmpordpd(X(t2), X(t1), X(t1));
++				e.g.vandpd(X(t2), X(t2), ptr[rip + sign]);
++				e.g.vxorpd(X(t1), X(t1), X(t2));
++			}
++		}
++		load(t2, c, part);
++		if (form.alternate == 1) {
++			// Even elements product - c, odd elements product + c: exactly VADDSUBPD.
++			width == Width::Y ? e.g.vaddsubpd(Y(t1), Y(t1), Y(t2)) : e.g.vaddsubpd(X(t1), X(t1), X(t2));
++			return;
++		}
++		if (form.alternate == 2) {
++			// Even elements product + c, odd elements product - c.
++			if (width == Width::Y) {
++				e.g.vsubpd(Y(t4), Y(t1), Y(t2));
++				e.g.vaddpd(Y(t1), Y(t1), Y(t2));
++				e.g.vblendpd(Y(t1), Y(t1), Y(t4), 0b1010);
++			} else {
++				e.g.vsubpd(X(t4), X(t1), X(t2));
++				e.g.vaddpd(X(t1), X(t1), X(t2));
++				e.g.vblendpd(X(t1), X(t1), X(t4), 0b10);
++			}
++			return;
++		}
++		switch (width) {
++			case Width::Y:
++				form.subtract ? e.g.vsubpd(Y(t1), Y(t1), Y(t2)) : e.g.vaddpd(Y(t1), Y(t1), Y(t2));
++				break;
++			case Width::X:
++				form.subtract ? e.g.vsubpd(X(t1), X(t1), X(t2)) : e.g.vaddpd(X(t1), X(t1), X(t2));
++				break;
++			default:
++				form.subtract ? e.g.vsubsd(X(t1), X(t1), X(t2)) : e.g.vaddsd(X(t1), X(t1), X(t2));
++				break;
++		}
++	};
++
++	if (form.single && !form.scalar) {
++		if (wide) {
++			compute(1);
++			e.g.vcvtpd2ps(Xbyak::Xmm(t3), Xbyak::Ymm(t1));
++			compute(0);
++			e.g.vcvtpd2ps(Xbyak::Xmm(d), Xbyak::Ymm(t1));
++			e.g.vinsertf128(Xbyak::Ymm(d), Xbyak::Ymm(d), Xbyak::Xmm(t3), 1);
++		} else {
++			compute(0);
++			e.g.vcvtpd2ps(Xbyak::Xmm(d), Xbyak::Ymm(t1));
++		}
++	} else if (form.single) {
++		compute(0);
++		e.g.vcvtsd2ss(Xbyak::Xmm(d), Xbyak::Xmm(d), Xbyak::Xmm(t1));
++	} else if (!form.scalar) {
++		compute(0);
++		if (wide) {
++			e.g.vmovapd(Xbyak::Ymm(d), Xbyak::Ymm(t1));
++		} else {
++			e.g.vmovapd(Xbyak::Xmm(d), Xbyak::Xmm(t1));
++		}
++	} else {
++		compute(0);
++		e.g.vmovsd(Xbyak::Xmm(d), Xbyak::Xmm(d), Xbyak::Xmm(t1));
++	}
++
++	e.RestoreVectors({t1, t2, t3, t4});
++	e.Release(room);
++	return e.ok;
++}
++
++// ---------------------------------------------------------------------------------------------
++// Gathers (VGATHER*, VPGATHER*), one element at a time: each element whose mask element has its
++// top bit set is loaded from base + index[i] * scale + displacement; the others keep their old
++// value. Elements past the count are zeroed, and so is the mask register afterwards.
++
++bool GenerateGather(Emitter& e) {
++	if (e.in.operand_count_visible != 3 || e.ops[0].type != ZYDIS_OPERAND_TYPE_REGISTER ||
++	    e.ops[1].type != ZYDIS_OPERAND_TYPE_MEMORY || e.ops[2].type != ZYDIS_OPERAND_TYPE_REGISTER) {
++		return false;
++	}
++	const auto& m = e.ops[1].mem;
++	if (!IsVector(m.index) || m.base == ZYDIS_REGISTER_RIP || e.in.address_width != 64 ||
++	    (m.segment != ZYDIS_REGISTER_DS && m.segment != ZYDIS_REGISTER_SS &&
++	     m.segment != ZYDIS_REGISTER_NONE)) {
++		return false;
++	}
++	bool qword_data  = false;
++	bool qword_index = false;
++	switch (e.in.mnemonic) {
++		case ZYDIS_MNEMONIC_VGATHERDPS:
++		case ZYDIS_MNEMONIC_VPGATHERDD: break;
++		case ZYDIS_MNEMONIC_VGATHERDPD:
++		case ZYDIS_MNEMONIC_VPGATHERDQ: qword_data = true; break;
++		case ZYDIS_MNEMONIC_VGATHERQPS:
++		case ZYDIS_MNEMONIC_VPGATHERQD: qword_index = true; break;
++		case ZYDIS_MNEMONIC_VGATHERQPD:
++		case ZYDIS_MNEMONIC_VPGATHERQQ: qword_data = qword_index = true; break;
++		default: return false;
++	}
++	const int d          = VectorId(e.ops[0].reg.value);
++	const int mask       = VectorId(e.ops[2].reg.value);
++	const int index      = VectorId(m.index);
++	const int data_size  = qword_data ? 8 : 4;
++	const int index_size = qword_index ? 8 : 4;
++	const int dest_bytes = IsYmm(e.ops[0].reg.value) ? 32 : 16;
++	const int count = std::min(dest_bytes / data_size, (IsYmm(m.index) ? 32 : 16) / index_size);
++	const int scale = m.scale == 0 ? 1 : m.scale;
++
++	// [rsp] RFLAGS, then the destination, indices and mask (32 bytes each) and RAX, RCX, RDX.
++	constexpr int Dest  = 8;
++	constexpr int Index = 40;
++	constexpr int Mask  = 72;
++	constexpr int SaveAx = 104;
++	constexpr int SaveCx = 112;
++	constexpr int SaveDx = 120;
++	e.Reserve(120);
++	e.PushFlags();
++	e.g.mov(ptr[rsp + SaveAx], rax);
++	e.g.mov(ptr[rsp + SaveCx], rcx);
++	e.g.mov(ptr[rsp + SaveDx], rdx);
++	// RCX = base + displacement (the base read before RCX changes).
++	if (m.base == ZYDIS_REGISTER_NONE) {
++		e.g.mov(rcx, m.disp.value);
++	} else {
++		ZydisEncoderOperand address {};
++		address.type             = ZYDIS_OPERAND_TYPE_MEMORY;
++		address.mem.size         = 8;
++		address.mem.base         = m.base;
++		address.mem.displacement = m.disp.value + (m.base == ZYDIS_REGISTER_RSP ? e.stack_adjust : 0);
++		e.Emit(ZYDIS_MNEMONIC_LEA, {RegOp(ZYDIS_REGISTER_RCX), address});
++	}
++	e.g.vmovdqu(ptr[rsp + Dest], Xbyak::Ymm(d));
++	e.g.vmovdqu(ptr[rsp + Index], Xbyak::Ymm(index));
++	e.g.vmovdqu(ptr[rsp + Mask], Xbyak::Ymm(mask));
++	for (int i = 0; i < count; ++i) {
++		Xbyak::Label skip;
++		e.g.test(byte[rsp + Mask + i * data_size + data_size - 1], 0x80);
++		e.g.jz(skip);
++		if (qword_index) {
++			e.g.mov(rax, ptr[rsp + Index + i * 8]);
++		} else {
++			e.g.movsxd(rax, dword[rsp + Index + i * 4]);
++		}
++		if (qword_data) {
++			e.g.mov(rdx, ptr[rcx + rax * scale]);
++			e.g.mov(ptr[rsp + Dest + i * 8], rdx);
++		} else {
++			e.g.mov(edx, ptr[rcx + rax * scale]);
++			e.g.mov(ptr[rsp + Dest + i * 4], edx);
++		}
++		e.g.L(skip);
++	}
++	for (int offset = count * data_size; offset < dest_bytes; offset += 4) {
++		e.g.mov(dword[rsp + Dest + offset], 0);
++	}
++	if (dest_bytes == 32) {
++		e.g.vmovdqu(Xbyak::Ymm(d), ptr[rsp + Dest]);
++	} else {
++		e.g.vmovdqu(Xbyak::Xmm(d), ptr[rsp + Dest]); // Clears the upper half too.
++	}
++	e.g.vxorps(Xbyak::Xmm(mask), Xbyak::Xmm(mask), Xbyak::Xmm(mask));
++	e.g.mov(rax, ptr[rsp + SaveAx]);
++	e.g.mov(rcx, ptr[rsp + SaveCx]);
++	e.g.mov(rdx, ptr[rsp + SaveDx]);
++	e.PopFlags();
++	e.Release(120);
++	return e.ok;
++}
++
++// VPMOVMSKB r, ymm: the byte sign bits of each half, the upper half's in bits 16..31.
++bool GenerateMoveMask(Emitter& e) {
++	if (e.in.operand_count_visible != 2 || e.ops[0].type != ZYDIS_OPERAND_TYPE_REGISTER ||
++	    e.ops[1].type != ZYDIS_OPERAND_TYPE_REGISTER || !IsYmm(e.ops[1].reg.value)) {
++		return false;
++	}
++	const auto reg64 = ZydisRegisterGetLargestEnclosing(ZYDIS_MACHINE_MODE_LONG_64, e.ops[0].reg.value);
++	if (reg64 == ZYDIS_REGISTER_RSP) {
++		return false;
++	}
++	const auto dst = Xbyak::Reg32(ZydisRegisterGetId(reg64));
++	const int  s   = VectorId(e.ops[1].reg.value);
++	const int  t   = e.Scratch();
++	if (!e.ok) {
++		return false;
++	}
++	// [rsp] RFLAGS, [rsp+8] the scratch register, [rsp+40] the upper bits.
++	e.Reserve(40);
++	e.PushFlags();
++	e.g.vmovdqu(ptr[rsp + 8], Xbyak::Ymm(t));
++	e.g.vextractf128(Xbyak::Xmm(t), Xbyak::Ymm(s), 1);
++	e.g.vpmovmskb(dst, Xbyak::Xmm(t));
++	e.g.shl(dst, 16);
++	e.g.mov(ptr[rsp + 40], dst);
++	e.g.vpmovmskb(dst, Xbyak::Xmm(s));
++	e.g.or_(dst, ptr[rsp + 40]);
++	e.g.vmovdqu(Xbyak::Ymm(t), ptr[rsp + 8]);
++	e.PopFlags();
++	e.Release(40);
++	return e.ok;
++}
++
++// ---------------------------------------------------------------------------------------------
++// BMI2. Work registers are saved on the stack (below the red zone) and restored; a guest
++// register that is also a work register is read from and written to its saved copy.
++
++class GprWork {
++public:
++	GprWork(Emitter& e, std::initializer_list<ZydisRegister> regs, bool save_flags)
++	    : e(e), save_flags(save_flags) {
++		for (auto reg: regs) {
++			saved[count++] = reg;
++		}
++		e.Reserve(0);
++		if (save_flags) {
++			e.PushFlags();
++		}
++		for (int i = 0; i < count; ++i) {
++			e.g.push(Xbyak::Reg64(ZydisRegisterGetId(saved[i])));
++			e.stack_adjust += 8;
++		}
++	}
++
++	void Finish() {
++		for (int i = count - 1; i >= 0; --i) {
++			e.g.pop(Xbyak::Reg64(ZydisRegisterGetId(saved[i])));
++			e.stack_adjust -= 8;
++		}
++		if (save_flags) {
++			e.PopFlags();
++		}
++		e.Release(0);
++	}
++
++	// Offset from RSP of the saved copy of `reg64`, or -1.
++	int Slot(ZydisRegister reg64) const {
++		for (int i = 0; i < count; ++i) {
++			if (saved[i] == reg64) {
++				return (count - 1 - i) * 8;
++			}
++		}
++		return -1;
++	}
++
++	// work (64-bit register) = guest operand `index` (register or memory, `bits` wide).
++	void Read(ZydisRegister work, int index, int bits) {
++		const auto& op = e.ops[index];
++		if (op.type == ZYDIS_OPERAND_TYPE_MEMORY) {
++			e.Emit(ZYDIS_MNEMONIC_MOV, {RegOp(Gpr(work, bits)), e.Mem(index, 0, bits / 8)});
++			return;
++		}
++		const auto reg64 = ZydisRegisterGetLargestEnclosing(ZYDIS_MACHINE_MODE_LONG_64, op.reg.value);
++		const int  slot  = Slot(reg64);
++		if (slot >= 0) {
++			if (bits == 64) {
++				e.g.mov(Xbyak::Reg64(ZydisRegisterGetId(work)), ptr[rsp + slot]);
++			} else {
++				e.g.mov(Xbyak::Reg32(ZydisRegisterGetId(work)), ptr[rsp + slot]);
++			}
++		} else if (reg64 != work) {
++			e.Emit(ZYDIS_MNEMONIC_MOV, {RegOp(Gpr(work, bits)), RegOp(op.reg.value)});
++		}
++	}
++
++	// Guest register operand `index` = work (64-bit register; a 32-bit result is zero-extended).
++	void Write(int index, ZydisRegister work, int bits) {
++		const auto& op    = e.ops[index];
++		const auto  reg64 = ZydisRegisterGetLargestEnclosing(ZYDIS_MACHINE_MODE_LONG_64, op.reg.value);
++		const int   slot  = Slot(reg64);
++		const auto  w64   = Xbyak::Reg64(ZydisRegisterGetId(work));
++		if (slot >= 0) {
++			if (bits == 32) {
++				const auto w32 = Xbyak::Reg32(ZydisRegisterGetId(work));
++				e.g.mov(w32, w32);
++			}
++			e.g.mov(ptr[rsp + slot], w64);
++		} else {
++			e.Emit(ZYDIS_MNEMONIC_MOV, {RegOp(op.reg.value), RegOp(Gpr(work, bits))});
++		}
++	}
++
++private:
++	Emitter&                     e;
++	bool                         save_flags;
++	std::array<ZydisRegister, 3> saved {};
++	int                          count = 0;
++};
++
++bool UsesStackPointer(const Emitter& e) {
++	for (int i = 0; i < e.in.operand_count_visible; ++i) {
++		const auto& op = e.ops[i];
++		if (op.type == ZYDIS_OPERAND_TYPE_REGISTER &&
++		    ZydisRegisterGetLargestEnclosing(ZYDIS_MACHINE_MODE_LONG_64, op.reg.value) ==
++		        ZYDIS_REGISTER_RSP) {
++			return true;
++		}
++	}
++	return false;
++}
++
++bool GenerateBmi2(Emitter& e, bool flags_live) {
++	if (UsesStackPointer(e) || e.ops[0].type != ZYDIS_OPERAND_TYPE_REGISTER) {
++		return false;
++	}
++	const int bits = e.ops[0].size;
++	if (bits != 32 && bits != 64) {
++		return false;
++	}
++	const auto value = bits == 64 ? Xbyak::Reg(rax) : Xbyak::Reg(eax);
++	switch (e.in.mnemonic) {
++		case ZYDIS_MNEMONIC_SHLX:
++		case ZYDIS_MNEMONIC_SHRX:
++		case ZYDIS_MNEMONIC_SARX: {
++			GprWork w(e, {ZYDIS_REGISTER_RAX, ZYDIS_REGISTER_RCX}, flags_live);
++			w.Read(ZYDIS_REGISTER_RAX, 1, bits);
++			w.Read(ZYDIS_REGISTER_RCX, 2, bits);
++			if (e.in.mnemonic == ZYDIS_MNEMONIC_SHLX) {
++				e.g.shl(value, cl);
++			} else if (e.in.mnemonic == ZYDIS_MNEMONIC_SHRX) {
++				e.g.shr(value, cl);
++			} else {
++				e.g.sar(value, cl);
++			}
++			w.Write(0, ZYDIS_REGISTER_RAX, bits);
++			w.Finish();
++			return e.ok;
++		}
++		case ZYDIS_MNEMONIC_RORX: {
++			if (e.ops[2].type != ZYDIS_OPERAND_TYPE_IMMEDIATE) {
++				return false;
++			}
++			const int count = static_cast<int>(e.ops[2].imm.value.u & (bits == 64 ? 63 : 31));
++			GprWork   w(e, {ZYDIS_REGISTER_RAX}, flags_live && count != 0);
++			w.Read(ZYDIS_REGISTER_RAX, 1, bits);
++			if (count != 0) {
++				e.g.ror(value, count);
++			}
++			w.Write(0, ZYDIS_REGISTER_RAX, bits);
++			w.Finish();
++			return e.ok;
++		}
++		case ZYDIS_MNEMONIC_MULX: {
++			// MULX high, low, source: high:low = RDX * source.
++			GprWork w(e, {ZYDIS_REGISTER_RAX, ZYDIS_REGISTER_RDX}, flags_live);
++			w.Read(ZYDIS_REGISTER_RAX, 2, bits);
++			const int rdx_slot = w.Slot(ZYDIS_REGISTER_RDX);
++			if (bits == 64) {
++				e.g.mul(qword[rsp + rdx_slot]);
++			} else {
++				e.g.mul(dword[rsp + rdx_slot]);
++			}
++			w.Write(1, ZYDIS_REGISTER_RAX, bits);
++			w.Write(0, ZYDIS_REGISTER_RDX, bits);
++			w.Finish();
++			return e.ok;
++		}
++		case ZYDIS_MNEMONIC_BZHI: {
++			// Sets ZF and SF from the result, CF when the index is past the operand, OF = 0.
++			GprWork      w(e, {ZYDIS_REGISTER_RAX, ZYDIS_REGISTER_RCX, ZYDIS_REGISTER_RDX}, false);
++			Xbyak::Label big;
++			Xbyak::Label flags;
++			const auto   result = bits == 64 ? Xbyak::Reg(rdx) : Xbyak::Reg(edx);
++			w.Read(ZYDIS_REGISTER_RDX, 1, bits);
++			w.Read(ZYDIS_REGISTER_RCX, 2, bits);
++			e.g.movzx(ecx, cl);
++			e.g.cmp(ecx, bits);
++			e.g.jae(big);
++			e.g.mov(rax, -1);
++			e.g.shl(rax, cl);
++			e.g.not_(rax);
++			e.g.and_(result, value);
++			e.g.xor_(ecx, ecx);
++			e.g.jmp(flags);
++			e.g.L(big);
++			e.g.mov(ecx, 1);
++			if (bits == 32) {
++				e.g.mov(edx, edx);
++			}
++			e.g.L(flags);
++			e.g.test(result, result);
++			e.g.lahf();
++			e.g.or_(ah, cl);
++			e.g.sahf();
++			w.Write(0, ZYDIS_REGISTER_RDX, bits);
++			w.Finish();
++			return e.ok;
++		}
++		default: return false;
++	}
++}
++
++} // namespace
++
++bool TrapTest() {
++	static const bool trap = [] {
++		const char* force = std::getenv("KYTY_JAGUAR_COMPAT");
++		return force != nullptr && std::string_view(force) == "trap";
++	}();
++	return trap;
++}
++
++bool Enabled() {
++	static const bool enabled = [] {
++		if (const char* force = std::getenv("KYTY_JAGUAR_COMPAT"); force != nullptr && *force != 0) {
++			return *force != '0';
++		}
++		const Xbyak::util::Cpu cpu;
++		return !(cpu.has(Xbyak::util::Cpu::tAVX2) && cpu.has(Xbyak::util::Cpu::tFMA) &&
++		         cpu.has(Xbyak::util::Cpu::tBMI2));
++	}();
++	return enabled;
++}
++
++bool IsMissing(const ZydisDecodedInstruction& instruction) {
++	switch (instruction.meta.isa_ext) {
++		case ZYDIS_ISA_EXT_AVX2:
++		case ZYDIS_ISA_EXT_AVX2GATHER:
++		case ZYDIS_ISA_EXT_FMA:
++		case ZYDIS_ISA_EXT_BMI2: return true;
++		default: return false;
++	}
++}
++
++bool Generate(const ZydisDecodedInstruction& instruction, const ZydisDecodedOperand* operands,
++              uint64_t address, Xbyak::CodeGenerator& generator, bool flags_live) {
++	if (instruction.encoding != ZYDIS_INSTRUCTION_ENCODING_VEX) {
++		return false;
++	}
++	Emitter e(instruction, operands, address, generator);
++	if (instruction.meta.isa_ext == ZYDIS_ISA_EXT_BMI2) {
++		return GenerateBmi2(e, flags_live);
++	}
++	if (instruction.meta.isa_ext == ZYDIS_ISA_EXT_FMA) {
++		return GenerateFma(e);
++	}
++	switch (instruction.mnemonic) {
++		case ZYDIS_MNEMONIC_VEXTRACTI128: return GenerateRenamed(e, ZYDIS_MNEMONIC_VEXTRACTF128);
++		case ZYDIS_MNEMONIC_VINSERTI128: return GenerateRenamed(e, ZYDIS_MNEMONIC_VINSERTF128);
++		case ZYDIS_MNEMONIC_VPERM2I128: return GenerateRenamed(e, ZYDIS_MNEMONIC_VPERM2F128);
++		case ZYDIS_MNEMONIC_VPBLENDD: return GenerateRenamed(e, ZYDIS_MNEMONIC_VBLENDPS);
++		case ZYDIS_MNEMONIC_VPMASKMOVD: return GenerateRenamed(e, ZYDIS_MNEMONIC_VMASKMOVPS);
++		case ZYDIS_MNEMONIC_VPMASKMOVQ: return GenerateRenamed(e, ZYDIS_MNEMONIC_VMASKMOVPD);
++		case ZYDIS_MNEMONIC_VBROADCASTI128: return GenerateRenamed(e, ZYDIS_MNEMONIC_VBROADCASTF128);
++		case ZYDIS_MNEMONIC_VBROADCASTSS:
++		case ZYDIS_MNEMONIC_VBROADCASTSD:
++		case ZYDIS_MNEMONIC_VPBROADCASTB:
++		case ZYDIS_MNEMONIC_VPBROADCASTW:
++		case ZYDIS_MNEMONIC_VPBROADCASTD:
++		case ZYDIS_MNEMONIC_VPBROADCASTQ: return GenerateBroadcast(e);
++		case ZYDIS_MNEMONIC_VPERMQ:
++		case ZYDIS_MNEMONIC_VPERMPD: return GeneratePermuteQwords(e);
++		case ZYDIS_MNEMONIC_VPERMD:
++		case ZYDIS_MNEMONIC_VPERMPS: return GeneratePermuteDwords(e);
++		case ZYDIS_MNEMONIC_VPSLLVD:
++		case ZYDIS_MNEMONIC_VPSLLVQ:
++		case ZYDIS_MNEMONIC_VPSRLVD:
++		case ZYDIS_MNEMONIC_VPSRLVQ:
++		case ZYDIS_MNEMONIC_VPSRAVD: return GenerateVariableShift(e);
++		case ZYDIS_MNEMONIC_VGATHERDPS:
++		case ZYDIS_MNEMONIC_VGATHERDPD:
++		case ZYDIS_MNEMONIC_VGATHERQPS:
++		case ZYDIS_MNEMONIC_VGATHERQPD:
++		case ZYDIS_MNEMONIC_VPGATHERDD:
++		case ZYDIS_MNEMONIC_VPGATHERDQ:
++		case ZYDIS_MNEMONIC_VPGATHERQD:
++		case ZYDIS_MNEMONIC_VPGATHERQQ: return GenerateGather(e);
++		case ZYDIS_MNEMONIC_VPMOVMSKB: return GenerateMoveMask(e);
++		default: break;
++	}
++	if (ExtensionRatio(instruction.mnemonic) != 0) {
++		return GenerateExtension(e);
++	}
++	if (IsLaneWise(instruction.mnemonic)) {
++		return GenerateLaneWise(e);
++	}
++	return false;
++}
++
++} // namespace Loader::JaguarCompat
+diff --git a/src/loader/jaguarCompat.h b/src/loader/jaguarCompat.h
+new file mode 100644
+index 0000000..9f16f0d
+--- /dev/null
++++ b/src/loader/jaguarCompat.h
+@@ -0,0 +1,38 @@
++// SPDX-License-Identifier: GPL-2.0-or-later
++// Runs PS5 guest code on CPUs without AVX2, FMA and BMI2, such as the PS4's AMD Jaguar.
++
++#ifndef KYTY_LOADER_JAGUAR_COMPAT_H_
++#define KYTY_LOADER_JAGUAR_COMPAT_H_
++
++#include <Zydis/Zydis.h>
++#include <cstdint>
++
++namespace Xbyak {
++class CodeGenerator;
++} // namespace Xbyak
++
++namespace Loader::JaguarCompat {
++
++// True when the host lacks AVX2, FMA or BMI2, so guest code that uses them must be rewritten.
++// The environment variable KYTY_JAGUAR_COMPAT=1 turns it on anyway (to test on a newer CPU),
++// KYTY_JAGUAR_COMPAT=0 turns it off.
++bool Enabled();
++
++// KYTY_JAGUAR_COMPAT=trap (for testing on a newer CPU): instead of rewriting AVX2/FMA/BMI2
++// instructions at load time, make them fault, so that every one goes through the run-time path.
++bool TrapTest();
++
++// Whether the instruction needs AVX2, FMA or BMI2.
++bool IsMissing(const ZydisDecodedInstruction& instruction);
++
++// Appends host code that has the same effect as the guest instruction at `address`: the same
++// registers, memory and (when `flags_live`) RFLAGS afterwards. It keeps the 128-byte red zone
++// below RSP intact and falls through at the end; the caller adds the jump back. Returns false
++// when the instruction or this form of it is not supported; the generator then holds partial
++// code that the caller must roll back.
++bool Generate(const ZydisDecodedInstruction& instruction, const ZydisDecodedOperand* operands,
++              uint64_t address, Xbyak::CodeGenerator& generator, bool flags_live);
++
++} // namespace Loader::JaguarCompat
++
++#endif /* KYTY_LOADER_JAGUAR_COMPAT_H_ */
+diff --git a/src/loader/runtimeLinker.cpp b/src/loader/runtimeLinker.cpp
+index 4ac7a58..74230b6 100644
+--- a/src/loader/runtimeLinker.cpp
++++ b/src/loader/runtimeLinker.cpp
+@@ -650,6 +650,10 @@ static bool IsReadableRange(uint64_t addr, uint64_t size) {
+ static bool KytyExceptionHandler(const Common::HostException::ExceptionInfo& exception_info) {
+ 	const auto* info = &exception_info;
+ 
++	if (info->type == Common::HostException::ExceptionType::IllegalInstruction &&
++	    Loader::RedirectJaguarInstruction(info->native_context)) {
++		return true;
++	}
+ 	if (info->type == Common::HostException::ExceptionType::IllegalInstruction &&
+ 	    Loader::X64InstructionEmulator::TryEmulate(info->native_context)) {
+ 		Common::DebugCounters::Add(Common::DebugCounters::Counter::EmulatedInstructions);
+@@ -1730,10 +1734,17 @@ void RuntimeLinker::LoadProgramToMemory(Program* program) {
+ #endif
+ 	const uint64_t tsc_multiplier =
+ 	    Config::GuestTscEnabled() ? Libs::LibKernel::KernelGuestTscMultiplier() : 0;
++	// On the PS4's CPU (no AVX2/FMA/BMI2) the guest code that uses them is rewritten.
++	const bool emulate_jaguar = GetGuestInstructionHostFeatures().jaguar;
+ 	const bool patch_guest_instructions =
+-	    protect_memory_faults || emulate_amd || tsc_multiplier != 0;
+-
+-	constexpr uint64_t INSTRUCTION_TRAMPOLINE_SIZE = 8u * 1024u * 1024u;
++	    protect_memory_faults || emulate_amd || tsc_multiplier != 0 || emulate_jaguar;
++
++	// Jaguar replacements are long (tens of bytes each) and a game can have tens of thousands;
++	// the area is only touched as far as it is used.
++	const uint64_t INSTRUCTION_TRAMPOLINE_SIZE =
++	    emulate_jaguar ? std::clamp<uint64_t>(AlignUp(program->base_size, 1024u * 1024u),
++	                                          32u * 1024u * 1024u, 512u * 1024u * 1024u)
++	                   : 8u * 1024u * 1024u;
+ 	if (patch_guest_instructions) {
+ 		EXIT_IF(INSTRUCTION_TRAMPOLINE_SIZE > UINT64_MAX - program->mapped_size);
+ 		program->mapped_size += INSTRUCTION_TRAMPOLINE_SIZE;
+@@ -1864,6 +1875,7 @@ void RuntimeLinker::LoadProgramToMemory(Program* program) {
+ 			totals.rdpid += result.rdpid;
+ 			totals.clwb += result.clwb;
+ 			totals.rdtsc += result.rdtsc;
++			totals.jaguar += result.jaguar;
+ 			if (protect_memory_faults) {
+ 				LOGF("Windows guest red-zone patching: %s, functions=%" PRIu64 ", red_zone=%" PRIu64
+ 				     ", memory=%" PRIu64 ", patched=%" PRIu64 ", short=%" PRIu64 ", stack=%" PRIu64
+@@ -1882,6 +1894,13 @@ void RuntimeLinker::LoadProgramToMemory(Program* program) {
+ 			    fmt::format("Guest TSC: {} (RDTSC/RDTSCP: native={}, skipped={})\n", module_name,
+ 			                totals.rdtsc.native, totals.rdtsc.Skipped()));
+ 		}
++		if (emulate_jaguar && have_function_starts) {
++			const auto& counts = totals.jaguar;
++			Log::WriteToConsoleAndLog(fmt::format(
++			    "PS4 CPU compatibility: {} AVX2/FMA/BMI2 instructions: {} found, {} rewritten, {} "
++			    "replaced when first run\n",
++			    module_name, counts.found, counts.native, counts.found - counts.native));
++		}
+ 		if (emulate_amd && have_function_starts) {
+ 			InstructionPatchCounts combined {};
+ 			std::string            details;
