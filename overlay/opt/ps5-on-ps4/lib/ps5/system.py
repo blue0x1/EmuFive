@@ -461,7 +461,9 @@ def controllers():
             device = os.path.realpath(os.path.join(supply, "device"))
         except OSError:
             device = ""
-        connection = "Bluetooth" if "bluetooth" in device or ":0005:" in device else "USB cable"
+        # The HID device is named BUS:VENDOR:PRODUCT.N; bus 0005 is Bluetooth, 0003 USB.
+        bus = os.path.basename(device).split(":")[0].upper()
+        connection = "Bluetooth" if bus == "0005" or "bluetooth" in device else "USB cable"
 
         def read(name):
             try:
@@ -528,6 +530,33 @@ def _sinks(names=False):
             if m:
                 sinks[int(m.group(2))] = (m.group(3).strip(), bool(m.group(1)))
     return sinks
+
+
+def controller_microphones():
+    """PipeWire IDs of the controllers' microphones (a DualShock 4 or DualSense on a USB cable;
+    Linux has no controller sound over Bluetooth)."""
+    code, out, _ = _wpctl(["status", "-n"])
+    found, section = [], False
+    for line in out.splitlines() if code == 0 else []:
+        if "Sources:" in line:
+            section = True
+            continue
+        if section and ("Filters:" in line or "Streams:" in line or "Sinks:" in line or "Video" in line):
+            section = False
+            continue
+        if section:
+            m = re.search(r"(\d+)\.\s+(\S+)", line)
+            if m and re.search(r"sony|054c|wireless.controller|dualsense|dualshock", m.group(2), re.I):
+                found.append(int(m.group(1)))
+    return found
+
+
+def set_controller_mic(on):
+    """Mutes or unmutes the controllers' microphones. Returns how many there are."""
+    ids = controller_microphones()
+    for node in ids:
+        _wpctl(["set-mute", str(node), "0" if on else "1"])
+    return len(ids)
 
 
 def sound_outputs():
@@ -920,16 +949,18 @@ def _ucp_files(path):
     return files
 
 
-def trophies(game_path, title_id, language=1):
+def trophies(game_path, title_id, language=1, profile_id=store.FIRST_PROFILE):
     """(title, [trophy]) for a game, or (None, []) when it has none. A trophy is a dict: id, name,
-    detail, grade, hidden, earned, when (a datetime or None) and icon (PNG bytes or None)."""
+    detail, grade, hidden, earned, when (a datetime or None) and icon (PNG bytes or None). Earned
+    means earned by this profile."""
     import datetime
     folder = os.path.join(game_path, "sce_sys", "trophy2")
     packages = sorted(glob.glob(os.path.join(folder, "trophy*.ucp")))
     if not packages:
         return None, []
     earned = {}
-    for unlock_file in glob.glob(os.path.expanduser(f"~/.kytyps5/_Trophies/{title_id}/trophies_*.json")):
+    unlocks = os.path.join(store.work_dir(profile_id), "_Trophies", title_id)
+    for unlock_file in glob.glob(os.path.join(unlocks, f"trophies_{profile_id}_*.json")):
         data = store.read_json(unlock_file)
         when = data.get("unlockedAt") if isinstance(data.get("unlockedAt"), dict) else {}
         for tid in data.get("unlockedTrophies", []):
@@ -1029,6 +1060,23 @@ def current_timezone():
         return link.split("zoneinfo/", 1)[1]
     except (OSError, IndexError):
         return "UTC"
+
+
+def time_automatic():
+    """True when the time comes from the internet (systemd-timesyncd)."""
+    code, out, _ = run(["timedatectl", "show", "-p", "NTP", "--value"], timeout=5)
+    return code != 0 or out.strip() == "yes"
+
+
+def set_time_automatic(on):
+    code, out, err = admin("ntp", "on" if on else "off")
+    return code == 0, (err or out).strip()
+
+
+def set_time(when):
+    """Sets the date and time by hand: `when` is a datetime (local time)."""
+    code, out, err = admin("settime", when.strftime("%Y-%m-%d %H:%M"))
+    return code == 0, (err or out).strip()
 
 
 def set_timezone(zone):

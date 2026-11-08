@@ -3,6 +3,8 @@
 Description=Pair PlayStation controllers over Bluetooth (hold SHARE + PS)
 After=bluetooth.service
 Requires=bluetooth.service
+# Restarted with Bluetooth: its pairing agent is lost when Bluetooth restarts.
+PartOf=bluetooth.service
 
 [Service]
 ExecStart=/opt/ps5-on-ps4/bin/ps5-pad-pair

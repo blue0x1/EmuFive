@@ -3,2808 +3,4554 @@
 "ar": "الإعدادات",
 "fr": "Paramètres",
 "tr": "Ayarlar",
-"es": "Ajustes"
+"es": "Ajustes",
+"de": "Einstellungen",
+"it": "Impostazioni",
+"pt": "Configurações"
 },
 "Profile": {
 "ar": "الملف الشخصي",
 "fr": "Profil",
 "tr": "Profil",
-"es": "Perfil"
+"es": "Perfil",
+"de": "Profil",
+"it": "Profilo",
+"pt": "Perfil"
 },
 "Appearance": {
 "ar": "المظهر",
 "fr": "Apparence",
 "tr": "Görünüm",
-"es": "Apariencia"
+"es": "Apariencia",
+"de": "Darstellung",
+"it": "Aspetto",
+"pt": "Aparência"
 },
 "Network": {
 "ar": "الشبكة",
 "fr": "Réseau",
 "tr": "Ağ",
-"es": "Red"
+"es": "Red",
+"de": "Netzwerk",
+"it": "Rete",
+"pt": "Rede"
 },
 "Games from PC": {
 "ar": "ألعاب من الكمبيوتر",
 "fr": "Jeux depuis le PC",
 "tr": "PC'den oyunlar",
-"es": "Juegos desde el PC"
+"es": "Juegos desde el PC",
+"de": "Spiele vom PC",
+"it": "Giochi dal PC",
+"pt": "Jogos do PC"
 },
 "Sound": {
 "ar": "الصوت",
 "fr": "Son",
 "tr": "Ses",
-"es": "Sonido"
+"es": "Sonido",
+"de": "Ton",
+"it": "Audio",
+"pt": "Som"
 },
 "Controllers": {
 "ar": "وحدات التحكم",
 "fr": "Manettes",
 "tr": "Kontrolcüler",
-"es": "Mandos"
+"es": "Mandos",
+"de": "Controller",
+"it": "Controller",
+"pt": "Controles"
 },
 "Storage": {
 "ar": "التخزين",
 "fr": "Stockage",
 "tr": "Depolama",
-"es": "Almacenamiento"
+"es": "Almacenamiento",
+"de": "Speicher",
+"it": "Archiviazione",
+"pt": "Armazenamento"
 },
 "Games": {
 "ar": "الألعاب",
 "fr": "Jeux",
 "tr": "Oyunlar",
-"es": "Juegos"
+"es": "Juegos",
+"de": "Spiele",
+"it": "Giochi",
+"pt": "Jogos"
 },
 "Saves": {
 "ar": "البيانات المحفوظة",
 "fr": "Sauvegardes",
 "tr": "Kayıtlar",
-"es": "Partidas guardadas"
+"es": "Partidas guardadas",
+"de": "Spielstände",
+"it": "Salvataggi",
+"pt": "Jogos salvos"
 },
 "Power": {
 "ar": "الطاقة",
 "fr": "Alimentation",
 "tr": "Güç",
-"es": "Energía"
+"es": "Energía",
+"de": "Strom",
+"it": "Alimentazione",
+"pt": "Energia"
 },
 "Date and time": {
 "ar": "التاريخ والوقت",
 "fr": "Date et heure",
 "tr": "Tarih ve saat",
-"es": "Fecha y hora"
+"es": "Fecha y hora",
+"de": "Datum und Uhrzeit",
+"it": "Data e ora",
+"pt": "Data e hora"
 },
 "System": {
 "ar": "النظام",
 "fr": "Système",
 "tr": "Sistem",
-"es": "Sistema"
+"es": "Sistema",
+"de": "System",
+"it": "Sistema",
+"pt": "Sistema"
 },
 "Advanced": {
 "ar": "متقدم",
 "fr": "Avancé",
 "tr": "Gelişmiş",
-"es": "Avanzado"
+"es": "Avanzado",
+"de": "Erweitert",
+"it": "Avanzate",
+"pt": "Avançado"
 },
 "About": {
 "ar": "حول",
 "fr": "À propos",
 "tr": "Hakkında",
-"es": "Acerca de"
+"es": "Acerca de",
+"de": "Info",
+"it": "Informazioni",
+"pt": "Sobre"
 },
 "Done": {
 "ar": "تم",
 "fr": "Terminé",
 "tr": "Tamam",
-"es": "Listo"
+"es": "Listo",
+"de": "Fertig",
+"it": "Fatto",
+"pt": "Concluído"
 },
 "Back": {
 "ar": "رجوع",
 "fr": "Retour",
 "tr": "Geri",
-"es": "Atrás"
+"es": "Atrás",
+"de": "Zurück",
+"it": "Indietro",
+"pt": "Voltar"
 },
 "Select": {
 "ar": "اختيار",
 "fr": "Choisir",
 "tr": "Seç",
-"es": "Elegir"
+"es": "Elegir",
+"de": "Auswählen",
+"it": "Seleziona",
+"pt": "Selecionar"
 },
 "Open": {
 "ar": "فتح",
 "fr": "Ouvrir",
 "tr": "Aç",
-"es": "Abrir"
+"es": "Abrir",
+"de": "Öffnen",
+"it": "Apri",
+"pt": "Abrir"
 },
 "Close": {
 "ar": "إغلاق",
 "fr": "Fermer",
 "tr": "Kapat",
-"es": "Cerrar"
+"es": "Cerrar",
+"de": "Schließen",
+"it": "Chiudi",
+"pt": "Fechar"
 },
 "Cancel": {
 "ar": "إلغاء",
 "fr": "Annuler",
 "tr": "İptal",
-"es": "Cancelar"
+"es": "Cancelar",
+"de": "Abbrechen",
+"it": "Annulla",
+"pt": "Cancelar"
 },
 "Delete": {
 "ar": "حذف",
 "fr": "Supprimer",
 "tr": "Sil",
-"es": "Eliminar"
+"es": "Eliminar",
+"de": "Löschen",
+"it": "Elimina",
+"pt": "Excluir"
 },
 "Restore": {
 "ar": "استعادة",
 "fr": "Restaurer",
 "tr": "Geri yükle",
-"es": "Restaurar"
+"es": "Restaurar",
+"de": "Wiederherstellen",
+"it": "Ripristina",
+"pt": "Restaurar"
 },
 "Reset": {
 "ar": "إعادة الضبط",
 "fr": "Réinitialiser",
 "tr": "Sıfırla",
-"es": "Restablecer"
+"es": "Restablecer",
+"de": "Zurücksetzen",
+"it": "Reimposta",
+"pt": "Redefinir"
 },
 "Forget": {
 "ar": "نسيان",
 "fr": "Oublier",
 "tr": "Unut",
-"es": "Olvidar"
+"es": "Olvidar",
+"de": "Vergessen",
+"it": "Dimentica",
+"pt": "Esquecer"
 },
 "Connect": {
 "ar": "اتصال",
 "fr": "Se connecter",
 "tr": "Bağlan",
-"es": "Conectar"
+"es": "Conectar",
+"de": "Verbinden",
+"it": "Connetti",
+"pt": "Conectar"
 },
 "Disconnect": {
 "ar": "قطع الاتصال",
 "fr": "Déconnecter",
 "tr": "Bağlantıyı kes",
-"es": "Desconectar"
+"es": "Desconectar",
+"de": "Trennen",
+"it": "Disconnetti",
+"pt": "Desconectar"
 },
 "Change it": {
 "ar": "تغييرها",
 "fr": "Le changer",
 "tr": "Değiştir",
-"es": "Cambiarla"
+"es": "Cambiarla",
+"de": "Ändern",
+"it": "Cambiala",
+"pt": "Alterar"
 },
 "Choose": {
 "ar": "اختيار",
 "fr": "Choisir",
 "tr": "Seç",
-"es": "Elegir"
+"es": "Elegir",
+"de": "Auswählen",
+"it": "Scegli",
+"pt": "Escolher"
 },
 "View": {
 "ar": "عرض",
 "fr": "Voir",
 "tr": "Görüntüle",
-"es": "Ver"
+"es": "Ver",
+"de": "Ansehen",
+"it": "Visualizza",
+"pt": "Ver"
 },
 "More": {
 "ar": "المزيد",
 "fr": "Plus",
 "tr": "Daha fazla",
-"es": "Más"
+"es": "Más",
+"de": "Mehr",
+"it": "Altro",
+"pt": "Mais"
 },
 "Page": {
 "ar": "صفحة",
 "fr": "Page",
 "tr": "Sayfa",
-"es": "Página"
+"es": "Página",
+"de": "Seite",
+"it": "Pagina",
+"pt": "Página"
 },
 "Tabs": {
 "ar": "علامات التبويب",
 "fr": "Onglets",
 "tr": "Sekmeler",
-"es": "Pestañas"
+"es": "Pestañas",
+"de": "Tabs",
+"it": "Schede",
+"pt": "Abas"
 },
 "Type": {
 "ar": "كتابة",
 "fr": "Saisir",
 "tr": "Yaz",
-"es": "Escribir"
+"es": "Escribir",
+"de": "Tippen",
+"it": "Scrivi",
+"pt": "Digitar"
 },
 "Symbols": {
 "ar": "رموز",
 "fr": "Symboles",
 "tr": "Semboller",
-"es": "Símbolos"
+"es": "Símbolos",
+"de": "Symbole",
+"it": "Simboli",
+"pt": "Símbolos"
 },
 "Shift": {
 "ar": "حروف كبيرة",
 "fr": "Maj",
 "tr": "Büyük harf",
-"es": "Mayús"
+"es": "Mayús",
+"de": "Umschalt",
+"it": "Maiusc",
+"pt": "Shift"
 },
 "Space": {
 "ar": "مسافة",
 "fr": "Espace",
 "tr": "Boşluk",
-"es": "Espacio"
+"es": "Espacio",
+"de": "Leerzeichen",
+"it": "Spazio",
+"pt": "Espaço"
 },
 "Show": {
 "ar": "إظهار",
 "fr": "Afficher",
 "tr": "Göster",
-"es": "Mostrar"
+"es": "Mostrar",
+"de": "Zeigen",
+"it": "Mostra",
+"pt": "Mostrar"
 },
 "Hide": {
 "ar": "إخفاء",
 "fr": "Masquer",
 "tr": "Gizle",
-"es": "Ocultar"
+"es": "Ocultar",
+"de": "Verbergen",
+"it": "Nascondi",
+"pt": "Ocultar"
 },
 "Clear": {
 "ar": "مسح",
 "fr": "Effacer",
 "tr": "Temizle",
-"es": "Borrar"
+"es": "Borrar",
+"de": "Löschen",
+"it": "Cancella",
+"pt": "Limpar"
 },
 "Please wait": {
 "ar": "يرجى الانتظار",
 "fr": "Veuillez patienter",
 "tr": "Lütfen bekleyin",
-"es": "Espera un momento"
+"es": "Espera un momento",
+"de": "Bitte warten",
+"it": "Attendi",
+"pt": "Aguarde"
 },
 "Options": {
 "ar": "الخيارات",
 "fr": "Options",
 "tr": "Seçenekler",
-"es": "Opciones"
+"es": "Opciones",
+"de": "Optionen",
+"it": "Opzioni",
+"pt": "Opções"
 },
 "Resume": {
 "ar": "متابعة",
 "fr": "Reprendre",
 "tr": "Devam et",
-"es": "Reanudar"
+"es": "Reanudar",
+"de": "Fortsetzen",
+"it": "Riprendi",
+"pt": "Continuar"
 },
 "Play": {
 "ar": "لعب",
 "fr": "Jouer",
 "tr": "Oyna",
-"es": "Jugar"
+"es": "Jugar",
+"de": "Spielen",
+"it": "Gioca",
+"pt": "Jogar"
 },
 "Home": {
 "ar": "الشاشة الرئيسية",
 "fr": "Accueil",
 "tr": "Ana ekran",
-"es": "Inicio"
+"es": "Inicio",
+"de": "Startbildschirm",
+"it": "Home",
+"pt": "Início"
 },
 "Media": {
 "ar": "الوسائط",
 "fr": "Médias",
 "tr": "Medya",
-"es": "Multimedia"
+"es": "Multimedia",
+"de": "Medien",
+"it": "Media",
+"pt": "Mídia"
 },
 "Hidden": {
 "ar": "مخفية",
 "fr": "Masqué",
 "tr": "Gizli",
-"es": "Oculto"
+"es": "Oculto",
+"de": "Verborgen",
+"it": "Nascosto",
+"pt": "Oculto"
 },
 "Saved": {
 "ar": "محفوظة",
 "fr": "Enregistré",
 "tr": "Kayıtlı",
-"es": "Guardada"
+"es": "Guardada",
+"de": "Gespeichert",
+"it": "Salvata",
+"pt": "Salva"
 },
 "Secured": {
 "ar": "محمية",
 "fr": "Sécurisé",
 "tr": "Güvenli",
-"es": "Protegida"
+"es": "Protegida",
+"de": "Gesichert",
+"it": "Protetta",
+"pt": "Protegida"
 },
 "Never": {
 "ar": "أبدًا",
 "fr": "Jamais",
 "tr": "Asla",
-"es": "Nunca"
+"es": "Nunca",
+"de": "Nie",
+"it": "Mai",
+"pt": "Nunca"
 },
 "None": {
 "ar": "لا شيء",
 "fr": "Aucun",
 "tr": "Yok",
-"es": "Ninguno"
+"es": "Ninguno",
+"de": "Keine",
+"it": "Nessuno",
+"pt": "Nenhum"
 },
 "(none)": {
 "ar": "(لا شيء)",
 "fr": "(aucun)",
 "tr": "(yok)",
-"es": "(ninguno)"
+"es": "(ninguno)",
+"de": "(keine)",
+"it": "(nessuno)",
+"pt": "(nenhum)"
 },
 "Not set": {
 "ar": "غير محدد",
 "fr": "Non défini",
 "tr": "Ayarlanmadı",
-"es": "Sin definir"
+"es": "Sin definir",
+"de": "Nicht festgelegt",
+"it": "Non impostato",
+"pt": "Não definido"
 },
 "Status": {
 "ar": "الحالة",
 "fr": "État",
 "tr": "Durum",
-"es": "Estado"
+"es": "Estado",
+"de": "Status",
+"it": "Stato",
+"pt": "Status"
 },
 "Earned": {
 "ar": "تم الحصول عليه",
 "fr": "Obtenu",
 "tr": "Kazanıldı",
-"es": "Conseguido"
+"es": "Conseguido",
+"de": "Erhalten",
+"it": "Ottenuto",
+"pt": "Conquistado"
 },
 "Twice: Back": {
 "ar": "مرتين: رجوع",
 "fr": "Deux fois : retour",
 "tr": "İki kez: geri",
-"es": "Dos veces: atrás"
+"es": "Dos veces: atrás",
+"de": "Zweimal: zurück",
+"it": "Due volte: indietro",
+"pt": "Duas vezes: voltar"
 },
 "Left / Right: change": {
 "ar": "يمين / يسار: تغيير",
 "fr": "Gauche / droite : changer",
 "tr": "Sol / sağ: değiştir",
-"es": "Izquierda / derecha: cambiar"
+"es": "Izquierda / derecha: cambiar",
+"de": "Links / Rechts: ändern",
+"it": "Sinistra / destra: cambia",
+"pt": "Esquerda / direita: alterar"
 },
 "Left / Right: next": {
 "ar": "يمين / يسار: التالي",
 "fr": "Gauche / droite : suivant",
 "tr": "Sol / sağ: sonraki",
-"es": "Izquierda / derecha: siguiente"
+"es": "Izquierda / derecha: siguiente",
+"de": "Links / Rechts: weiter",
+"it": "Sinistra / destra: successiva",
+"pt": "Esquerda / direita: próxima"
 },
 "Left: Settings": {
 "ar": "يسار: الإعدادات",
 "fr": "Gauche : paramètres",
 "tr": "Sol: ayarlar",
-"es": "Izquierda: ajustes"
+"es": "Izquierda: ajustes",
+"de": "Links: Einstellungen",
+"it": "Sinistra: impostazioni",
+"pt": "Esquerda: configurações"
 },
 "Right: Wi-Fi": {
 "ar": "يمين: Wi-Fi",
 "fr": "Droite : Wi-Fi",
 "tr": "Sağ: Wi-Fi",
-"es": "Derecha: Wi-Fi"
+"es": "Derecha: Wi-Fi",
+"de": "Rechts: WLAN",
+"it": "Destra: Wi-Fi",
+"pt": "Direita: Wi-Fi"
 },
 "Up: Wi-Fi and Settings": {
 "ar": "أعلى: Wi-Fi والإعدادات",
 "fr": "Haut : Wi-Fi et paramètres",
 "tr": "Yukarı: Wi-Fi ve ayarlar",
-"es": "Arriba: Wi-Fi y ajustes"
+"es": "Arriba: Wi-Fi y ajustes",
+"de": "Oben: WLAN und Einstellungen",
+"it": "Su: Wi-Fi e impostazioni",
+"pt": "Cima: Wi-Fi e configurações"
 },
 "Quick menu": {
 "ar": "القائمة السريعة",
 "fr": "Menu rapide",
 "tr": "Hızlı menü",
-"es": "Menú rápido"
+"es": "Menú rápido",
+"de": "Schnellmenü",
+"it": "Menu rapido",
+"pt": "Menu rápido"
 },
 "Back to the game": {
 "ar": "العودة إلى اللعبة",
 "fr": "Retour au jeu",
 "tr": "Oyuna dön",
-"es": "Volver al juego"
+"es": "Volver al juego",
+"de": "Zurück zum Spiel",
+"it": "Torna al gioco",
+"pt": "Voltar ao jogo"
 },
 "Built-in": {
 "ar": "مدمجة",
 "fr": "Intégrés",
 "tr": "Yerleşik",
-"es": "Integrados"
+"es": "Integrados",
+"de": "Eingebaut",
+"it": "Predefiniti",
+"pt": "Integrados"
 },
 "Cartoon": {
 "ar": "رسوم",
 "fr": "Dessins",
 "tr": "Çizgi",
-"es": "Dibujos"
+"es": "Dibujos",
+"de": "Comic",
+"it": "Cartoni",
+"pt": "Desenhos"
 },
 "Photos": {
 "ar": "صور",
 "fr": "Photos",
 "tr": "Fotoğraflar",
-"es": "Fotos"
+"es": "Fotos",
+"de": "Fotos",
+"it": "Foto",
+"pt": "Fotos"
 },
 "Avatar changed": {
 "ar": "تم تغيير الصورة الرمزية",
 "fr": "Avatar modifié",
 "tr": "Avatar değişti",
-"es": "Avatar cambiado"
+"es": "Avatar cambiado",
+"de": "Avatar geändert",
+"it": "Avatar cambiato",
+"pt": "Avatar alterado"
 },
 "Choose an avatar": {
 "ar": "اختر صورة رمزية",
 "fr": "Choisir un avatar",
 "tr": "Bir avatar seçin",
-"es": "Elige un avatar"
+"es": "Elige un avatar",
+"de": "Avatar auswählen",
+"it": "Scegli un avatar",
+"pt": "Escolha um avatar"
 },
 "Cartoon avatars by DiceBear (dicebear.com)": {
 "ar": "صور رمزية كرتونية من DiceBear (dicebear.com)",
 "fr": "Avatars dessinés par DiceBear (dicebear.com)",
 "tr": "Çizgi avatarlar: DiceBear (dicebear.com)",
-"es": "Avatares de dibujos de DiceBear (dicebear.com)"
+"es": "Avatares de dibujos de DiceBear (dicebear.com)",
+"de": "Comic-Avatare von DiceBear (dicebear.com)",
+"it": "Avatar a cartoni di DiceBear (dicebear.com)",
+"pt": "Avatares desenhados do DiceBear (dicebear.com)"
 },
 "Photos from Lorem Picsum (picsum.photos)": {
 "ar": "صور من Lorem Picsum (picsum.photos)",
 "fr": "Photos de Lorem Picsum (picsum.photos)",
 "tr": "Fotoğraflar: Lorem Picsum (picsum.photos)",
-"es": "Fotos de Lorem Picsum (picsum.photos)"
+"es": "Fotos de Lorem Picsum (picsum.photos)",
+"de": "Fotos von Lorem Picsum (picsum.photos)",
+"it": "Foto da Lorem Picsum (picsum.photos)",
+"pt": "Fotos do Lorem Picsum (picsum.photos)"
 },
 "Connect to the internet to see these avatars.": {
 "ar": "اتصل بالإنترنت لرؤية هذه الصور الرمزية.",
 "fr": "Connectez-vous à Internet pour voir ces avatars.",
 "tr": "Bu avatarları görmek için internete bağlanın.",
-"es": "Conéctate a Internet para ver estos avatares."
+"es": "Conéctate a Internet para ver estos avatares.",
+"de": "Verbinde dich mit dem Internet, um diese Avatare zu sehen.",
+"it": "Connettiti a Internet per vedere questi avatar.",
+"pt": "Conecte-se à internet para ver estes avatares."
 },
 "Name": {
 "ar": "الاسم",
 "fr": "Nom",
 "tr": "Ad",
-"es": "Nombre"
+"es": "Nombre",
+"de": "Name",
+"it": "Nome",
+"pt": "Nome"
 },
 "Avatar": {
 "ar": "الصورة الرمزية",
 "fr": "Avatar",
 "tr": "Avatar",
-"es": "Avatar"
+"es": "Avatar",
+"de": "Avatar",
+"it": "Avatar",
+"pt": "Avatar"
 },
 "Your name and avatar are shown on the home screen. Games get your name as the player name.": {
 "ar": "يظهر اسمك وصورتك الرمزية في الشاشة الرئيسية. وتستخدم الألعاب اسمك اسمًا للاعب.",
 "fr": "Votre nom et votre avatar s'affichent sur l'écran d'accueil. Les jeux utilisent votre nom comme nom de joueur.",
 "tr": "Adınız ve avatarınız ana ekranda görünür. Oyunlar adınızı oyuncu adı olarak kullanır.",
-"es": "Tu nombre y tu avatar aparecen en la pantalla de inicio. Los juegos usan tu nombre como nombre de jugador."
+"es": "Tu nombre y tu avatar aparecen en la pantalla de inicio. Los juegos usan tu nombre como nombre de jugador.",
+"de": "Dein Name und Avatar erscheinen auf dem Startbildschirm. Spiele nutzen deinen Namen als Spielernamen.",
+"it": "Il tuo nome e il tuo avatar appaiono nella schermata Home. I giochi usano il tuo nome come nome del giocatore.",
+"pt": "Seu nome e avatar aparecem na tela inicial. Os jogos usam seu nome como nome do jogador."
 },
 "Type a name.": {
 "ar": "اكتب اسمًا.",
 "fr": "Saisissez un nom.",
 "tr": "Bir ad yazın.",
-"es": "Escribe un nombre."
+"es": "Escribe un nombre.",
+"de": "Gib einen Namen ein.",
+"it": "Scrivi un nome.",
+"pt": "Digite um nome."
 },
 "Your name (up to 16 letters)": {
 "ar": "اسمك (حتى 16 حرفًا)",
 "fr": "Votre nom (16 lettres au plus)",
 "tr": "Adınız (en fazla 16 harf)",
-"es": "Tu nombre (hasta 16 letras)"
+"es": "Tu nombre (hasta 16 letras)",
+"de": "Dein Name (bis zu 16 Buchstaben)",
+"it": "Il tuo nome (fino a 16 lettere)",
+"pt": "Seu nome (até 16 letras)"
 },
 "Colors": {
 "ar": "الألوان",
 "fr": "Couleurs",
 "tr": "Renkler",
-"es": "Colores"
+"es": "Colores",
+"de": "Farben",
+"it": "Colori",
+"pt": "Cores"
 },
 "Accent color": {
 "ar": "لون التمييز",
 "fr": "Couleur d'accent",
 "tr": "Vurgu rengi",
-"es": "Color de acento"
+"es": "Color de acento",
+"de": "Akzentfarbe",
+"it": "Colore principale",
+"pt": "Cor de destaque"
 },
 "Theme": {
 "ar": "السمة",
 "fr": "Thème",
 "tr": "Tema",
-"es": "Tema"
+"es": "Tema",
+"de": "Design",
+"it": "Tema",
+"pt": "Tema"
 },
 "Background": {
 "ar": "الخلفية",
 "fr": "Arrière-plan",
 "tr": "Arka plan",
-"es": "Fondo"
+"es": "Fondo",
+"de": "Hintergrund",
+"it": "Sfondo",
+"pt": "Fundo"
 },
 "Background dim": {
 "ar": "تعتيم الخلفية",
 "fr": "Assombrir l'arrière-plan",
 "tr": "Arka plan karartma",
-"es": "Oscurecer el fondo"
+"es": "Oscurecer el fondo",
+"de": "Hintergrund abdunkeln",
+"it": "Scurisci lo sfondo",
+"pt": "Escurecer o fundo"
 },
 "Floating orbs": {
 "ar": "الكرات العائمة",
 "fr": "Bulles flottantes",
 "tr": "Yüzen küreler",
-"es": "Esferas flotantes"
+"es": "Esferas flotantes",
+"de": "Schwebende Kugeln",
+"it": "Sfere fluttuanti",
+"pt": "Esferas flutuantes"
 },
 "Amount": {
 "ar": "العدد",
 "fr": "Quantité",
 "tr": "Miktar",
-"es": "Cantidad"
+"es": "Cantidad",
+"de": "Anzahl",
+"it": "Quantità",
+"pt": "Quantidade"
 },
 "Speed": {
 "ar": "السرعة",
 "fr": "Vitesse",
 "tr": "Hız",
-"es": "Velocidad"
+"es": "Velocidad",
+"de": "Geschwindigkeit",
+"it": "Velocità",
+"pt": "Velocidade"
 },
 "Color": {
 "ar": "اللون",
 "fr": "Couleur",
 "tr": "Renk",
-"es": "Color"
+"es": "Color",
+"de": "Farbe",
+"it": "Colore",
+"pt": "Cor"
 },
 "Motion": {
 "ar": "الحركة",
 "fr": "Mouvement",
 "tr": "Hareket",
-"es": "Movimiento"
+"es": "Movimiento",
+"de": "Bewegung",
+"it": "Movimento",
+"pt": "Movimento"
 },
 "Animations": {
 "ar": "الحركات",
 "fr": "Animations",
 "tr": "Animasyonlar",
-"es": "Animaciones"
+"es": "Animaciones",
+"de": "Animationen",
+"it": "Animazioni",
+"pt": "Animações"
 },
 "Game tiles": {
 "ar": "مربعات الألعاب",
 "fr": "Vignettes des jeux",
 "tr": "Oyun kutucukları",
-"es": "Iconos de los juegos"
+"es": "Iconos de los juegos",
+"de": "Spielkacheln",
+"it": "Riquadri dei giochi",
+"pt": "Ícones dos jogos"
 },
 "Tile size": {
 "ar": "حجم المربعات",
 "fr": "Taille des vignettes",
 "tr": "Kutucuk boyutu",
-"es": "Tamaño de los iconos"
+"es": "Tamaño de los iconos",
+"de": "Kachelgröße",
+"it": "Dimensione dei riquadri",
+"pt": "Tamanho dos ícones"
 },
 "Tile shape": {
 "ar": "شكل المربعات",
 "fr": "Forme des vignettes",
 "tr": "Kutucuk şekli",
-"es": "Forma de los iconos"
+"es": "Forma de los iconos",
+"de": "Kachelform",
+"it": "Forma dei riquadri",
+"pt": "Formato dos ícones"
 },
 "Source labels (USB, PS4, PC)": {
 "ar": "علامات المصدر (USB، PS4، PC)",
 "fr": "Étiquettes de source (USB, PS4, PC)",
 "tr": "Kaynak etiketleri (USB, PS4, PC)",
-"es": "Etiquetas de origen (USB, PS4, PC)"
+"es": "Etiquetas de origen (USB, PS4, PC)",
+"de": "Quellen-Etiketten (USB, PS4, PC)",
+"it": "Etichette di origine (USB, PS4, PC)",
+"pt": "Etiquetas de origem (USB, PS4, PC)"
 },
 "Text": {
 "ar": "النص",
 "fr": "Texte",
 "tr": "Metin",
-"es": "Texto"
+"es": "Texto",
+"de": "Text",
+"it": "Testo",
+"pt": "Texto"
 },
 "Text size": {
 "ar": "حجم النص",
 "fr": "Taille du texte",
 "tr": "Metin boyutu",
-"es": "Tamaño del texto"
+"es": "Tamaño del texto",
+"de": "Textgröße",
+"it": "Dimensione del testo",
+"pt": "Tamanho do texto"
 },
 "Font": {
 "ar": "الخط",
 "fr": "Police",
 "tr": "Yazı tipi",
-"es": "Fuente"
+"es": "Fuente",
+"de": "Schrift",
+"it": "Carattere",
+"pt": "Fonte"
 },
 "Clock": {
 "ar": "الساعة",
 "fr": "Horloge",
 "tr": "Saat",
-"es": "Reloj"
+"es": "Reloj",
+"de": "Uhr",
+"it": "Orologio",
+"pt": "Relógio"
 },
 "Show the date": {
 "ar": "إظهار التاريخ",
 "fr": "Afficher la date",
 "tr": "Tarihi göster",
-"es": "Mostrar la fecha"
+"es": "Mostrar la fecha",
+"de": "Datum anzeigen",
+"it": "Mostra la data",
+"pt": "Mostrar a data"
 },
 "Show seconds": {
 "ar": "إظهار الثواني",
 "fr": "Afficher les secondes",
 "tr": "Saniyeleri göster",
-"es": "Mostrar los segundos"
+"es": "Mostrar los segundos",
+"de": "Sekunden anzeigen",
+"it": "Mostra i secondi",
+"pt": "Mostrar os segundos"
 },
 "Top bar": {
 "ar": "الشريط العلوي",
 "fr": "Barre du haut",
 "tr": "Üst çubuk",
-"es": "Barra superior"
+"es": "Barra superior",
+"de": "Obere Leiste",
+"it": "Barra superiore",
+"pt": "Barra superior"
 },
 "Controller battery": {
 "ar": "بطارية وحدة التحكم",
 "fr": "Batterie de la manette",
 "tr": "Kontrolcü pili",
-"es": "Batería del mando"
+"es": "Batería del mando",
+"de": "Controller-Akku",
+"it": "Batteria del controller",
+"pt": "Bateria do controle"
 },
 "IP address": {
 "ar": "عنوان IP",
 "fr": "Adresse IP",
 "tr": "IP adresi",
-"es": "Dirección IP"
+"es": "Dirección IP",
+"de": "IP-Adresse",
+"it": "Indirizzo IP",
+"pt": "Endereço IP"
 },
 "Sounds and feel": {
 "ar": "الأصوات والإحساس",
 "fr": "Sons et sensations",
 "tr": "Sesler ve his",
-"es": "Sonidos y sensación"
+"es": "Sonidos y sensación",
+"de": "Töne und Gefühl",
+"it": "Suoni e sensazioni",
+"pt": "Sons e sensação"
 },
 "Menu sounds": {
 "ar": "أصوات القوائم",
 "fr": "Sons des menus",
 "tr": "Menü sesleri",
-"es": "Sonidos de los menús"
+"es": "Sonidos de los menús",
+"de": "Menütöne",
+"it": "Suoni dei menu",
+"pt": "Sons dos menus"
 },
 "Menu sound volume": {
 "ar": "مستوى صوت القوائم",
 "fr": "Volume des sons des menus",
 "tr": "Menü ses düzeyi",
-"es": "Volumen de los menús"
+"es": "Volumen de los menús",
+"de": "Lautstärke der Menütöne",
+"it": "Volume dei suoni dei menu",
+"pt": "Volume dos sons dos menus"
 },
 "Sound style": {
 "ar": "نمط الصوت",
 "fr": "Style des sons",
 "tr": "Ses tarzı",
-"es": "Estilo de sonido"
+"es": "Estilo de sonido",
+"de": "Klangstil",
+"it": "Stile dei suoni",
+"pt": "Estilo dos sons"
 },
 "Rumble when moving": {
 "ar": "اهتزاز عند التنقل",
 "fr": "Vibrer en se déplaçant",
 "tr": "Gezinirken titreşim",
-"es": "Vibrar al moverse"
+"es": "Vibrar al moverse",
+"de": "Vibration beim Bewegen",
+"it": "Vibrazione durante lo spostamento",
+"pt": "Vibrar ao navegar"
 },
 "Screen": {
 "ar": "الشاشة",
 "fr": "Écran",
 "tr": "Ekran",
-"es": "Pantalla"
+"es": "Pantalla",
+"de": "Bildschirm",
+"it": "Schermo",
+"pt": "Tela"
 },
 "Button hints at the bottom": {
 "ar": "تلميحات الأزرار في الأسفل",
 "fr": "Aide des boutons en bas",
 "tr": "Altta düğme ipuçları",
-"es": "Ayuda de botones abajo"
+"es": "Ayuda de botones abajo",
+"de": "Tastenhinweise unten",
+"it": "Suggerimenti dei tasti in basso",
+"pt": "Dicas dos botões embaixo"
 },
 "Screen edges (overscan)": {
 "ar": "حواف الشاشة (overscan)",
 "fr": "Bords de l'écran (overscan)",
 "tr": "Ekran kenarları (overscan)",
-"es": "Bordes de la pantalla (overscan)"
+"es": "Bordes de la pantalla (overscan)",
+"de": "Bildschirmränder (Overscan)",
+"it": "Bordi dello schermo (overscan)",
+"pt": "Bordas da tela (overscan)"
 },
 "Screensaver": {
 "ar": "شاشة التوقف",
 "fr": "Économiseur d'écran",
 "tr": "Ekran koruyucu",
-"es": "Salvapantallas"
+"es": "Salvapantallas",
+"de": "Bildschirmschoner",
+"it": "Salvaschermo",
+"pt": "Proteção de tela"
 },
 "Screensaver style": {
 "ar": "نمط شاشة التوقف",
 "fr": "Style de l'économiseur",
 "tr": "Ekran koruyucu tarzı",
-"es": "Estilo del salvapantallas"
+"es": "Estilo del salvapantallas",
+"de": "Art des Bildschirmschoners",
+"it": "Stile del salvaschermo",
+"pt": "Estilo da proteção de tela"
 },
 "The game's own art": {
 "ar": "صورة اللعبة نفسها",
 "fr": "L'image du jeu",
 "tr": "Oyunun kendi görseli",
-"es": "La imagen del juego"
+"es": "La imagen del juego",
+"de": "Das Bild des Spiels",
+"it": "L'immagine del gioco",
+"pt": "A arte do jogo"
 },
 "Soft gradient": {
 "ar": "تدرج ناعم",
 "fr": "Dégradé doux",
 "tr": "Yumuşak geçiş",
-"es": "Degradado suave"
+"es": "Degradado suave",
+"de": "Sanfter Verlauf",
+"it": "Sfumatura morbida",
+"pt": "Degradê suave"
 },
 "Solid color": {
 "ar": "لون واحد",
 "fr": "Couleur unie",
 "tr": "Düz renk",
-"es": "Color sólido"
+"es": "Color sólido",
+"de": "Einfarbig",
+"it": "Tinta unita",
+"pt": "Cor sólida"
 },
 "Your picture": {
 "ar": "صورتك",
 "fr": "Votre image",
 "tr": "Resminiz",
-"es": "Tu imagen"
+"es": "Tu imagen",
+"de": "Dein Bild",
+"it": "La tua immagine",
+"pt": "Sua imagem"
 },
 "Your picture (saved)": {
 "ar": "صورتك (محفوظة)",
 "fr": "Votre image (enregistrée)",
 "tr": "Resminiz (kayıtlı)",
-"es": "Tu imagen (guardada)"
+"es": "Tu imagen (guardada)",
+"de": "Dein Bild (gespeichert)",
+"it": "La tua immagine (salvata)",
+"pt": "Sua imagem (salva)"
 },
 "Choose a picture from the USB drive…": {
 "ar": "اختر صورة من وحدة USB…",
 "fr": "Choisir une image sur la clé USB…",
 "tr": "USB bellekten bir resim seçin…",
-"es": "Elige una imagen del USB…"
+"es": "Elige una imagen del USB…",
+"de": "Bild vom USB-Laufwerk wählen…",
+"it": "Scegli un'immagine dall'unità USB…",
+"pt": "Escolher uma imagem do pendrive…"
 },
 "Background changed": {
 "ar": "تم تغيير الخلفية",
 "fr": "Arrière-plan modifié",
 "tr": "Arka plan değişti",
-"es": "Fondo cambiado"
+"es": "Fondo cambiado",
+"de": "Hintergrund geändert",
+"it": "Sfondo cambiato",
+"pt": "Fundo alterado"
 },
 "Pictures on the USB drive": {
 "ar": "الصور في وحدة USB",
 "fr": "Images de la clé USB",
 "tr": "USB bellekteki resimler",
-"es": "Imágenes del USB"
+"es": "Imágenes del USB",
+"de": "Bilder auf dem USB-Laufwerk",
+"it": "Immagini sull'unità USB",
+"pt": "Imagens no pendrive"
 },
 "It is copied to the PS4, so the USB drive can be unplugged after.": {
 "ar": "تُنسخ إلى PS4، لذا يمكن فصل وحدة USB بعد ذلك.",
 "fr": "Elle est copiée sur la PS4 : la clé USB peut ensuite être retirée.",
 "tr": "PS4'e kopyalanır, böylece USB bellek sonra çıkarılabilir.",
-"es": "Se copia a la PS4, así que después puedes quitar el USB."
+"es": "Se copia a la PS4, así que después puedes quitar el USB.",
+"de": "Es wird auf die PS4 kopiert, das USB-Laufwerk kann danach entfernt werden.",
+"it": "Viene copiata sulla PS4, quindi poi puoi scollegare l'unità USB.",
+"pt": "Ela é copiada para o PS4, então o pendrive pode ser removido depois."
 },
 "No pictures found. Put a PNG or JPG picture at the top of the USB drive or in a PS5-wallpapers folder on it.": {
 "ar": "لم يتم العثور على صور. ضع صورة PNG أو JPG في أعلى وحدة USB أو في مجلد PS5-wallpapers عليها.",
 "fr": "Aucune image trouvée. Mettez une image PNG ou JPG à la racine de la clé USB ou dans un dossier PS5-wallpapers.",
 "tr": "Resim bulunamadı. USB belleğin en üstüne veya içindeki PS5-wallpapers klasörüne bir PNG ya da JPG resim koyun.",
-"es": "No hay imágenes. Pon una imagen PNG o JPG en la raíz del USB o en una carpeta PS5-wallpapers."
+"es": "No hay imágenes. Pon una imagen PNG o JPG en la raíz del USB o en una carpeta PS5-wallpapers.",
+"de": "Keine Bilder gefunden. Lege ein PNG- oder JPG-Bild oben auf das USB-Laufwerk oder in einen Ordner PS5-wallpapers darauf.",
+"it": "Nessuna immagine trovata. Metti un'immagine PNG o JPG nella cartella principale dell'unità USB o in una cartella PS5-wallpapers.",
+"pt": "Nenhuma imagem encontrada. Coloque uma imagem PNG ou JPG na raiz do pendrive ou numa pasta PS5-wallpapers nele."
 },
 "That picture could not be read.": {
 "ar": "تعذرت قراءة هذه الصورة.",
 "fr": "Cette image n'a pas pu être lue.",
 "tr": "Bu resim okunamadı.",
-"es": "No se pudo leer esa imagen."
+"es": "No se pudo leer esa imagen.",
+"de": "Dieses Bild konnte nicht gelesen werden.",
+"it": "Impossibile leggere quell'immagine.",
+"pt": "Não foi possível ler essa imagem."
 },
 "Few": {
 "ar": "قليلة",
 "fr": "Peu",
 "tr": "Az",
-"es": "Pocas"
+"es": "Pocas",
+"de": "Wenige",
+"it": "Poche",
+"pt": "Poucas"
 },
 "Normal": {
 "ar": "عادي",
 "fr": "Normal",
 "tr": "Normal",
-"es": "Normal"
+"es": "Normal",
+"de": "Normal",
+"it": "Normale",
+"pt": "Normal"
 },
 "Many": {
 "ar": "كثيرة",
 "fr": "Beaucoup",
 "tr": "Çok",
-"es": "Muchas"
+"es": "Muchas",
+"de": "Viele",
+"it": "Molte",
+"pt": "Muitas"
 },
 "Slow": {
 "ar": "بطيئة",
 "fr": "Lente",
 "tr": "Yavaş",
-"es": "Lenta"
+"es": "Lenta",
+"de": "Langsam",
+"it": "Lenta",
+"pt": "Lenta"
 },
 "Fast": {
 "ar": "سريعة",
 "fr": "Rapide",
 "tr": "Hızlı",
-"es": "Rápida"
+"es": "Rápida",
+"de": "Schnell",
+"it": "Veloce",
+"pt": "Rápida"
 },
 "White": {
 "ar": "أبيض",
 "fr": "Blanc",
 "tr": "Beyaz",
-"es": "Blanco"
+"es": "Blanco",
+"de": "Weiß",
+"it": "Bianco",
+"pt": "Branco"
 },
 "Gold": {
 "ar": "ذهبي",
 "fr": "Or",
 "tr": "Altın",
-"es": "Dorado"
+"es": "Dorado",
+"de": "Gold",
+"it": "Oro",
+"pt": "Dourado"
 },
 "Full": {
 "ar": "كاملة",
 "fr": "Complètes",
 "tr": "Tam",
-"es": "Completas"
+"es": "Completas",
+"de": "Voll",
+"it": "Complete",
+"pt": "Completas"
 },
 "Reduced": {
 "ar": "مخففة",
 "fr": "Réduites",
 "tr": "Azaltılmış",
-"es": "Reducidas"
+"es": "Reducidas",
+"de": "Reduziert",
+"it": "Ridotte",
+"pt": "Reduzidas"
 },
 "Off": {
 "ar": "إيقاف",
 "fr": "Désactivé",
 "tr": "Kapalı",
-"es": "Desactivado"
+"es": "Desactivado",
+"de": "Aus",
+"it": "Disattivato",
+"pt": "Desativado"
 },
 "Small": {
 "ar": "صغير",
 "fr": "Petite",
 "tr": "Küçük",
-"es": "Pequeño"
+"es": "Pequeño",
+"de": "Klein",
+"it": "Piccola",
+"pt": "Pequeno"
 },
 "Medium": {
 "ar": "متوسط",
 "fr": "Moyenne",
 "tr": "Orta",
-"es": "Mediano"
+"es": "Mediano",
+"de": "Mittel",
+"it": "Media",
+"pt": "Médio"
 },
 "Large": {
 "ar": "كبير",
 "fr": "Grande",
 "tr": "Büyük",
-"es": "Grande"
+"es": "Grande",
+"de": "Groß",
+"it": "Grande",
+"pt": "Grande"
 },
 "Rounded": {
 "ar": "دائري الحواف",
 "fr": "Arrondie",
 "tr": "Yuvarlak köşeli",
-"es": "Redondeada"
+"es": "Redondeada",
+"de": "Abgerundet",
+"it": "Arrotondata",
+"pt": "Arredondado"
 },
 "Square": {
 "ar": "مربع",
 "fr": "Carrée",
 "tr": "Kare",
-"es": "Cuadrada"
+"es": "Cuadrada",
+"de": "Quadratisch",
+"it": "Quadrata",
+"pt": "Quadrado"
 },
 "Circle": {
 "ar": "دائرة",
 "fr": "Cercle",
 "tr": "Daire",
-"es": "Círculo"
+"es": "Círculo",
+"de": "Kreis",
+"it": "Cerchio",
+"pt": "Círculo"
 },
 "Full screen": {
 "ar": "ملء الشاشة",
 "fr": "Plein écran",
 "tr": "Tam ekran",
-"es": "Pantalla completa"
+"es": "Pantalla completa",
+"de": "Vollbild",
+"it": "Schermo intero",
+"pt": "Tela cheia"
 },
 "{n}% smaller": {
 "ar": "أصغر بنسبة {n}%",
 "fr": "{n} % plus petit",
 "tr": "%{n} daha küçük",
-"es": "{n} % más pequeña"
+"es": "{n} % más pequeña",
+"de": "{n} % kleiner",
+"it": "{n}% più piccolo",
+"pt": "{n}% menor"
 },
 "After 5 minutes": {
 "ar": "بعد 5 دقائق",
 "fr": "Après 5 minutes",
 "tr": "5 dakika sonra",
-"es": "A los 5 minutos"
+"es": "A los 5 minutos",
+"de": "Nach 5 Minuten",
+"it": "Dopo 5 minuti",
+"pt": "Após 5 minutos"
 },
 "After 10 minutes": {
 "ar": "بعد 10 دقائق",
 "fr": "Après 10 minutes",
 "tr": "10 dakika sonra",
-"es": "A los 10 minutos"
+"es": "A los 10 minutos",
+"de": "Nach 10 Minuten",
+"it": "Dopo 10 minuti",
+"pt": "Após 10 minutos"
 },
 "After 30 minutes": {
 "ar": "بعد 30 دقيقة",
 "fr": "Après 30 minutes",
 "tr": "30 dakika sonra",
-"es": "A los 30 minutos"
+"es": "A los 30 minutos",
+"de": "Nach 30 Minuten",
+"it": "Dopo 30 minuti",
+"pt": "Após 30 minutos"
 },
 "After {n} minutes": {
 "ar": "بعد {n} دقيقة",
 "fr": "Après {n} minutes",
 "tr": "{n} dakika sonra",
-"es": "A los {n} minutos"
+"es": "A los {n} minutos",
+"de": "Nach {n} Minuten",
+"it": "Dopo {n} minuti",
+"pt": "Após {n} minutos"
 },
 "After {n} hour": {
 "ar": "بعد {n} ساعة",
 "fr": "Après {n} heure",
 "tr": "{n} saat sonra",
-"es": "A la {n} hora"
+"es": "A la {n} hora",
+"de": "Nach {n} Stunde",
+"it": "Dopo {n} ora",
+"pt": "Após {n} hora"
 },
 "After {n} hours": {
 "ar": "بعد {n} ساعات",
 "fr": "Après {n} heures",
 "tr": "{n} saat sonra",
-"es": "A las {n} horas"
+"es": "A las {n} horas",
+"de": "Nach {n} Stunden",
+"it": "Dopo {n} ore",
+"pt": "Após {n} horas"
 },
 "Dim the screen": {
 "ar": "تعتيم الشاشة",
 "fr": "Assombrir l'écran",
 "tr": "Ekranı karart",
-"es": "Oscurecer la pantalla"
+"es": "Oscurecer la pantalla",
+"de": "Bildschirm abdunkeln",
+"it": "Scurisci lo schermo",
+"pt": "Escurecer a tela"
 },
 "Slideshow of your games": {
 "ar": "عرض صور ألعابك",
 "fr": "Diaporama de vos jeux",
 "tr": "Oyunlarınızın slayt gösterisi",
-"es": "Presentación de tus juegos"
+"es": "Presentación de tus juegos",
+"de": "Diashow deiner Spiele",
+"it": "Presentazione dei tuoi giochi",
+"pt": "Apresentação dos seus jogos"
 },
 "Dark": {
 "ar": "داكن",
 "fr": "Sombre",
 "tr": "Koyu",
-"es": "Oscuro"
+"es": "Oscuro",
+"de": "Dunkel",
+"it": "Scuro",
+"pt": "Escuro"
 },
 "Midnight (pure black)": {
 "ar": "منتصف الليل (أسود تمامًا)",
 "fr": "Minuit (noir pur)",
 "tr": "Gece yarısı (tam siyah)",
-"es": "Medianoche (negro puro)"
+"es": "Medianoche (negro puro)",
+"de": "Mitternacht (reines Schwarz)",
+"it": "Mezzanotte (nero puro)",
+"pt": "Meia-noite (preto puro)"
 },
 "Light": {
 "ar": "فاتح",
 "fr": "Clair",
 "tr": "Açık",
-"es": "Claro"
+"es": "Claro",
+"de": "Hell",
+"it": "Chiaro",
+"pt": "Claro"
 },
 "Modern (Inter)": {
 "ar": "حديث (Inter)",
 "fr": "Moderne (Inter)",
 "tr": "Modern (Inter)",
-"es": "Moderna (Inter)"
+"es": "Moderna (Inter)",
+"de": "Modern (Inter)",
+"it": "Moderno (Inter)",
+"pt": "Moderna (Inter)"
 },
 "Classic (serif)": {
 "ar": "كلاسيكي (serif)",
 "fr": "Classique (serif)",
 "tr": "Klasik (serif)",
-"es": "Clásica (serif)"
+"es": "Clásica (serif)",
+"de": "Klassisch (Serifen)",
+"it": "Classico (serif)",
+"pt": "Clássica (serifa)"
 },
 "Retro (pixel)": {
 "ar": "قديم (بكسل)",
 "fr": "Rétro (pixel)",
 "tr": "Retro (piksel)",
-"es": "Retro (píxel)"
+"es": "Retro (píxel)",
+"de": "Retro (Pixel)",
+"it": "Retrò (pixel)",
+"pt": "Retrô (pixel)"
 },
 "Soft chimes": {
 "ar": "رنين ناعم",
 "fr": "Carillons doux",
 "tr": "Yumuşak çanlar",
-"es": "Campanillas suaves"
+"es": "Campanillas suaves",
+"de": "Sanfte Glocken",
+"it": "Campanelli morbidi",
+"pt": "Sinos suaves"
 },
 "Clicks": {
 "ar": "نقرات",
 "fr": "Clics",
 "tr": "Tıklamalar",
-"es": "Clics"
+"es": "Clics",
+"de": "Klicks",
+"it": "Clic",
+"pt": "Cliques"
 },
 "Retro 8-bit": {
 "ar": "قديم 8 بت",
 "fr": "Rétro 8 bits",
 "tr": "Retro 8 bit",
-"es": "Retro 8 bits"
+"es": "Retro 8 bits",
+"de": "Retro 8-Bit",
+"it": "Retrò 8 bit",
+"pt": "Retrô 8 bits"
 },
 "Purple": {
 "ar": "بنفسجي",
 "fr": "Violet",
 "tr": "Mor",
-"es": "Morado"
+"es": "Morado",
+"de": "Lila",
+"it": "Viola",
+"pt": "Roxo"
 },
 "Ocean blue": {
 "ar": "أزرق المحيط",
 "fr": "Bleu océan",
 "tr": "Okyanus mavisi",
-"es": "Azul océano"
+"es": "Azul océano",
+"de": "Ozeanblau",
+"it": "Blu oceano",
+"pt": "Azul oceano"
 },
 "Spartan red and gold": {
 "ar": "أحمر وذهبي إسبرطي",
 "fr": "Rouge et or spartiate",
 "tr": "Spartalı kırmızı ve altın",
-"es": "Rojo y oro espartano"
+"es": "Rojo y oro espartano",
+"de": "Spartanisches Rot und Gold",
+"it": "Rosso e oro spartano",
+"pt": "Vermelho e dourado espartano"
 },
 "Emerald": {
 "ar": "زمردي",
 "fr": "Émeraude",
 "tr": "Zümrüt",
-"es": "Esmeralda"
+"es": "Esmeralda",
+"de": "Smaragd",
+"it": "Smeraldo",
+"pt": "Esmeralda"
 },
 "Sunset orange": {
 "ar": "برتقالي الغروب",
 "fr": "Orange coucher de soleil",
 "tr": "Gün batımı turuncusu",
-"es": "Naranja atardecer"
+"es": "Naranja atardecer",
+"de": "Sonnenuntergangsorange",
+"it": "Arancione tramonto",
+"pt": "Laranja pôr do sol"
 },
 "Rose": {
 "ar": "وردي",
 "fr": "Rose",
 "tr": "Gül",
-"es": "Rosa"
+"es": "Rosa",
+"de": "Rosa",
+"it": "Rosa",
+"pt": "Rosa"
 },
 "Monochrome": {
 "ar": "أحادي اللون",
 "fr": "Monochrome",
 "tr": "Tek renk",
-"es": "Monocromo"
+"es": "Monocromo",
+"de": "Monochrom",
+"it": "Monocromatico",
+"pt": "Monocromático"
 },
 "Wi-Fi: not connected": {
 "ar": "Wi-Fi: غير متصل",
 "fr": "Wi-Fi : non connecté",
 "tr": "Wi-Fi: bağlı değil",
-"es": "Wi-Fi: sin conexión"
+"es": "Wi-Fi: sin conexión",
+"de": "WLAN: nicht verbunden",
+"it": "Wi-Fi: non connesso",
+"pt": "Wi-Fi: não conectado"
 },
 "A Wi-Fi password has at least 8 characters.": {
 "ar": "تتكون كلمة مرور Wi-Fi من 8 أحرف على الأقل.",
 "fr": "Un mot de passe Wi-Fi a au moins 8 caractères.",
 "tr": "Wi-Fi şifresi en az 8 karakterdir.",
-"es": "Una contraseña Wi-Fi tiene al menos 8 caracteres."
+"es": "Una contraseña Wi-Fi tiene al menos 8 caracteres.",
+"de": "Ein WLAN-Passwort hat mindestens 8 Zeichen.",
+"it": "Una password Wi-Fi ha almeno 8 caratteri.",
+"pt": "Uma senha de Wi-Fi tem pelo menos 8 caracteres."
 },
 "No Wi-Fi device found": {
 "ar": "لم يتم العثور على جهاز Wi-Fi",
 "fr": "Aucun appareil Wi-Fi trouvé",
 "tr": "Wi-Fi aygıtı bulunamadı",
-"es": "No se encontró ningún dispositivo Wi-Fi"
+"es": "No se encontró ningún dispositivo Wi-Fi",
+"de": "Kein WLAN-Gerät gefunden",
+"it": "Nessun dispositivo Wi-Fi trovato",
+"pt": "Nenhum dispositivo Wi-Fi encontrado"
 },
 "No Wi-Fi device": {
 "ar": "لا يوجد جهاز Wi-Fi",
 "fr": "Pas d'appareil Wi-Fi",
 "tr": "Wi-Fi aygıtı yok",
-"es": "Sin dispositivo Wi-Fi"
+"es": "Sin dispositivo Wi-Fi",
+"de": "Kein WLAN-Gerät",
+"it": "Nessun dispositivo Wi-Fi",
+"pt": "Sem dispositivo Wi-Fi"
 },
 "Connecting…": {
 "ar": "جارٍ الاتصال…",
 "fr": "Connexion…",
 "tr": "Bağlanıyor…",
-"es": "Conectando…"
+"es": "Conectando…",
+"de": "Verbinden…",
+"it": "Connessione…",
+"pt": "Conectando…"
 },
 "Not connected": {
 "ar": "غير متصل",
 "fr": "Non connecté",
 "tr": "Bağlı değil",
-"es": "Sin conexión"
+"es": "Sin conexión",
+"de": "Nicht verbunden",
+"it": "Non connesso",
+"pt": "Não conectado"
 },
 "not connected": {
 "ar": "غير متصل",
 "fr": "non connecté",
 "tr": "bağlı değil",
-"es": "sin conexión"
+"es": "sin conexión",
+"de": "nicht verbunden",
+"it": "non connesso",
+"pt": "não conectado"
 },
 "Searching for networks…": {
 "ar": "جارٍ البحث عن الشبكات…",
 "fr": "Recherche des réseaux…",
 "tr": "Ağlar aranıyor…",
-"es": "Buscando redes…"
+"es": "Buscando redes…",
+"de": "Netzwerke werden gesucht…",
+"it": "Ricerca delle reti…",
+"pt": "Procurando redes…"
 },
 "Connected": {
 "ar": "متصل",
 "fr": "Connecté",
 "tr": "Bağlı",
-"es": "Conectado"
+"es": "Conectado",
+"de": "Verbunden",
+"it": "Connesso",
+"pt": "Conectado"
 },
 "connected": {
 "ar": "متصل",
 "fr": "connecté",
 "tr": "bağlı",
-"es": "conectado"
+"es": "conectado",
+"de": "verbunden",
+"it": "connesso",
+"pt": "conectado"
 },
 "Search again": {
 "ar": "البحث مرة أخرى",
 "fr": "Rechercher à nouveau",
 "tr": "Yeniden ara",
-"es": "Buscar de nuevo"
+"es": "Buscar de nuevo",
+"de": "Erneut suchen",
+"it": "Cerca di nuovo",
+"pt": "Procurar de novo"
 },
 "No networks found.": {
 "ar": "لم يتم العثور على شبكات.",
 "fr": "Aucun réseau trouvé.",
 "tr": "Ağ bulunamadı.",
-"es": "No se encontraron redes."
+"es": "No se encontraron redes.",
+"de": "Keine Netzwerke gefunden.",
+"it": "Nessuna rete trovata.",
+"pt": "Nenhuma rede encontrada."
 },
 "Network cable": {
 "ar": "كابل الشبكة",
 "fr": "Câble réseau",
 "tr": "Ağ kablosu",
-"es": "Cable de red"
+"es": "Cable de red",
+"de": "Netzwerkkabel",
+"it": "Cavo di rete",
+"pt": "Cabo de rede"
 },
 "Saved Wi-Fi networks": {
 "ar": "شبكات Wi-Fi المحفوظة",
 "fr": "Réseaux Wi-Fi enregistrés",
 "tr": "Kayıtlı Wi-Fi ağları",
-"es": "Redes Wi-Fi guardadas"
+"es": "Redes Wi-Fi guardadas",
+"de": "Gespeicherte WLAN-Netzwerke",
+"it": "Reti Wi-Fi salvate",
+"pt": "Redes Wi-Fi salvas"
 },
 "None yet. Networks you join are remembered.": {
 "ar": "لا شيء بعد. يتم تذكر الشبكات التي تنضم إليها.",
 "fr": "Aucun pour l'instant. Les réseaux que vous rejoignez sont mémorisés.",
 "tr": "Henüz yok. Katıldığınız ağlar hatırlanır.",
-"es": "Ninguna todavía. Las redes a las que te unes se recuerdan."
+"es": "Ninguna todavía. Las redes a las que te unes se recuerdan.",
+"de": "Noch keine. Netzwerke, denen du beitrittst, werden gemerkt.",
+"it": "Ancora nessuna. Le reti a cui ti connetti vengono ricordate.",
+"pt": "Nenhuma ainda. As redes em que você entra são lembradas."
 },
 "Password for {a}": {
 "ar": "كلمة مرور {a}",
 "fr": "Mot de passe de {a}",
 "tr": "{a} şifresi",
-"es": "Contraseña de {a}"
+"es": "Contraseña de {a}",
+"de": "Passwort für {a}",
+"it": "Password per {a}",
+"pt": "Senha de {a}"
 },
 "Connecting to {a}": {
 "ar": "جارٍ الاتصال بـ {a}",
 "fr": "Connexion à {a}",
 "tr": "{a} ağına bağlanıyor",
-"es": "Conectando a {a}"
+"es": "Conectando a {a}",
+"de": "Verbinden mit {a}",
+"it": "Connessione a {a}",
+"pt": "Conectando a {a}"
 },
 "Connected to {a}": {
 "ar": "متصل بـ {a}",
 "fr": "Connecté à {a}",
 "tr": "{a} ağına bağlı",
-"es": "Conectado a {a}"
+"es": "Conectado a {a}",
+"de": "Verbunden mit {a}",
+"it": "Connesso a {a}",
+"pt": "Conectado a {a}"
 },
 "Already connected to {a}.": {
 "ar": "متصل بالفعل بـ {a}.",
 "fr": "Déjà connecté à {a}.",
 "tr": "Zaten {a} ağına bağlı.",
-"es": "Ya estás conectado a {a}."
+"es": "Ya estás conectado a {a}.",
+"de": "Bereits mit {a} verbunden.",
+"it": "Già connesso a {a}.",
+"pt": "Já conectado a {a}."
 },
 "Forget {a}? Its password will be asked again next time.": {
 "ar": "نسيان {a}؟ ستُطلب كلمة مرورها مرة أخرى في المرة القادمة.",
 "fr": "Oublier {a} ? Son mot de passe sera redemandé la prochaine fois.",
 "tr": "{a} unutulsun mu? Şifresi bir dahaki sefere yeniden sorulur.",
-"es": "¿Olvidar {a}? Se volverá a pedir su contraseña la próxima vez."
+"es": "¿Olvidar {a}? Se volverá a pedir su contraseña la próxima vez.",
+"de": "{a} vergessen? Das Passwort wird beim nächsten Mal erneut abgefragt.",
+"it": "Dimenticare {a}? La password verrà richiesta di nuovo la prossima volta.",
+"pt": "Esquecer {a}? A senha será pedida de novo na próxima vez."
 },
 "Forgetting {a}…": {
 "ar": "جارٍ نسيان {a}…",
 "fr": "Suppression de {a}…",
 "tr": "{a} unutuluyor…",
-"es": "Olvidando {a}…"
+"es": "Olvidando {a}…",
+"de": "{a} wird vergessen…",
+"it": "Rimozione di {a}…",
+"pt": "Esquecendo {a}…"
 },
 "{a} forgotten.": {
 "ar": "تم نسيان {a}.",
 "fr": "{a} oublié.",
 "tr": "{a} unutuldu.",
-"es": "{a} olvidado."
+"es": "{a} olvidado.",
+"de": "{a} vergessen.",
+"it": "{a} dimenticata.",
+"pt": "{a} esquecida."
 },
 "Could not forget {a}.": {
 "ar": "تعذر نسيان {a}.",
 "fr": "Impossible d'oublier {a}.",
 "tr": "{a} unutulamadı.",
-"es": "No se pudo olvidar {a}."
+"es": "No se pudo olvidar {a}.",
+"de": "{a} konnte nicht vergessen werden.",
+"it": "Impossibile dimenticare {a}.",
+"pt": "Não foi possível esquecer {a}."
 },
 "{a} is out of range.": {
 "ar": "{a} خارج النطاق.",
 "fr": "{a} est hors de portée.",
 "tr": "{a} menzil dışında.",
-"es": "{a} está fuera de alcance."
+"es": "{a} está fuera de alcance.",
+"de": "{a} ist außer Reichweite.",
+"it": "{a} è fuori portata.",
+"pt": "{a} está fora de alcance."
 },
 "IP address ({a})": {
 "ar": "عنوان IP ({a})",
 "fr": "Adresse IP ({a})",
 "tr": "IP adresi ({a})",
-"es": "Dirección IP ({a})"
+"es": "Dirección IP ({a})",
+"de": "IP-Adresse ({a})",
+"it": "Indirizzo IP ({a})",
+"pt": "Endereço IP ({a})"
 },
 "Could not connect.": {
 "ar": "تعذر الاتصال.",
 "fr": "Connexion impossible.",
 "tr": "Bağlanılamadı.",
-"es": "No se pudo conectar."
+"es": "No se pudo conectar.",
+"de": "Verbindung fehlgeschlagen.",
+"it": "Connessione non riuscita.",
+"pt": "Não foi possível conectar."
 },
 "Wrong password. Try again.": {
 "ar": "كلمة المرور خاطئة. حاول مرة أخرى.",
 "fr": "Mot de passe incorrect. Réessayez.",
 "tr": "Yanlış şifre. Tekrar deneyin.",
-"es": "Contraseña incorrecta. Inténtalo de nuevo."
+"es": "Contraseña incorrecta. Inténtalo de nuevo.",
+"de": "Falsches Passwort. Versuche es erneut.",
+"it": "Password errata. Riprova.",
+"pt": "Senha errada. Tente de novo."
 },
 "Use games from PC": {
 "ar": "استخدام ألعاب من الكمبيوتر",
 "fr": "Utiliser les jeux du PC",
 "tr": "PC'deki oyunları kullan",
-"es": "Usar juegos del PC"
+"es": "Usar juegos del PC",
+"de": "Spiele vom PC nutzen",
+"it": "Usa i giochi dal PC",
+"pt": "Usar jogos do PC"
 },
 "PC address": {
 "ar": "عنوان الكمبيوتر",
 "fr": "Adresse du PC",
 "tr": "PC adresi",
-"es": "Dirección del PC"
+"es": "Dirección del PC",
+"de": "PC-Adresse",
+"it": "Indirizzo del PC",
+"pt": "Endereço do PC"
 },
 "Shared folder": {
 "ar": "المجلد المشترك",
 "fr": "Dossier partagé",
 "tr": "Paylaşılan klasör",
-"es": "Carpeta compartida"
+"es": "Carpeta compartida",
+"de": "Freigegebener Ordner",
+"it": "Cartella condivisa",
+"pt": "Pasta compartilhada"
 },
 "Username": {
 "ar": "اسم المستخدم",
 "fr": "Nom d'utilisateur",
 "tr": "Kullanıcı adı",
-"es": "Usuario"
+"es": "Usuario",
+"de": "Benutzername",
+"it": "Nome utente",
+"pt": "Usuário"
 },
 "Password": {
 "ar": "كلمة المرور",
 "fr": "Mot de passe",
 "tr": "Şifre",
-"es": "Contraseña"
+"es": "Contraseña",
+"de": "Passwort",
+"it": "Password",
+"pt": "Senha"
 },
 "None (guest)": {
 "ar": "لا شيء (ضيف)",
 "fr": "Aucun (invité)",
 "tr": "Yok (misafir)",
-"es": "Ninguno (invitado)"
+"es": "Ninguno (invitado)",
+"de": "Keiner (Gast)",
+"it": "Nessuno (ospite)",
+"pt": "Nenhum (convidado)"
 },
 "Windows or Linux (Samba) shares. Leave Username and Password blank for a guest share.": {
 "ar": "مشاركات Windows أو Linux (Samba). اترك اسم المستخدم وكلمة المرور فارغين لمشاركة الضيف.",
 "fr": "Partages Windows ou Linux (Samba). Laissez le nom d'utilisateur et le mot de passe vides pour un partage invité.",
 "tr": "Windows veya Linux (Samba) paylaşımları. Misafir paylaşımı için kullanıcı adını ve şifreyi boş bırakın.",
-"es": "Carpetas compartidas de Windows o Linux (Samba). Deja vacíos el usuario y la contraseña para una carpeta de invitado."
+"es": "Carpetas compartidas de Windows o Linux (Samba). Deja vacíos el usuario y la contraseña para una carpeta de invitado.",
+"de": "Freigaben von Windows oder Linux (Samba). Lass Benutzername und Passwort für eine Gastfreigabe leer.",
+"it": "Condivisioni Windows o Linux (Samba). Lascia vuoti nome utente e password per una condivisione ospite.",
+"pt": "Compartilhamentos do Windows ou Linux (Samba). Deixe usuário e senha em branco para um compartilhamento de convidado."
 },
 "Type the PC address and the shared folder name.": {
 "ar": "اكتب عنوان الكمبيوتر واسم المجلد المشترك.",
 "fr": "Saisissez l'adresse du PC et le nom du dossier partagé.",
 "tr": "PC adresini ve paylaşılan klasörün adını yazın.",
-"es": "Escribe la dirección del PC y el nombre de la carpeta compartida."
+"es": "Escribe la dirección del PC y el nombre de la carpeta compartida.",
+"de": "Gib die PC-Adresse und den Namen des freigegebenen Ordners ein.",
+"it": "Scrivi l'indirizzo del PC e il nome della cartella condivisa.",
+"pt": "Digite o endereço do PC e o nome da pasta compartilhada."
 },
 "This share needs a username and password.": {
 "ar": "تحتاج هذه المشاركة إلى اسم مستخدم وكلمة مرور.",
 "fr": "Ce partage demande un nom d'utilisateur et un mot de passe.",
 "tr": "Bu paylaşım bir kullanıcı adı ve şifre istiyor.",
-"es": "Esta carpeta necesita usuario y contraseña."
+"es": "Esta carpeta necesita usuario y contraseña.",
+"de": "Diese Freigabe braucht Benutzername und Passwort.",
+"it": "Questa condivisione richiede nome utente e password.",
+"pt": "Este compartilhamento precisa de usuário e senha."
 },
 "Wrong username or password.": {
 "ar": "اسم المستخدم أو كلمة المرور خاطئة.",
 "fr": "Nom d'utilisateur ou mot de passe incorrect.",
 "tr": "Yanlış kullanıcı adı veya şifre.",
-"es": "Usuario o contraseña incorrectos."
+"es": "Usuario o contraseña incorrectos.",
+"de": "Falscher Benutzername oder falsches Passwort.",
+"it": "Nome utente o password errati.",
+"pt": "Usuário ou senha errados."
 },
 "Cannot reach {a}. Check the address, and that the PC is on and sharing.": {
 "ar": "تعذر الوصول إلى {a}. تحقق من العنوان ومن أن الكمبيوتر يعمل ويشارك المجلد.",
 "fr": "Impossible de joindre {a}. Vérifiez l'adresse, et que le PC est allumé et partage le dossier.",
 "tr": "{a} adresine ulaşılamıyor. Adresi ve PC'nin açık olup paylaşım yaptığını kontrol edin.",
-"es": "No se puede llegar a {a}. Revisa la dirección y que el PC esté encendido y compartiendo."
+"es": "No se puede llegar a {a}. Revisa la dirección y que el PC esté encendido y compartiendo.",
+"de": "{a} ist nicht erreichbar. Prüfe die Adresse und ob der PC an ist und freigibt.",
+"it": "Impossibile raggiungere {a}. Controlla l'indirizzo e che il PC sia acceso e condivida.",
+"pt": "Não foi possível alcançar {a}. Verifique o endereço e se o PC está ligado e compartilhando."
 },
 "{a} has no shared folder named {b}.": {
 "ar": "لا يوجد في {a} مجلد مشترك باسم {b}.",
 "fr": "{a} n'a pas de dossier partagé nommé {b}.",
 "tr": "{a} üzerinde {b} adlı paylaşılan klasör yok.",
-"es": "{a} no tiene ninguna carpeta compartida llamada {b}."
+"es": "{a} no tiene ninguna carpeta compartida llamada {b}.",
+"de": "{a} hat keinen freigegebenen Ordner namens {b}.",
+"it": "{a} non ha una cartella condivisa chiamata {b}.",
+"pt": "{a} não tem uma pasta compartilhada chamada {b}."
 },
 "Could not open network shares: {a}": {
 "ar": "تعذر فتح المشاركات الشبكية: {a}",
 "fr": "Impossible d'ouvrir les partages réseau : {a}",
 "tr": "Ağ paylaşımları açılamadı: {a}",
-"es": "No se pudieron abrir las carpetas de red: {a}"
+"es": "No se pudieron abrir las carpetas de red: {a}",
+"de": "Netzwerkfreigaben konnten nicht geöffnet werden: {a}",
+"it": "Impossibile aprire le condivisioni di rete: {a}",
+"pt": "Não foi possível abrir os compartilhamentos de rede: {a}"
 },
 "Could not start smbnetfs: {a}": {
 "ar": "تعذر تشغيل smbnetfs: {a}",
 "fr": "Impossible de démarrer smbnetfs : {a}",
 "tr": "smbnetfs başlatılamadı: {a}",
-"es": "No se pudo iniciar smbnetfs: {a}"
+"es": "No se pudo iniciar smbnetfs: {a}",
+"de": "smbnetfs konnte nicht gestartet werden: {a}",
+"it": "Impossibile avviare smbnetfs: {a}",
+"pt": "Não foi possível iniciar o smbnetfs: {a}"
 },
 "{n} game": {
 "ar": "لعبة واحدة",
 "fr": "{n} jeu",
 "tr": "{n} oyun",
-"es": "{n} juego"
+"es": "{n} juego",
+"de": "{n} Spiel",
+"it": "{n} gioco",
+"pt": "{n} jogo"
 },
 "{n} games": {
 "ar": "{n} ألعاب",
 "fr": "{n} jeux",
 "tr": "{n} oyun",
-"es": "{n} juegos"
+"es": "{n} juegos",
+"de": "{n} Spiele",
+"it": "{n} giochi",
+"pt": "{n} jogos"
 },
 "Connected, {a}": {
 "ar": "متصل، {a}",
 "fr": "Connecté, {a}",
 "tr": "Bağlı, {a}",
-"es": "Conectado, {a}"
+"es": "Conectado, {a}",
+"de": "Verbunden, {a}",
+"it": "Connesso, {a}",
+"pt": "Conectado, {a}"
 },
 "Bluetooth headphones": {
 "ar": "سماعات Bluetooth",
 "fr": "Casque Bluetooth",
 "tr": "Bluetooth kulaklık",
-"es": "Auriculares Bluetooth"
+"es": "Auriculares Bluetooth",
+"de": "Bluetooth-Kopfhörer",
+"it": "Cuffie Bluetooth",
+"pt": "Fones Bluetooth"
 },
 "Pair headphones": {
 "ar": "إقران سماعات",
 "fr": "Associer un casque",
 "tr": "Kulaklık eşle",
-"es": "Vincular auriculares"
+"es": "Vincular auriculares",
+"de": "Kopfhörer koppeln",
+"it": "Associa le cuffie",
+"pt": "Parear fones"
 },
 "Sound moves to the headphones when they connect, and back to the TV after.": {
 "ar": "ينتقل الصوت إلى السماعات عند اتصالها، ثم يعود إلى التلفاز بعد ذلك.",
 "fr": "Le son passe au casque quand il se connecte, puis revient à la télé ensuite.",
 "tr": "Ses, kulaklık bağlandığında ona geçer, sonra tekrar TV'ye döner.",
-"es": "El sonido pasa a los auriculares al conectarse y vuelve a la tele después."
+"es": "El sonido pasa a los auriculares al conectarse y vuelve a la tele después.",
+"de": "Der Ton wechselt zu den Kopfhörern, wenn sie sich verbinden, und danach zurück zum Fernseher.",
+"it": "L'audio passa alle cuffie quando si connettono e poi torna alla TV.",
+"pt": "O som vai para os fones quando eles conectam e depois volta para a TV."
 },
 "Put your headphones in pairing mode. Looking for them for 12 seconds…": {
 "ar": "ضع السماعات في وضع الإقران. جارٍ البحث عنها لمدة 12 ثانية…",
 "fr": "Mettez le casque en mode d'association. Recherche pendant 12 secondes…",
 "tr": "Kulaklığı eşleme moduna alın. 12 saniye boyunca aranıyor…",
-"es": "Pon los auriculares en modo de vinculación. Buscándolos durante 12 segundos…"
+"es": "Pon los auriculares en modo de vinculación. Buscándolos durante 12 segundos…",
+"de": "Versetze die Kopfhörer in den Kopplungsmodus. Sie werden 12 Sekunden lang gesucht…",
+"it": "Metti le cuffie in modalità di associazione. Ricerca per 12 secondi…",
+"pt": "Coloque os fones no modo de pareamento. Procurando por 12 segundos…"
 },
 "No headphones found. Put them in pairing mode (often: hold the power button until a light blinks) and try again.": {
 "ar": "لم يتم العثور على سماعات. ضعها في وضع الإقران (غالبًا: اضغط مطولًا على زر التشغيل حتى يومض ضوء) وحاول مرة أخرى.",
 "fr": "Aucun casque trouvé. Mettez-le en mode d'association (souvent : maintenez le bouton marche jusqu'à ce qu'une lumière clignote) et réessayez.",
 "tr": "Kulaklık bulunamadı. Eşleme moduna alın (genelde: ışık yanıp sönene kadar güç düğmesini basılı tutun) ve tekrar deneyin.",
-"es": "No se encontraron auriculares. Ponlos en modo de vinculación (a menudo: mantén el botón de encendido hasta que parpadee una luz) e inténtalo de nuevo."
+"es": "No se encontraron auriculares. Ponlos en modo de vinculación (a menudo: mantén el botón de encendido hasta que parpadee una luz) e inténtalo de nuevo.",
+"de": "Keine Kopfhörer gefunden. Versetze sie in den Kopplungsmodus (oft: Einschalttaste halten, bis ein Licht blinkt) und versuche es erneut.",
+"it": "Nessuna cuffia trovata. Mettile in modalità di associazione (spesso: tieni premuto il tasto di accensione finché una luce lampeggia) e riprova.",
+"pt": "Nenhum fone encontrado. Coloque-os no modo de pareamento (geralmente: segure o botão liga até uma luz piscar) e tente de novo."
 },
 "Headphones found": {
 "ar": "تم العثور على سماعات",
 "fr": "Casques trouvés",
 "tr": "Bulunan kulaklıklar",
-"es": "Auriculares encontrados"
+"es": "Auriculares encontrados",
+"de": "Gefundene Kopfhörer",
+"it": "Cuffie trovate",
+"pt": "Fones encontrados"
 },
 "Pairing and connecting…": {
 "ar": "جارٍ الإقران والاتصال…",
 "fr": "Association et connexion…",
 "tr": "Eşleniyor ve bağlanıyor…",
-"es": "Vinculando y conectando…"
+"es": "Vinculando y conectando…",
+"de": "Koppeln und verbinden…",
+"it": "Associazione e connessione…",
+"pt": "Pareando e conectando…"
 },
 "None paired yet.": {
 "ar": "لا توجد سماعات مقترنة بعد.",
 "fr": "Aucun associé pour l'instant.",
 "tr": "Henüz eşlenen yok.",
-"es": "Ninguno vinculado todavía."
+"es": "Ninguno vinculado todavía.",
+"de": "Noch keine gekoppelt.",
+"it": "Ancora nessuna associata.",
+"pt": "Nenhum pareado ainda."
 },
 "Connecting {a}…": {
 "ar": "جارٍ توصيل {a}…",
 "fr": "Connexion de {a}…",
 "tr": "{a} bağlanıyor…",
-"es": "Conectando {a}…"
+"es": "Conectando {a}…",
+"de": "{a} wird verbunden…",
+"it": "Connessione di {a}…",
+"pt": "Conectando {a}…"
 },
 "Disconnecting {a}…": {
 "ar": "جارٍ قطع اتصال {a}…",
 "fr": "Déconnexion de {a}…",
 "tr": "{a} bağlantısı kesiliyor…",
-"es": "Desconectando {a}…"
+"es": "Desconectando {a}…",
+"de": "{a} wird getrennt…",
+"it": "Disconnessione di {a}…",
+"pt": "Desconectando {a}…"
 },
 "Headphones connected. The sound plays there now.": {
 "ar": "تم توصيل السماعات. يعمل الصوت عليها الآن.",
 "fr": "Casque connecté. Le son passe maintenant par lui.",
 "tr": "Kulaklık bağlandı. Ses artık orada çalıyor.",
-"es": "Auriculares conectados. El sonido suena ahí ahora."
+"es": "Auriculares conectados. El sonido suena ahí ahora.",
+"de": "Kopfhörer verbunden. Der Ton spielt jetzt dort.",
+"it": "Cuffie connesse. L'audio ora è lì.",
+"pt": "Fones conectados. O som toca neles agora."
 },
 "Headphones connected, but no sound output came up for them yet.": {
 "ar": "تم توصيل السماعات، لكن لم يظهر لها مخرج صوت بعد.",
 "fr": "Casque connecté, mais aucune sortie son n'est encore apparue pour lui.",
 "tr": "Kulaklık bağlandı ama henüz ses çıkışı görünmedi.",
-"es": "Auriculares conectados, pero aún no apareció su salida de sonido."
+"es": "Auriculares conectados, pero aún no apareció su salida de sonido.",
+"de": "Kopfhörer verbunden, aber noch keine Tonausgabe für sie erschienen.",
+"it": "Cuffie connesse, ma non è ancora comparsa la loro uscita audio.",
+"pt": "Fones conectados, mas ainda não apareceu a saída de som deles."
 },
 "Headphones disconnected. The sound plays on the TV again.": {
 "ar": "تم فصل السماعات. يعمل الصوت على التلفاز مرة أخرى.",
 "fr": "Casque déconnecté. Le son repasse par la télé.",
 "tr": "Kulaklık bağlantısı kesildi. Ses yeniden TV'de çalıyor.",
-"es": "Auriculares desconectados. El sonido vuelve a la tele."
+"es": "Auriculares desconectados. El sonido vuelve a la tele.",
+"de": "Kopfhörer getrennt. Der Ton spielt wieder am Fernseher.",
+"it": "Cuffie disconnesse. L'audio torna alla TV.",
+"pt": "Fones desconectados. O som volta para a TV."
 },
 "Headphones forgotten.": {
 "ar": "تم نسيان السماعات.",
 "fr": "Casque oublié.",
 "tr": "Kulaklık unutuldu.",
-"es": "Auriculares olvidados."
+"es": "Auriculares olvidados.",
+"de": "Kopfhörer vergessen.",
+"it": "Cuffie dimenticate.",
+"pt": "Fones esquecidos."
 },
 "Could not pair. Put the headphones in pairing mode and try again.": {
 "ar": "تعذر الإقران. ضع السماعات في وضع الإقران وحاول مرة أخرى.",
 "fr": "Association impossible. Mettez le casque en mode d'association et réessayez.",
 "tr": "Eşlenemedi. Kulaklığı eşleme moduna alıp tekrar deneyin.",
-"es": "No se pudo vincular. Pon los auriculares en modo de vinculación e inténtalo de nuevo."
+"es": "No se pudo vincular. Pon los auriculares en modo de vinculación e inténtalo de nuevo.",
+"de": "Kopplung fehlgeschlagen. Versetze die Kopfhörer in den Kopplungsmodus und versuche es erneut.",
+"it": "Associazione non riuscita. Metti le cuffie in modalità di associazione e riprova.",
+"pt": "Não foi possível parear. Coloque os fones no modo de pareamento e tente de novo."
 },
 "Could not connect. Turn the headphones on and try again.": {
 "ar": "تعذر الاتصال. شغّل السماعات وحاول مرة أخرى.",
 "fr": "Connexion impossible. Allumez le casque et réessayez.",
 "tr": "Bağlanılamadı. Kulaklığı açıp tekrar deneyin.",
-"es": "No se pudo conectar. Enciende los auriculares e inténtalo de nuevo."
+"es": "No se pudo conectar. Enciende los auriculares e inténtalo de nuevo.",
+"de": "Verbindung fehlgeschlagen. Schalte die Kopfhörer ein und versuche es erneut.",
+"it": "Connessione non riuscita. Accendi le cuffie e riprova.",
+"pt": "Não foi possível conectar. Ligue os fones e tente de novo."
 },
 "Could not disconnect them.": {
 "ar": "تعذر فصلها.",
 "fr": "Impossible de les déconnecter.",
 "tr": "Bağlantı kesilemedi.",
-"es": "No se pudieron desconectar."
+"es": "No se pudieron desconectar.",
+"de": "Sie konnten nicht getrennt werden.",
+"it": "Impossibile disconnetterle.",
+"pt": "Não foi possível desconectá-los."
 },
 "Could not forget them.": {
 "ar": "تعذر نسيانها.",
 "fr": "Impossible de les oublier.",
 "tr": "Unutulamadı.",
-"es": "No se pudieron olvidar."
+"es": "No se pudieron olvidar.",
+"de": "Sie konnten nicht vergessen werden.",
+"it": "Impossibile dimenticarle.",
+"pt": "Não foi possível esquecê-los."
 },
 "Output": {
 "ar": "المخرج",
 "fr": "Sortie",
 "tr": "Çıkış",
-"es": "Salida"
+"es": "Salida",
+"de": "Ausgabe",
+"it": "Uscita",
+"pt": "Saída"
 },
 "Sound output": {
 "ar": "مخرج الصوت",
 "fr": "Sortie son",
 "tr": "Ses çıkışı",
-"es": "Salida de sonido"
+"es": "Salida de sonido",
+"de": "Tonausgabe",
+"it": "Uscita audio",
+"pt": "Saída de som"
 },
 "Test sound": {
 "ar": "اختبار الصوت",
 "fr": "Tester le son",
 "tr": "Sesi dene",
-"es": "Probar el sonido"
+"es": "Probar el sonido",
+"de": "Ton testen",
+"it": "Prova l'audio",
+"pt": "Testar o som"
 },
 "Volume": {
 "ar": "مستوى الصوت",
 "fr": "Volume",
 "tr": "Ses düzeyi",
-"es": "Volumen"
+"es": "Volumen",
+"de": "Lautstärke",
+"it": "Volume",
+"pt": "Volume"
 },
 "TV (HDMI)": {
 "ar": "التلفاز (HDMI)",
 "fr": "Télé (HDMI)",
 "tr": "TV (HDMI)",
-"es": "Tele (HDMI)"
+"es": "Tele (HDMI)",
+"de": "Fernseher (HDMI)",
+"it": "TV (HDMI)",
+"pt": "TV (HDMI)"
 },
 "Headphones: {a}": {
 "ar": "السماعات: {a}",
 "fr": "Casque : {a}",
 "tr": "Kulaklık: {a}",
-"es": "Auriculares: {a}"
+"es": "Auriculares: {a}",
+"de": "Kopfhörer: {a}",
+"it": "Cuffie: {a}",
+"pt": "Fones: {a}"
 },
 "Controller headphones": {
 "ar": "سماعات وحدة التحكم",
 "fr": "Casque de la manette",
 "tr": "Kontrolcü kulaklığı",
-"es": "Auriculares del mando"
+"es": "Auriculares del mando",
+"de": "Controller-Kopfhörer",
+"it": "Cuffie del controller",
+"pt": "Fones do controle"
 },
 "The TV is used first, also when a controller on a cable has its own headphone jack.": {
 "ar": "يُستخدم التلفاز أولًا، حتى عندما يكون لوحدة التحكم الموصولة بكابل منفذ سماعات خاص بها.",
 "fr": "La télé est utilisée en premier, même quand une manette branchée par câble a sa propre prise casque.",
 "tr": "Önce TV kullanılır; kabloyla bağlı bir kontrolcünün kendi kulaklık girişi olsa bile.",
-"es": "Primero se usa la tele, también cuando un mando con cable tiene su propia toma de auriculares."
+"es": "Primero se usa la tele, también cuando un mando con cable tiene su propia toma de auriculares.",
+"de": "Der Fernseher wird zuerst genutzt, auch wenn ein Controller am Kabel eine eigene Kopfhörerbuchse hat.",
+"it": "Viene usata prima la TV, anche quando un controller via cavo ha la sua presa per cuffie.",
+"pt": "A TV é usada primeiro, mesmo quando um controle com cabo tem sua própria entrada de fone."
 },
 "Paired over Bluetooth": {
 "ar": "مقترنة عبر Bluetooth",
 "fr": "Associées en Bluetooth",
 "tr": "Bluetooth ile eşlenenler",
-"es": "Vinculados por Bluetooth"
+"es": "Vinculados por Bluetooth",
+"de": "Über Bluetooth gekoppelt",
+"it": "Associati tramite Bluetooth",
+"pt": "Pareados por Bluetooth"
 },
 "Paired": {
 "ar": "مقترنة",
 "fr": "Associée",
 "tr": "Eşlendi",
-"es": "Vinculado"
+"es": "Vinculado",
+"de": "Gekoppelt",
+"it": "Associato",
+"pt": "Pareado"
 },
 "Pair a new controller": {
 "ar": "إقران وحدة تحكم جديدة",
 "fr": "Associer une nouvelle manette",
 "tr": "Yeni kontrolcü eşle",
-"es": "Vincular un mando nuevo"
+"es": "Vincular un mando nuevo",
+"de": "Neuen Controller koppeln",
+"it": "Associa un nuovo controller",
+"pt": "Parear um controle novo"
 },
 "Pair a controller": {
 "ar": "إقران وحدة تحكم",
 "fr": "Associer une manette",
 "tr": "Kontrolcü eşle",
-"es": "Vincular un mando"
+"es": "Vincular un mando",
+"de": "Controller koppeln",
+"it": "Associa un controller",
+"pt": "Parear um controle"
 },
 "A paired controller reconnects with its PS button, and stays connected over Bluetooth while you do not use it.": {
 "ar": "تعيد وحدة التحكم المقترنة الاتصال بزر PS، وتبقى متصلة عبر Bluetooth عندما لا تستخدمها.",
 "fr": "Une manette associée se reconnecte avec sa touche PS et reste connectée en Bluetooth quand vous ne l'utilisez pas.",
 "tr": "Eşlenmiş bir kontrolcü PS düğmesiyle yeniden bağlanır ve kullanmadığınızda Bluetooth ile bağlı kalır.",
-"es": "Un mando vinculado se vuelve a conectar con su botón PS y sigue conectado por Bluetooth mientras no lo usas."
+"es": "Un mando vinculado se vuelve a conectar con su botón PS y sigue conectado por Bluetooth mientras no lo usas.",
+"de": "Ein gekoppelter Controller verbindet sich mit seiner PS-Taste wieder und bleibt über Bluetooth verbunden, während du ihn nicht benutzt.",
+"it": "Un controller associato si riconnette con il tasto PS e resta connesso via Bluetooth mentre non lo usi.",
+"pt": "Um controle pareado se reconecta pelo botão PS e continua conectado por Bluetooth enquanto você não o usa."
 },
 "Controller settings": {
 "ar": "إعدادات وحدة التحكم",
 "fr": "Réglages de la manette",
 "tr": "Kontrolcü ayarları",
-"es": "Ajustes del mando"
+"es": "Ajustes del mando",
+"de": "Controller-Einstellungen",
+"it": "Impostazioni del controller",
+"pt": "Configurações do controle"
 },
 "Light bar color": {
 "ar": "لون شريط الإضاءة",
 "fr": "Couleur de la barre lumineuse",
 "tr": "Işık çubuğu rengi",
-"es": "Color de la barra de luz"
+"es": "Color de la barra de luz",
+"de": "Farbe der Lichtleiste",
+"it": "Colore della barra luminosa",
+"pt": "Cor da barra de luz"
 },
 "Vibration": {
 "ar": "الاهتزاز",
 "fr": "Vibration",
 "tr": "Titreşim",
-"es": "Vibración"
+"es": "Vibración",
+"de": "Vibration",
+"it": "Vibrazione",
+"pt": "Vibração"
 },
 "Button layout": {
 "ar": "ترتيب الأزرار",
 "fr": "Disposition des touches",
 "tr": "Düğme düzeni",
-"es": "Distribución de botones"
+"es": "Distribución de botones",
+"de": "Tastenbelegung",
+"it": "Disposizione dei tasti",
+"pt": "Layout dos botões"
 },
 "Standard (X to choose)": {
 "ar": "قياسي (X للاختيار)",
 "fr": "Standard (X pour choisir)",
 "tr": "Standart (seçmek için X)",
-"es": "Estándar (X para elegir)"
+"es": "Estándar (X para elegir)",
+"de": "Standard (X zum Auswählen)",
+"it": "Standard (X per scegliere)",
+"pt": "Padrão (X para escolher)"
 },
 "X and O swapped (O to choose)": {
 "ar": "تبديل X و O (O للاختيار)",
 "fr": "X et O inversés (O pour choisir)",
 "tr": "X ve O yer değiştirdi (seçmek için O)",
-"es": "X y O cambiados (O para elegir)"
+"es": "X y O cambiados (O para elegir)",
+"de": "X und O getauscht (O zum Auswählen)",
+"it": "X e O scambiati (O per scegliere)",
+"pt": "X e O trocados (O para escolher)"
 },
 "Test the controller": {
 "ar": "اختبار وحدة التحكم",
 "fr": "Tester la manette",
 "tr": "Kontrolcüyü test et",
-"es": "Probar el mando"
+"es": "Probar el mando",
+"de": "Controller testen",
+"it": "Prova il controller",
+"pt": "Testar o controle"
 },
 "Controller test": {
 "ar": "اختبار وحدة التحكم",
 "fr": "Test de la manette",
 "tr": "Kontrolcü testi",
-"es": "Prueba del mando"
+"es": "Prueba del mando",
+"de": "Controller-Test",
+"it": "Prova del controller",
+"pt": "Teste do controle"
 },
 "Press every button and move the sticks. Press O twice (or PS) to go back.": {
 "ar": "اضغط كل زر وحرّك العصي. اضغط O مرتين (أو PS) للرجوع.",
 "fr": "Appuyez sur chaque touche et bougez les joysticks. Appuyez deux fois sur O (ou PS) pour revenir.",
 "tr": "Her düğmeye basın ve çubukları hareket ettirin. Geri dönmek için iki kez O'ya (veya PS'ye) basın.",
-"es": "Pulsa cada botón y mueve los joysticks. Pulsa O dos veces (o PS) para volver."
+"es": "Pulsa cada botón y mueve los joysticks. Pulsa O dos veces (o PS) para volver.",
+"de": "Drücke jede Taste und bewege die Sticks. Drücke zweimal O (oder PS), um zurückzugehen.",
+"it": "Premi ogni tasto e muovi le levette. Premi O due volte (o PS) per tornare indietro.",
+"pt": "Aperte cada botão e mova os analógicos. Aperte O duas vezes (ou PS) para voltar."
 },
 "Touchpad": {
 "ar": "لوحة اللمس",
 "fr": "Pavé tactile",
 "tr": "Dokunmatik yüzey",
-"es": "Panel táctil"
+"es": "Panel táctil",
+"de": "Touchpad",
+"it": "Touchpad",
+"pt": "Touchpad"
 },
 "Games get the light bar color, vibration and button layout the next time they start.": {
 "ar": "تحصل الألعاب على لون شريط الإضاءة والاهتزاز وترتيب الأزرار عند تشغيلها في المرة القادمة.",
 "fr": "Les jeux reçoivent la couleur, la vibration et la disposition des touches à leur prochain lancement.",
 "tr": "Oyunlar ışık çubuğu rengini, titreşimi ve düğme düzenini bir sonraki açılışta alır.",
-"es": "Los juegos usan el color, la vibración y la distribución de botones la próxima vez que se inicien."
+"es": "Los juegos usan el color, la vibración y la distribución de botones la próxima vez que se inicien.",
+"de": "Spiele erhalten Lichtleistenfarbe, Vibration und Tastenbelegung beim nächsten Start.",
+"it": "I giochi ricevono colore, vibrazione e disposizione dei tasti al prossimo avvio.",
+"pt": "Os jogos usam a cor, a vibração e o layout dos botões na próxima vez que iniciarem."
 },
 "Forgetting the controller…": {
 "ar": "جارٍ نسيان وحدة التحكم…",
 "fr": "Suppression de la manette…",
 "tr": "Kontrolcü unutuluyor…",
-"es": "Olvidando el mando…"
+"es": "Olvidando el mando…",
+"de": "Controller wird vergessen…",
+"it": "Rimozione del controller…",
+"pt": "Esquecendo o controle…"
 },
 "Forget this controller? To use it over Bluetooth again, pair it again.": {
 "ar": "نسيان وحدة التحكم هذه؟ لاستخدامها عبر Bluetooth مرة أخرى، قم بإقرانها من جديد.",
 "fr": "Oublier cette manette ? Pour l'utiliser à nouveau en Bluetooth, associez-la de nouveau.",
 "tr": "Bu kontrolcü unutulsun mu? Bluetooth ile tekrar kullanmak için yeniden eşleyin.",
-"es": "¿Olvidar este mando? Para usarlo otra vez por Bluetooth, vincúlalo de nuevo."
+"es": "¿Olvidar este mando? Para usarlo otra vez por Bluetooth, vincúlalo de nuevo.",
+"de": "Diesen Controller vergessen? Um ihn wieder über Bluetooth zu nutzen, kopple ihn erneut.",
+"it": "Dimenticare questo controller? Per usarlo di nuovo via Bluetooth, associalo di nuovo.",
+"pt": "Esquecer este controle? Para usá-lo por Bluetooth de novo, pareie-o de novo."
 },
 "Hold SHARE and PS on a DualShock 4 (Create and PS on a DualSense) until the light bar blinks quickly. The PS4 looks for it for 60 seconds.": {
 "ar": "اضغط مطولًا على SHARE و PS في DualShock 4 (Create و PS في DualSense) حتى يومض شريط الإضاءة بسرعة. يبحث PS4 عنها لمدة 60 ثانية.",
 "fr": "Maintenez SHARE et PS sur une DualShock 4 (Create et PS sur une DualSense) jusqu'à ce que la barre lumineuse clignote vite. La PS4 la cherche pendant 60 secondes.",
 "tr": "DualShock 4'te SHARE ve PS'yi (DualSense'te Create ve PS) ışık çubuğu hızla yanıp sönene kadar basılı tutun. PS4 onu 60 saniye arar.",
-"es": "Mantén SHARE y PS en un DualShock 4 (Create y PS en un DualSense) hasta que la barra de luz parpadee rápido. La PS4 lo busca durante 60 segundos."
+"es": "Mantén SHARE y PS en un DualShock 4 (Create y PS en un DualSense) hasta que la barra de luz parpadee rápido. La PS4 lo busca durante 60 segundos.",
+"de": "Halte SHARE und PS auf einem DualShock 4 (Create und PS auf einem DualSense), bis die Lichtleiste schnell blinkt. Die PS4 sucht 60 Sekunden lang danach.",
+"it": "Tieni premuti SHARE e PS su un DualShock 4 (Create e PS su un DualSense) finché la barra luminosa lampeggia rapidamente. La PS4 lo cerca per 60 secondi.",
+"pt": "Segure SHARE e PS num DualShock 4 (Create e PS num DualSense) até a barra de luz piscar rápido. O PS4 procura por 60 segundos."
 },
 "No controller found.": {
 "ar": "لم يتم العثور على وحدة تحكم.",
 "fr": "Aucune manette trouvée.",
 "tr": "Kontrolcü bulunamadı.",
-"es": "No se encontró ningún mando."
+"es": "No se encontró ningún mando.",
+"de": "Kein Controller gefunden.",
+"it": "Nessun controller trovato.",
+"pt": "Nenhum controle encontrado."
 },
 "No controller connected.": {
 "ar": "لا توجد وحدة تحكم متصلة.",
 "fr": "Aucune manette connectée.",
 "tr": "Bağlı kontrolcü yok.",
-"es": "No hay ningún mando conectado."
+"es": "No hay ningún mando conectado.",
+"de": "Kein Controller verbunden.",
+"it": "Nessun controller connesso.",
+"pt": "Nenhum controle conectado."
 },
 "None. Pair one below.": {
 "ar": "لا شيء. قم بإقران واحدة في الأسفل.",
 "fr": "Aucune. Associez-en une ci-dessous.",
 "tr": "Yok. Aşağıdan bir tane eşleyin.",
-"es": "Ninguno. Vincula uno abajo."
+"es": "Ninguno. Vincula uno abajo.",
+"de": "Keiner. Kopple unten einen.",
+"it": "Nessuno. Associane uno qui sotto.",
+"pt": "Nenhum. Pareie um abaixo."
 },
 "Could not start looking for controllers.": {
 "ar": "تعذر بدء البحث عن وحدات التحكم.",
 "fr": "Impossible de lancer la recherche de manettes.",
 "tr": "Kontrolcü araması başlatılamadı.",
-"es": "No se pudo empezar a buscar mandos."
+"es": "No se pudo empezar a buscar mandos.",
+"de": "Suche nach Controllern konnte nicht gestartet werden.",
+"it": "Impossibile avviare la ricerca dei controller.",
+"pt": "Não foi possível começar a procurar controles."
 },
 "USB cable": {
 "ar": "كابل USB",
 "fr": "Câble USB",
 "tr": "USB kablosu",
-"es": "Cable USB"
+"es": "Cable USB",
+"de": "USB-Kabel",
+"it": "Cavo USB",
+"pt": "Cabo USB"
 },
 "{n}% charging": {
 "ar": "{n}% قيد الشحن",
 "fr": "{n} % en charge",
 "tr": "%{n} şarj oluyor",
-"es": "{n} % cargando"
+"es": "{n} % cargando",
+"de": "{n} % wird geladen",
+"it": "{n}% in carica",
+"pt": "{n}% carregando"
 },
 "Charging": {
 "ar": "قيد الشحن",
 "fr": "En charge",
 "tr": "Şarj oluyor",
-"es": "Cargando"
+"es": "Cargando",
+"de": "Wird geladen",
+"it": "In carica",
+"pt": "Carregando"
 },
 "Blue": {
 "ar": "أزرق",
 "fr": "Bleu",
 "tr": "Mavi",
-"es": "Azul"
+"es": "Azul",
+"de": "Blau",
+"it": "Blu",
+"pt": "Azul"
 },
 "Red": {
 "ar": "أحمر",
 "fr": "Rouge",
 "tr": "Kırmızı",
-"es": "Rojo"
+"es": "Rojo",
+"de": "Rot",
+"it": "Rosso",
+"pt": "Vermelho"
 },
 "Green": {
 "ar": "أخضر",
 "fr": "Vert",
 "tr": "Yeşil",
-"es": "Verde"
+"es": "Verde",
+"de": "Grün",
+"it": "Verde",
+"pt": "Verde"
 },
 "Orange": {
 "ar": "برتقالي",
 "fr": "Orange",
 "tr": "Turuncu",
-"es": "Naranja"
+"es": "Naranja",
+"de": "Orange",
+"it": "Arancione",
+"pt": "Laranja"
 },
 "Pink": {
 "ar": "وردي",
 "fr": "Rose",
 "tr": "Pembe",
-"es": "Rosa"
+"es": "Rosa",
+"de": "Pink",
+"it": "Rosa",
+"pt": "Rosa"
 },
 "Cyan": {
 "ar": "سماوي",
 "fr": "Cyan",
 "tr": "Camgöbeği",
-"es": "Cian"
+"es": "Cian",
+"de": "Cyan",
+"it": "Ciano",
+"pt": "Ciano"
 },
 "USB drive": {
 "ar": "وحدة USB",
 "fr": "Clé USB",
 "tr": "USB bellek",
-"es": "Unidad USB"
+"es": "Unidad USB",
+"de": "USB-Laufwerk",
+"it": "Unità USB",
+"pt": "Pendrive"
 },
 "PS4 drive": {
 "ar": "قرص PS4",
 "fr": "Disque de la PS4",
 "tr": "PS4 diski",
-"es": "Disco de la PS4"
+"es": "Disco de la PS4",
+"de": "PS4-Festplatte",
+"it": "Disco della PS4",
+"pt": "Disco do PS4"
 },
 "PC share": {
 "ar": "مشاركة الكمبيوتر",
 "fr": "Partage du PC",
 "tr": "PC paylaşımı",
-"es": "Carpeta del PC"
+"es": "Carpeta del PC",
+"de": "PC-Freigabe",
+"it": "Condivisione del PC",
+"pt": "Pasta do PC"
 },
 "Eject the USB drive": {
 "ar": "إخراج وحدة USB",
 "fr": "Éjecter la clé USB",
 "tr": "USB belleği çıkar",
-"es": "Expulsar el USB"
+"es": "Expulsar el USB",
+"de": "USB-Laufwerk auswerfen",
+"it": "Espelli l'unità USB",
+"pt": "Ejetar o pendrive"
 },
 "Ejecting the USB drive…": {
 "ar": "جارٍ إخراج وحدة USB…",
 "fr": "Éjection de la clé USB…",
 "tr": "USB bellek çıkarılıyor…",
-"es": "Expulsando el USB…"
+"es": "Expulsando el USB…",
+"de": "USB-Laufwerk wird ausgeworfen…",
+"it": "Espulsione dell'unità USB…",
+"pt": "Ejetando o pendrive…"
 },
 "You can unplug the USB drive.": {
 "ar": "يمكنك فصل وحدة USB.",
 "fr": "Vous pouvez retirer la clé USB.",
 "tr": "USB belleği çıkarabilirsiniz.",
-"es": "Ya puedes quitar el USB."
+"es": "Ya puedes quitar el USB.",
+"de": "Du kannst das USB-Laufwerk entfernen.",
+"it": "Puoi scollegare l'unità USB.",
+"pt": "Você pode remover o pendrive."
 },
 "No USB drive plugged in.": {
 "ar": "لا توجد وحدة USB موصولة.",
 "fr": "Aucune clé USB branchée.",
 "tr": "Takılı USB bellek yok.",
-"es": "No hay ningún USB conectado."
+"es": "No hay ningún USB conectado.",
+"de": "Kein USB-Laufwerk angeschlossen.",
+"it": "Nessuna unità USB collegata.",
+"pt": "Nenhum pendrive conectado."
 },
 "Plug in a USB drive first": {
 "ar": "صِل وحدة USB أولًا",
 "fr": "Branchez d'abord une clé USB",
 "tr": "Önce bir USB bellek takın",
-"es": "Conecta primero un USB"
+"es": "Conecta primero un USB",
+"de": "Schließe zuerst ein USB-Laufwerk an",
+"it": "Collega prima un'unità USB",
+"pt": "Conecte um pendrive primeiro"
 },
 "Plug in a USB drive first.": {
 "ar": "صِل وحدة USB أولًا.",
 "fr": "Branchez d'abord une clé USB.",
 "tr": "Önce bir USB bellek takın.",
-"es": "Conecta primero un USB."
+"es": "Conecta primero un USB.",
+"de": "Schließe zuerst ein USB-Laufwerk an.",
+"it": "Collega prima un'unità USB.",
+"pt": "Conecte um pendrive primeiro."
 },
 "Free space": {
 "ar": "المساحة الفارغة",
 "fr": "Espace libre",
 "tr": "Boş alan",
-"es": "Espacio libre"
+"es": "Espacio libre",
+"de": "Freier Speicher",
+"it": "Spazio libero",
+"pt": "Espaço livre"
 },
 "Game folder": {
 "ar": "مجلد الألعاب",
 "fr": "Dossier des jeux",
 "tr": "Oyun klasörü",
-"es": "Carpeta de juegos"
+"es": "Carpeta de juegos",
+"de": "Spielordner",
+"it": "Cartella dei giochi",
+"pt": "Pasta de jogos"
 },
 "Games there": {
 "ar": "الألعاب هناك",
 "fr": "Jeux présents",
 "tr": "Oradaki oyunlar",
-"es": "Juegos ahí"
+"es": "Juegos ahí",
+"de": "Spiele dort",
+"it": "Giochi presenti",
+"pt": "Jogos lá"
 },
 "Copy games there with GoldHEN FTP from your PC.": {
 "ar": "انسخ الألعاب إلى هناك باستخدام GoldHEN FTP من الكمبيوتر.",
 "fr": "Copiez-y des jeux avec GoldHEN FTP depuis votre PC.",
 "tr": "Oyunları PC'nizden GoldHEN FTP ile oraya kopyalayın.",
-"es": "Copia juegos ahí con GoldHEN FTP desde tu PC."
+"es": "Copia juegos ahí con GoldHEN FTP desde tu PC.",
+"de": "Kopiere Spiele mit GoldHEN FTP von deinem PC dorthin.",
+"it": "Copia lì i giochi con GoldHEN FTP dal tuo PC.",
+"pt": "Copie jogos para lá com o GoldHEN FTP pelo seu PC."
 },
 "Not open: this system was started from a USB drive.": {
 "ar": "غير مفتوح: تم تشغيل هذا النظام من وحدة USB.",
 "fr": "Non ouvert : ce système a démarré depuis une clé USB.",
 "tr": "Açık değil: bu sistem bir USB bellekten başlatıldı.",
-"es": "No disponible: este sistema se inició desde un USB."
+"es": "No disponible: este sistema se inició desde un USB.",
+"de": "Nicht geöffnet: Dieses System wurde von einem USB-Laufwerk gestartet.",
+"it": "Non aperto: questo sistema è stato avviato da un'unità USB.",
+"pt": "Não aberto: este sistema foi iniciado de um pendrive."
 },
 "{q} free of {r}": {
 "ar": "{q} فارغة من {r}",
 "fr": "{q} libres sur {r}",
 "tr": "{r} alanın {q} kadarı boş",
-"es": "{q} libres de {r}"
+"es": "{q} libres de {r}",
+"de": "{q} frei von {r}",
+"it": "{q} liberi su {r}",
+"pt": "{q} livres de {r}"
 },
 "{q} of {r}": {
 "ar": "{q} من {r}",
 "fr": "{q} sur {r}",
 "tr": "{q} / {r}",
-"es": "{q} de {r}"
+"es": "{q} de {r}",
+"de": "{q} von {r}",
+"it": "{q} su {r}",
+"pt": "{q} de {r}"
 },
 "{n} MB free of {m} MB": {
 "ar": "{n} ميغابايت فارغة من {m} ميغابايت",
 "fr": "{n} Mo libres sur {m} Mo",
 "tr": "{m} MB'ın {n} MB'ı boş",
-"es": "{n} MB libres de {m} MB"
+"es": "{n} MB libres de {m} MB",
+"de": "{n} MB frei von {m} MB",
+"it": "{n} MB liberi su {m} MB",
+"pt": "{n} MB livres de {m} MB"
 },
 "Trophies": {
 "ar": "الجوائز",
 "fr": "Trophées",
 "tr": "Kupalar",
-"es": "Trofeos"
+"es": "Trofeos",
+"de": "Trophäen",
+"it": "Trofei",
+"pt": "Troféus"
 },
 "Reading the trophies…": {
 "ar": "جارٍ قراءة الجوائز…",
 "fr": "Lecture des trophées…",
 "tr": "Kupalar okunuyor…",
-"es": "Leyendo los trofeos…"
+"es": "Leyendo los trofeos…",
+"de": "Trophäen werden gelesen…",
+"it": "Lettura dei trofei…",
+"pt": "Lendo os troféus…"
 },
 "Hidden trophy": {
 "ar": "جائزة مخفية",
 "fr": "Trophée caché",
 "tr": "Gizli kupa",
-"es": "Trofeo oculto"
+"es": "Trofeo oculto",
+"de": "Verborgene Trophäe",
+"it": "Trofeo nascosto",
+"pt": "Troféu oculto"
 },
 "Keep playing to find out.": {
 "ar": "واصل اللعب لتكتشفها.",
 "fr": "Continuez à jouer pour le découvrir.",
 "tr": "Öğrenmek için oynamaya devam edin.",
-"es": "Sigue jugando para descubrirlo."
+"es": "Sigue jugando para descubrirlo.",
+"de": "Spiel weiter, um es herauszufinden.",
+"it": "Continua a giocare per scoprirlo.",
+"pt": "Continue jogando para descobrir."
 },
 "{n} of {m} trophies": {
 "ar": "{n} من {m} جائزة",
 "fr": "{n} trophées sur {m}",
 "tr": "{m} kupadan {n} tanesi",
-"es": "{n} de {m} trofeos"
+"es": "{n} de {m} trofeos",
+"de": "{n} von {m} Trophäen",
+"it": "{n} trofei su {m}",
+"pt": "{n} de {m} troféus"
 },
 "None of your games has trophies.": {
 "ar": "لا توجد جوائز في أي من ألعابك.",
 "fr": "Aucun de vos jeux n'a de trophées.",
 "tr": "Oyunlarınızın hiçbirinde kupa yok.",
-"es": "Ninguno de tus juegos tiene trofeos."
+"es": "Ninguno de tus juegos tiene trofeos.",
+"de": "Keines deiner Spiele hat Trophäen.",
+"it": "Nessuno dei tuoi giochi ha trofei.",
+"pt": "Nenhum dos seus jogos tem troféus."
 },
 "Game saves": {
 "ar": "حفظ الألعاب",
 "fr": "Sauvegardes des jeux",
 "tr": "Oyun kayıtları",
-"es": "Partidas guardadas"
+"es": "Partidas guardadas",
+"de": "Spielstände",
+"it": "Salvataggi dei giochi",
+"pt": "Jogos salvos"
 },
 "Back up saves to USB": {
 "ar": "نسخ احتياطي للحفظ إلى USB",
 "fr": "Sauvegarder sur la clé USB",
 "tr": "Kayıtları USB'ye yedekle",
-"es": "Copiar partidas al USB"
+"es": "Copiar partidas al USB",
+"de": "Spielstände auf USB sichern",
+"it": "Salva i salvataggi su USB",
+"pt": "Copiar jogos salvos para o pendrive"
 },
 "Restore saves from USB": {
 "ar": "استعادة الحفظ من USB",
 "fr": "Restaurer depuis la clé USB",
 "tr": "Kayıtları USB'den geri yükle",
-"es": "Restaurar partidas del USB"
+"es": "Restaurar partidas del USB",
+"de": "Spielstände von USB wiederherstellen",
+"it": "Ripristina i salvataggi da USB",
+"pt": "Restaurar jogos salvos do pendrive"
 },
 "Restore saves": {
 "ar": "استعادة الحفظ",
 "fr": "Restaurer les sauvegardes",
 "tr": "Kayıtları geri yükle",
-"es": "Restaurar partidas"
+"es": "Restaurar partidas",
+"de": "Spielstände wiederherstellen",
+"it": "Ripristina i salvataggi",
+"pt": "Restaurar jogos salvos"
 },
 "Backups go in the PS5-saves folder of the USB drive.": {
 "ar": "تُحفظ النسخ الاحتياطية في مجلد PS5-saves على وحدة USB.",
 "fr": "Les sauvegardes vont dans le dossier PS5-saves de la clé USB.",
 "tr": "Yedekler USB bellekteki PS5-saves klasörüne gider.",
-"es": "Las copias van en la carpeta PS5-saves del USB."
+"es": "Las copias van en la carpeta PS5-saves del USB.",
+"de": "Sicherungen landen im Ordner PS5-saves des USB-Laufwerks.",
+"it": "I backup vanno nella cartella PS5-saves dell'unità USB.",
+"pt": "As cópias vão para a pasta PS5-saves do pendrive."
 },
 "Backing up saves to the USB drive…": {
 "ar": "جارٍ نسخ الحفظ احتياطيًا إلى وحدة USB…",
 "fr": "Sauvegarde sur la clé USB…",
 "tr": "Kayıtlar USB belleğe yedekleniyor…",
-"es": "Copiando partidas al USB…"
+"es": "Copiando partidas al USB…",
+"de": "Spielstände werden auf das USB-Laufwerk gesichert…",
+"it": "Salvataggi in copia sull'unità USB…",
+"pt": "Copiando jogos salvos para o pendrive…"
 },
 "Restoring saves…": {
 "ar": "جارٍ استعادة الحفظ…",
 "fr": "Restauration des sauvegardes…",
 "tr": "Kayıtlar geri yükleniyor…",
-"es": "Restaurando partidas…"
+"es": "Restaurando partidas…",
+"de": "Spielstände werden wiederhergestellt…",
+"it": "Ripristino dei salvataggi…",
+"pt": "Restaurando jogos salvos…"
 },
 "That backup is not on the USB drive any more.": {
 "ar": "لم تعد هذه النسخة الاحتياطية موجودة على وحدة USB.",
 "fr": "Cette sauvegarde n'est plus sur la clé USB.",
 "tr": "Bu yedek artık USB bellekte değil.",
-"es": "Esa copia ya no está en el USB."
+"es": "Esa copia ya no está en el USB.",
+"de": "Diese Sicherung ist nicht mehr auf dem USB-Laufwerk.",
+"it": "Quel backup non è più sull'unità USB.",
+"pt": "Essa cópia não está mais no pendrive."
 },
 "{n} backups": {
 "ar": "{n} نسخ احتياطية",
 "fr": "{n} sauvegardes",
 "tr": "{n} yedek",
-"es": "{n} copias"
+"es": "{n} copias",
+"de": "{n} Sicherungen",
+"it": "{n} backup",
+"pt": "{n} cópias"
 },
 "Last backup": {
 "ar": "آخر نسخة احتياطية",
 "fr": "Dernière sauvegarde",
 "tr": "Son yedek",
-"es": "Última copia"
+"es": "Última copia",
+"de": "Letzte Sicherung",
+"it": "Ultimo backup",
+"pt": "Última cópia"
 },
 "Backup failed: {a}": {
 "ar": "فشل النسخ الاحتياطي: {a}",
 "fr": "Échec de la sauvegarde : {a}",
 "tr": "Yedekleme başarısız: {a}",
-"es": "Falló la copia: {a}"
+"es": "Falló la copia: {a}",
+"de": "Sicherung fehlgeschlagen: {a}",
+"it": "Backup non riuscito: {a}",
+"pt": "A cópia falhou: {a}"
 },
 "Restore failed: {a}": {
 "ar": "فشلت الاستعادة: {a}",
 "fr": "Échec de la restauration : {a}",
 "tr": "Geri yükleme başarısız: {a}",
-"es": "Falló la restauración: {a}"
+"es": "Falló la restauración: {a}",
+"de": "Wiederherstellung fehlgeschlagen: {a}",
+"it": "Ripristino non riuscito: {a}",
+"pt": "A restauração falhou: {a}"
 },
 "Copy failed: {a}": {
 "ar": "فشل النسخ: {a}",
 "fr": "Échec de la copie : {a}",
 "tr": "Kopyalama başarısız: {a}",
-"es": "Falló la copia: {a}"
+"es": "Falló la copia: {a}",
+"de": "Kopieren fehlgeschlagen: {a}",
+"it": "Copia non riuscita: {a}",
+"pt": "A cópia falhou: {a}"
 },
 "Restart": {
 "ar": "إعادة التشغيل",
 "fr": "Redémarrer",
 "tr": "Yeniden başlat",
-"es": "Reiniciar"
+"es": "Reiniciar",
+"de": "Neu starten",
+"it": "Riavvia",
+"pt": "Reiniciar"
 },
 "Power off": {
 "ar": "إيقاف التشغيل",
 "fr": "Éteindre",
 "tr": "Kapat",
-"es": "Apagar"
+"es": "Apagar",
+"de": "Ausschalten",
+"it": "Spegni",
+"pt": "Desligar"
 },
 "Turn off": {
 "ar": "إيقاف التشغيل",
 "fr": "Éteindre",
 "tr": "Kapat",
-"es": "Apagar"
+"es": "Apagar",
+"de": "Ausschalten",
+"it": "Spegni",
+"pt": "Desligar"
 },
 "Restart the PS4": {
 "ar": "إعادة تشغيل PS4",
 "fr": "Redémarrer la PS4",
 "tr": "PS4'ü yeniden başlat",
-"es": "Reiniciar la PS4"
+"es": "Reiniciar la PS4",
+"de": "PS4 neu starten",
+"it": "Riavvia la PS4",
+"pt": "Reiniciar o PS4"
 },
 "Turn off the PS4": {
 "ar": "إيقاف تشغيل PS4",
 "fr": "Éteindre la PS4",
 "tr": "PS4'ü kapat",
-"es": "Apagar la PS4"
+"es": "Apagar la PS4",
+"de": "PS4 ausschalten",
+"it": "Spegni la PS4",
+"pt": "Desligar o PS4"
 },
 "Restart the PS4?": {
 "ar": "إعادة تشغيل PS4؟",
 "fr": "Redémarrer la PS4 ?",
 "tr": "PS4 yeniden başlatılsın mı?",
-"es": "¿Reiniciar la PS4?"
+"es": "¿Reiniciar la PS4?",
+"de": "PS4 neu starten?",
+"it": "Riavviare la PS4?",
+"pt": "Reiniciar o PS4?"
 },
 "Turn off the PS4?": {
 "ar": "إيقاف تشغيل PS4؟",
 "fr": "Éteindre la PS4 ?",
 "tr": "PS4 kapatılsın mı?",
-"es": "¿Apagar la PS4?"
+"es": "¿Apagar la PS4?",
+"de": "PS4 ausschalten?",
+"it": "Spegnere la PS4?",
+"pt": "Desligar o PS4?"
 },
 "Restart the PS4? The game is closed first.": {
 "ar": "إعادة تشغيل PS4؟ سيتم إغلاق اللعبة أولًا.",
 "fr": "Redémarrer la PS4 ? Le jeu est d'abord fermé.",
 "tr": "PS4 yeniden başlatılsın mı? Önce oyun kapatılır.",
-"es": "¿Reiniciar la PS4? Primero se cierra el juego."
+"es": "¿Reiniciar la PS4? Primero se cierra el juego.",
+"de": "PS4 neu starten? Das Spiel wird zuerst geschlossen.",
+"it": "Riavviare la PS4? Prima viene chiuso il gioco.",
+"pt": "Reiniciar o PS4? O jogo é fechado primeiro."
 },
 "Turn off the PS4? The game is closed first.": {
 "ar": "إيقاف تشغيل PS4؟ سيتم إغلاق اللعبة أولًا.",
 "fr": "Éteindre la PS4 ? Le jeu est d'abord fermé.",
 "tr": "PS4 kapatılsın mı? Önce oyun kapatılır.",
-"es": "¿Apagar la PS4? Primero se cierra el juego."
+"es": "¿Apagar la PS4? Primero se cierra el juego.",
+"de": "PS4 ausschalten? Das Spiel wird zuerst geschlossen.",
+"it": "Spegnere la PS4? Prima viene chiuso il gioco.",
+"pt": "Desligar o PS4? O jogo é fechado primeiro."
 },
 "Turn off the PS4? The paused game is closed first.": {
 "ar": "إيقاف تشغيل PS4؟ سيتم إغلاق اللعبة المتوقفة أولًا.",
 "fr": "Éteindre la PS4 ? Le jeu en pause est d'abord fermé.",
 "tr": "PS4 kapatılsın mı? Önce duraklatılan oyun kapatılır.",
-"es": "¿Apagar la PS4? Primero se cierra el juego en pausa."
+"es": "¿Apagar la PS4? Primero se cierra el juego en pausa.",
+"de": "PS4 ausschalten? Das pausierte Spiel wird zuerst geschlossen.",
+"it": "Spegnere la PS4? Prima viene chiuso il gioco in pausa.",
+"pt": "Desligar o PS4? O jogo pausado é fechado primeiro."
 },
 "Turn off or restart the PS4": {
 "ar": "إيقاف تشغيل PS4 أو إعادة تشغيله",
 "fr": "Éteindre ou redémarrer la PS4",
 "tr": "PS4'ü kapat veya yeniden başlat",
-"es": "Apagar o reiniciar la PS4"
+"es": "Apagar o reiniciar la PS4",
+"de": "PS4 ausschalten oder neu starten",
+"it": "Spegni o riavvia la PS4",
+"pt": "Desligar ou reiniciar o PS4"
 },
 "Turn off when not used": {
 "ar": "إيقاف التشغيل عند عدم الاستخدام",
 "fr": "Éteindre si inutilisée",
 "tr": "Kullanılmadığında kapat",
-"es": "Apagar si no se usa"
+"es": "Apagar si no se usa",
+"de": "Bei Nichtnutzung ausschalten",
+"it": "Spegni se non in uso",
+"pt": "Desligar quando não usado"
 },
 "Only on the home screen, never during a game.": {
 "ar": "في الشاشة الرئيسية فقط، وليس أثناء اللعب أبدًا.",
 "fr": "Seulement sur l'écran d'accueil, jamais pendant un jeu.",
 "tr": "Yalnızca ana ekranda, oyun sırasında asla.",
-"es": "Solo en la pantalla de inicio, nunca durante un juego."
+"es": "Solo en la pantalla de inicio, nunca durante un juego.",
+"de": "Nur auf dem Startbildschirm, nie während eines Spiels.",
+"it": "Solo nella schermata Home, mai durante un gioco.",
+"pt": "Só na tela inicial, nunca durante um jogo."
 },
 "The PS4 turns off in a minute. Press any button to keep it on.": {
 "ar": "سيتوقف PS4 عن العمل خلال دقيقة. اضغط أي زر لإبقائه قيد التشغيل.",
 "fr": "La PS4 s'éteint dans une minute. Appuyez sur une touche pour la garder allumée.",
 "tr": "PS4 bir dakika içinde kapanacak. Açık tutmak için herhangi bir düğmeye basın.",
-"es": "La PS4 se apaga en un minuto. Pulsa cualquier botón para mantenerla encendida."
+"es": "La PS4 se apaga en un minuto. Pulsa cualquier botón para mantenerla encendida.",
+"de": "Die PS4 schaltet sich in einer Minute aus. Drücke eine Taste, damit sie an bleibt.",
+"it": "La PS4 si spegne tra un minuto. Premi un tasto per tenerla accesa.",
+"pt": "O PS4 desliga em um minuto. Aperte qualquer botão para mantê-lo ligado."
 },
 "Time zone": {
 "ar": "المنطقة الزمنية",
 "fr": "Fuseau horaire",
 "tr": "Saat dilimi",
-"es": "Zona horaria"
+"es": "Zona horaria",
+"de": "Zeitzone",
+"it": "Fuso orario",
+"pt": "Fuso horário"
 },
 "Time zone: region": {
 "ar": "المنطقة الزمنية: المنطقة",
 "fr": "Fuseau horaire : région",
 "tr": "Saat dilimi: bölge",
-"es": "Zona horaria: región"
+"es": "Zona horaria: región",
+"de": "Zeitzone: Region",
+"it": "Fuso orario: regione",
+"pt": "Fuso horário: região"
 },
 "The time itself is set from the internet.": {
 "ar": "يُضبط الوقت نفسه من الإنترنت.",
 "fr": "L'heure elle-même vient d'Internet.",
 "tr": "Saatin kendisi internetten ayarlanır.",
-"es": "La hora se toma de Internet."
+"es": "La hora se toma de Internet.",
+"de": "Die Uhrzeit selbst kommt aus dem Internet.",
+"it": "L'ora viene presa da Internet.",
+"pt": "A hora em si vem da internet."
 },
 "Setting the time zone to {a}…": {
 "ar": "جارٍ ضبط المنطقة الزمنية على {a}…",
 "fr": "Réglage du fuseau horaire sur {a}…",
 "tr": "Saat dilimi {a} olarak ayarlanıyor…",
-"es": "Poniendo la zona horaria {a}…"
+"es": "Poniendo la zona horaria {a}…",
+"de": "Zeitzone wird auf {a} gesetzt…",
+"it": "Impostazione del fuso orario su {a}…",
+"pt": "Definindo o fuso horário para {a}…"
 },
 "Could not set it.": {
 "ar": "تعذر ضبطها.",
 "fr": "Impossible de le régler.",
 "tr": "Ayarlanamadı.",
-"es": "No se pudo cambiar."
+"es": "No se pudo cambiar.",
+"de": "Konnte nicht gesetzt werden.",
+"it": "Impossibile impostarlo.",
+"pt": "Não foi possível definir."
 },
 "24-hour": {
 "ar": "24 ساعة",
 "fr": "24 heures",
 "tr": "24 saat",
-"es": "24 horas"
+"es": "24 horas",
+"de": "24 Stunden",
+"it": "24 ore",
+"pt": "24 horas"
 },
 "12-hour": {
 "ar": "12 ساعة",
 "fr": "12 heures",
 "tr": "12 saat",
-"es": "12 horas"
+"es": "12 horas",
+"de": "12 Stunden",
+"it": "12 ore",
+"pt": "12 horas"
 },
 "Africa": {
 "ar": "أفريقيا",
 "fr": "Afrique",
 "tr": "Afrika",
-"es": "África"
+"es": "África",
+"de": "Afrika",
+"it": "Africa",
+"pt": "África"
 },
 "America": {
 "ar": "أمريكا",
 "fr": "Amérique",
 "tr": "Amerika",
-"es": "América"
+"es": "América",
+"de": "Amerika",
+"it": "America",
+"pt": "América"
 },
 "Antarctica": {
 "ar": "القارة القطبية الجنوبية",
 "fr": "Antarctique",
 "tr": "Antarktika",
-"es": "Antártida"
+"es": "Antártida",
+"de": "Antarktis",
+"it": "Antartide",
+"pt": "Antártida"
 },
 "Arctic": {
 "ar": "القطب الشمالي",
 "fr": "Arctique",
 "tr": "Arktik",
-"es": "Ártico"
+"es": "Ártico",
+"de": "Arktis",
+"it": "Artico",
+"pt": "Ártico"
 },
 "Asia": {
 "ar": "آسيا",
 "fr": "Asie",
 "tr": "Asya",
-"es": "Asia"
+"es": "Asia",
+"de": "Asien",
+"it": "Asia",
+"pt": "Ásia"
 },
 "Atlantic": {
 "ar": "الأطلسي",
 "fr": "Atlantique",
 "tr": "Atlantik",
-"es": "Atlántico"
+"es": "Atlántico",
+"de": "Atlantik",
+"it": "Atlantico",
+"pt": "Atlântico"
 },
 "Australia": {
 "ar": "أستراليا",
 "fr": "Australie",
 "tr": "Avustralya",
-"es": "Australia"
+"es": "Australia",
+"de": "Australien",
+"it": "Australia",
+"pt": "Austrália"
 },
 "Europe": {
 "ar": "أوروبا",
 "fr": "Europe",
 "tr": "Avrupa",
-"es": "Europa"
+"es": "Europa",
+"de": "Europa",
+"it": "Europa",
+"pt": "Europa"
 },
 "Indian": {
 "ar": "المحيط الهندي",
 "fr": "Océan Indien",
 "tr": "Hint Okyanusu",
-"es": "Índico"
+"es": "Índico",
+"de": "Indischer Ozean",
+"it": "Oceano Indiano",
+"pt": "Oceano Índico"
 },
 "Pacific": {
 "ar": "المحيط الهادئ",
 "fr": "Pacifique",
 "tr": "Pasifik",
-"es": "Pacífico"
+"es": "Pacífico",
+"de": "Pazifik",
+"it": "Pacifico",
+"pt": "Pacífico"
 },
 "Temperature and load": {
 "ar": "الحرارة والحمل",
 "fr": "Température et charge",
 "tr": "Sıcaklık ve yük",
-"es": "Temperatura y carga"
+"es": "Temperatura y carga",
+"de": "Temperatur und Last",
+"it": "Temperatura e carico",
+"pt": "Temperatura e carga"
 },
 "Console temperature": {
 "ar": "حرارة الجهاز",
 "fr": "Température de la console",
 "tr": "Konsol sıcaklığı",
-"es": "Temperatura de la consola"
+"es": "Temperatura de la consola",
+"de": "Konsolentemperatur",
+"it": "Temperatura della console",
+"pt": "Temperatura do console"
 },
 "CPU temperature": {
 "ar": "حرارة المعالج",
 "fr": "Température du processeur",
 "tr": "İşlemci sıcaklığı",
-"es": "Temperatura de la CPU"
+"es": "Temperatura de la CPU",
+"de": "CPU-Temperatur",
+"it": "Temperatura della CPU",
+"pt": "Temperatura da CPU"
 },
 "CPU load": {
 "ar": "حمل المعالج",
 "fr": "Charge du processeur",
 "tr": "İşlemci yükü",
-"es": "Carga de la CPU"
+"es": "Carga de la CPU",
+"de": "CPU-Last",
+"it": "Carico della CPU",
+"pt": "Carga da CPU"
 },
 "Fan": {
 "ar": "المروحة",
 "fr": "Ventilateur",
 "tr": "Fan",
-"es": "Ventilador"
+"es": "Ventilador",
+"de": "Lüfter",
+"it": "Ventola",
+"pt": "Ventoinha"
 },
 "measuring…": {
 "ar": "جارٍ القياس…",
 "fr": "mesure…",
 "tr": "ölçülüyor…",
-"es": "midiendo…"
+"es": "midiendo…",
+"de": "wird gemessen…",
+"it": "misurazione…",
+"pt": "medindo…"
 },
 "{n} rpm": {
 "ar": "{n} دورة/دقيقة",
 "fr": "{n} tr/min",
 "tr": "{n} dev/dk",
-"es": "{n} rpm"
+"es": "{n} rpm",
+"de": "{n} U/min",
+"it": "{n} giri/min",
+"pt": "{n} RPM"
 },
 "Back up settings to USB": {
 "ar": "نسخ الإعدادات احتياطيًا إلى USB",
 "fr": "Sauvegarder les paramètres sur la clé USB",
 "tr": "Ayarları USB'ye yedekle",
-"es": "Copiar los ajustes al USB"
+"es": "Copiar los ajustes al USB",
+"de": "Einstellungen auf USB sichern",
+"it": "Salva le impostazioni su USB",
+"pt": "Copiar as configurações para o pendrive"
 },
 "Backing up settings to the USB drive…": {
 "ar": "جارٍ نسخ الإعدادات احتياطيًا إلى وحدة USB…",
 "fr": "Sauvegarde des paramètres sur la clé USB…",
 "tr": "Ayarlar USB belleğe yedekleniyor…",
-"es": "Copiando los ajustes al USB…"
+"es": "Copiando los ajustes al USB…",
+"de": "Einstellungen werden auf das USB-Laufwerk gesichert…",
+"it": "Copia delle impostazioni sull'unità USB…",
+"pt": "Copiando as configurações para o pendrive…"
 },
 "Reset all settings": {
 "ar": "إعادة ضبط كل الإعدادات",
 "fr": "Réinitialiser tous les paramètres",
 "tr": "Tüm ayarları sıfırla",
-"es": "Restablecer todos los ajustes"
+"es": "Restablecer todos los ajustes",
+"de": "Alle Einstellungen zurücksetzen",
+"it": "Reimposta tutte le impostazioni",
+"pt": "Redefinir todas as configurações"
 },
 "Put all settings back to their defaults? Your games, saves, play time, favorites and Wi-Fi networks are kept.": {
 "ar": "إعادة كل الإعدادات إلى قيمها الافتراضية؟ سيتم الاحتفاظ بألعابك وحفظها ووقت اللعب والمفضلة وشبكات Wi-Fi.",
 "fr": "Remettre tous les paramètres par défaut ? Vos jeux, sauvegardes, temps de jeu, favoris et réseaux Wi-Fi sont conservés.",
 "tr": "Tüm ayarlar varsayılana dönsün mü? Oyunlarınız, kayıtlarınız, oyun süreniz, favorileriniz ve Wi-Fi ağlarınız korunur.",
-"es": "¿Volver todos los ajustes a sus valores iniciales? Se conservan tus juegos, partidas, tiempo de juego, favoritos y redes Wi-Fi."
+"es": "¿Volver todos los ajustes a sus valores iniciales? Se conservan tus juegos, partidas, tiempo de juego, favoritos y redes Wi-Fi.",
+"de": "Alle Einstellungen auf Standard zurücksetzen? Deine Spiele, Spielstände, Spielzeit, Favoriten und WLAN-Netzwerke bleiben erhalten.",
+"it": "Riportare tutte le impostazioni ai valori predefiniti? Giochi, salvataggi, tempo di gioco, preferiti e reti Wi-Fi restano.",
+"pt": "Voltar todas as configurações ao padrão? Seus jogos, jogos salvos, tempo de jogo, favoritos e redes Wi-Fi são mantidos."
 },
 "All settings are back to their defaults.": {
 "ar": "عادت كل الإعدادات إلى قيمها الافتراضية.",
 "fr": "Tous les paramètres sont revenus par défaut.",
 "tr": "Tüm ayarlar varsayılana döndü.",
-"es": "Todos los ajustes volvieron a sus valores iniciales."
+"es": "Todos los ajustes volvieron a sus valores iniciales.",
+"de": "Alle Einstellungen sind wieder auf Standard.",
+"it": "Tutte le impostazioni sono tornate ai valori predefiniti.",
+"pt": "Todas as configurações voltaram ao padrão."
 },
 "Logs": {
 "ar": "السجلات",
 "fr": "Journaux",
 "tr": "Günlükler",
-"es": "Registros"
+"es": "Registros",
+"de": "Protokolle",
+"it": "Registri",
+"pt": "Registros"
 },
 "View the game log": {
 "ar": "عرض سجل اللعبة",
 "fr": "Voir le journal du jeu",
 "tr": "Oyun günlüğünü görüntüle",
-"es": "Ver el registro del juego"
+"es": "Ver el registro del juego",
+"de": "Spielprotokoll ansehen",
+"it": "Visualizza il registro del gioco",
+"pt": "Ver o registro do jogo"
 },
 "Game log": {
 "ar": "سجل اللعبة",
 "fr": "Journal du jeu",
 "tr": "Oyun günlüğü",
-"es": "Registro del juego"
+"es": "Registro del juego",
+"de": "Spielprotokoll",
+"it": "Registro del gioco",
+"pt": "Registro do jogo"
 },
 "The game log is empty: no game has run yet.": {
 "ar": "سجل اللعبة فارغ: لم تعمل أي لعبة بعد.",
 "fr": "Le journal du jeu est vide : aucun jeu n'a encore été lancé.",
 "tr": "Oyun günlüğü boş: henüz hiçbir oyun çalışmadı.",
-"es": "El registro está vacío: todavía no se ha jugado a nada."
+"es": "El registro está vacío: todavía no se ha jugado a nada.",
+"de": "Das Spielprotokoll ist leer: Es lief noch kein Spiel.",
+"it": "Il registro del gioco è vuoto: nessun gioco è ancora stato avviato.",
+"pt": "O registro do jogo está vazio: nenhum jogo rodou ainda."
 },
 "Copy logs to USB": {
 "ar": "نسخ السجلات إلى USB",
 "fr": "Copier les journaux sur la clé USB",
 "tr": "Günlükleri USB'ye kopyala",
-"es": "Copiar registros al USB"
+"es": "Copiar registros al USB",
+"de": "Protokolle auf USB kopieren",
+"it": "Copia i registri su USB",
+"pt": "Copiar registros para o pendrive"
 },
 "Copying logs to the USB drive…": {
 "ar": "جارٍ نسخ السجلات إلى وحدة USB…",
 "fr": "Copie des journaux sur la clé USB…",
 "tr": "Günlükler USB belleğe kopyalanıyor…",
-"es": "Copiando registros al USB…"
+"es": "Copiando registros al USB…",
+"de": "Protokolle werden auf das USB-Laufwerk kopiert…",
+"it": "Copia dei registri sull'unità USB…",
+"pt": "Copiando registros para o pendrive…"
 },
 "{n} log files copied to PS5-logs on the USB drive.": {
 "ar": "تم نسخ {n} ملفات سجل إلى PS5-logs على وحدة USB.",
 "fr": "{n} journaux copiés dans PS5-logs sur la clé USB.",
 "tr": "{n} günlük dosyası USB bellekteki PS5-logs klasörüne kopyalandı.",
-"es": "{n} registros copiados en PS5-logs del USB."
+"es": "{n} registros copiados en PS5-logs del USB.",
+"de": "{n} Protokolldateien nach PS5-logs auf dem USB-Laufwerk kopiert.",
+"it": "{n} file di registro copiati in PS5-logs sull'unità USB.",
+"pt": "{n} arquivos de registro copiados para PS5-logs no pendrive."
 },
 "Console": {
 "ar": "الجهاز",
 "fr": "Console",
 "tr": "Konsol",
-"es": "Consola"
+"es": "Consola",
+"de": "Konsole",
+"it": "Console",
+"pt": "Console"
 },
 "Host name": {
 "ar": "اسم المضيف",
 "fr": "Nom d'hôte",
 "tr": "Ana bilgisayar adı",
-"es": "Nombre del equipo"
+"es": "Nombre del equipo",
+"de": "Hostname",
+"it": "Nome host",
+"pt": "Nome do host"
 },
 "Running for": {
 "ar": "يعمل منذ",
 "fr": "Allumée depuis",
 "tr": "Çalışma süresi",
-"es": "Encendida desde hace"
+"es": "Encendida desde hace",
+"de": "Läuft seit",
+"it": "Acceso da",
+"pt": "Ligado há"
 },
 "Memory": {
 "ar": "الذاكرة",
 "fr": "Mémoire",
 "tr": "Bellek",
-"es": "Memoria"
+"es": "Memoria",
+"de": "Arbeitsspeicher",
+"it": "Memoria",
+"pt": "Memória"
 },
 "{a}, {n} CPU cores": {
 "ar": "{a}، {n} أنوية معالج",
 "fr": "{a}, {n} cœurs",
 "tr": "{a}, {n} işlemci çekirdeği",
-"es": "{a}, {n} núcleos"
+"es": "{a}, {n} núcleos",
+"de": "{a}, {n} CPU-Kerne",
+"it": "{a}, {n} core CPU",
+"pt": "{a}, {n} núcleos de CPU"
 },
 "{n} h {m} min": {
 "ar": "{n} س {m} د",
 "fr": "{n} h {m} min",
 "tr": "{n} sa {m} dk",
-"es": "{n} h {m} min"
+"es": "{n} h {m} min",
+"de": "{n} Std. {m} Min.",
+"it": "{n} h {m} min",
+"pt": "{n} h {m} min"
 },
 "{n} min": {
 "ar": "{n} د",
 "fr": "{n} min",
 "tr": "{n} dk",
-"es": "{n} min"
+"es": "{n} min",
+"de": "{n} Min.",
+"it": "{n} min",
+"pt": "{n} min"
 },
 "{n} KB": {
 "ar": "{n} كيلوبايت",
 "fr": "{n} Ko",
 "tr": "{n} KB",
-"es": "{n} KB"
+"es": "{n} KB",
+"de": "{n} KB",
+"it": "{n} KB",
+"pt": "{n} KB"
 },
 "Change the ps5 password": {
 "ar": "تغيير كلمة مرور ps5",
 "fr": "Changer le mot de passe ps5",
 "tr": "ps5 şifresini değiştir",
-"es": "Cambiar la contraseña de ps5"
+"es": "Cambiar la contraseña de ps5",
+"de": "ps5-Passwort ändern",
+"it": "Cambia la password di ps5",
+"pt": "Alterar a senha do ps5"
 },
 "SSH login": {
 "ar": "تسجيل الدخول عبر SSH",
 "fr": "Connexion SSH",
 "tr": "SSH girişi",
-"es": "Acceso por SSH"
+"es": "Acceso por SSH",
+"de": "SSH-Anmeldung",
+"it": "Accesso SSH",
+"pt": "Acesso SSH"
 },
 "The ps5 password is for SSH and sudo. Your profile name is separate.": {
 "ar": "كلمة مرور ps5 مخصصة لـ SSH و sudo. اسم ملفك الشخصي منفصل عنها.",
 "fr": "Le mot de passe ps5 sert pour SSH et sudo. Votre nom de profil est séparé.",
 "tr": "ps5 şifresi SSH ve sudo içindir. Profil adınız ayrıdır.",
-"es": "La contraseña de ps5 es para SSH y sudo. Tu nombre de perfil es aparte."
+"es": "La contraseña de ps5 es para SSH y sudo. Tu nombre de perfil es aparte.",
+"de": "Das ps5-Passwort ist für SSH und sudo. Dein Profilname ist davon getrennt.",
+"it": "La password di ps5 serve per SSH e sudo. Il nome del profilo è separato.",
+"pt": "A senha do ps5 é para SSH e sudo. Seu nome de perfil é separado."
 },
 "Type the current password.": {
 "ar": "اكتب كلمة المرور الحالية.",
 "fr": "Saisissez le mot de passe actuel.",
 "tr": "Mevcut şifreyi yazın.",
-"es": "Escribe la contraseña actual."
+"es": "Escribe la contraseña actual.",
+"de": "Gib das aktuelle Passwort ein.",
+"it": "Scrivi la password attuale.",
+"pt": "Digite a senha atual."
 },
 "Use at least 6 characters.": {
 "ar": "استخدم 6 أحرف على الأقل.",
 "fr": "Utilisez au moins 6 caractères.",
 "tr": "En az 6 karakter kullanın.",
-"es": "Usa al menos 6 caracteres."
+"es": "Usa al menos 6 caracteres.",
+"de": "Nutze mindestens 6 Zeichen.",
+"it": "Usa almeno 6 caratteri.",
+"pt": "Use pelo menos 6 caracteres."
 },
 "Choose another password than the default one.": {
 "ar": "اختر كلمة مرور غير الافتراضية.",
 "fr": "Choisissez un autre mot de passe que celui par défaut.",
 "tr": "Varsayılandan farklı bir şifre seçin.",
-"es": "Elige una contraseña distinta de la inicial."
+"es": "Elige una contraseña distinta de la inicial.",
+"de": "Wähle ein anderes Passwort als das Standardpasswort.",
+"it": "Scegli una password diversa da quella predefinita.",
+"pt": "Escolha uma senha diferente da padrão."
 },
 "The two new passwords are not the same.": {
 "ar": "كلمتا المرور الجديدتان غير متطابقتين.",
 "fr": "Les deux nouveaux mots de passe ne sont pas identiques.",
 "tr": "İki yeni şifre aynı değil.",
-"es": "Las dos contraseñas nuevas no coinciden."
+"es": "Las dos contraseñas nuevas no coinciden.",
+"de": "Die beiden neuen Passwörter sind nicht gleich.",
+"it": "Le due nuove password non coincidono.",
+"pt": "As duas senhas novas não são iguais."
 },
 "Current password": {
 "ar": "كلمة المرور الحالية",
 "fr": "Mot de passe actuel",
 "tr": "Mevcut şifre",
-"es": "Contraseña actual"
+"es": "Contraseña actual",
+"de": "Aktuelles Passwort",
+"it": "Password attuale",
+"pt": "Senha atual"
 },
 "New password": {
 "ar": "كلمة المرور الجديدة",
 "fr": "Nouveau mot de passe",
 "tr": "Yeni şifre",
-"es": "Contraseña nueva"
+"es": "Contraseña nueva",
+"de": "Neues Passwort",
+"it": "Nuova password",
+"pt": "Nova senha"
 },
 "New password again": {
 "ar": "كلمة المرور الجديدة مرة أخرى",
 "fr": "Nouveau mot de passe (encore)",
 "tr": "Yeni şifre (tekrar)",
-"es": "Repite la contraseña nueva"
+"es": "Repite la contraseña nueva",
+"de": "Neues Passwort wiederholen",
+"it": "Ripeti la nuova password",
+"pt": "Repita a nova senha"
 },
 "Changing the password…": {
 "ar": "جارٍ تغيير كلمة المرور…",
 "fr": "Changement du mot de passe…",
 "tr": "Şifre değiştiriliyor…",
-"es": "Cambiando la contraseña…"
+"es": "Cambiando la contraseña…",
+"de": "Passwort wird geändert…",
+"it": "Modifica della password…",
+"pt": "Alterando a senha…"
 },
 "Password changed. Use it for SSH and sudo.": {
 "ar": "تم تغيير كلمة المرور. استخدمها لـ SSH و sudo.",
 "fr": "Mot de passe changé. Utilisez-le pour SSH et sudo.",
 "tr": "Şifre değişti. SSH ve sudo için kullanın.",
-"es": "Contraseña cambiada. Úsala para SSH y sudo."
+"es": "Contraseña cambiada. Úsala para SSH y sudo.",
+"de": "Passwort geändert. Nutze es für SSH und sudo.",
+"it": "Password cambiata. Usala per SSH e sudo.",
+"pt": "Senha alterada. Use-a para SSH e sudo."
 },
 "The current password is wrong.": {
 "ar": "كلمة المرور الحالية خاطئة.",
 "fr": "Le mot de passe actuel est incorrect.",
 "tr": "Mevcut şifre yanlış.",
-"es": "La contraseña actual no es correcta."
+"es": "La contraseña actual no es correcta.",
+"de": "Das aktuelle Passwort ist falsch.",
+"it": "La password attuale è errata.",
+"pt": "A senha atual está errada."
 },
 "The password was not changed.": {
 "ar": "لم يتم تغيير كلمة المرور.",
 "fr": "Le mot de passe n'a pas été changé.",
 "tr": "Şifre değiştirilmedi.",
-"es": "La contraseña no se cambió."
+"es": "La contraseña no se cambió.",
+"de": "Das Passwort wurde nicht geändert.",
+"it": "La password non è stata cambiata.",
+"pt": "A senha não foi alterada."
 },
 "The new password is too simple or too short. Try a longer one.": {
 "ar": "كلمة المرور الجديدة بسيطة جدًا أو قصيرة جدًا. جرّب كلمة أطول.",
 "fr": "Le nouveau mot de passe est trop simple ou trop court. Essayez-en un plus long.",
 "tr": "Yeni şifre çok basit veya çok kısa. Daha uzun bir tane deneyin.",
-"es": "La contraseña nueva es demasiado simple o corta. Prueba una más larga."
+"es": "La contraseña nueva es demasiado simple o corta. Prueba una más larga.",
+"de": "Das neue Passwort ist zu einfach oder zu kurz. Versuche ein längeres.",
+"it": "La nuova password è troppo semplice o troppo corta. Provane una più lunga.",
+"pt": "A nova senha é simples ou curta demais. Tente uma mais longa."
 },
 "The password is still the default one (ps5). Change it before using SSH.": {
 "ar": "كلمة المرور لا تزال الافتراضية (ps5). غيّرها قبل استخدام SSH.",
 "fr": "Le mot de passe est toujours celui par défaut (ps5). Changez-le avant d'utiliser SSH.",
 "tr": "Şifre hâlâ varsayılan (ps5). SSH kullanmadan önce değiştirin.",
-"es": "La contraseña sigue siendo la inicial (ps5). Cámbiala antes de usar SSH."
+"es": "La contraseña sigue siendo la inicial (ps5). Cámbiala antes de usar SSH.",
+"de": "Das Passwort ist noch das Standardpasswort (ps5). Ändere es, bevor du SSH nutzt.",
+"it": "La password è ancora quella predefinita (ps5). Cambiala prima di usare SSH.",
+"pt": "A senha ainda é a padrão (ps5). Altere-a antes de usar SSH."
 },
 "The ps5 password is still the default one, which anyone can look up. Set your own password first, then SSH turns on.": {
 "ar": "لا تزال كلمة مرور ps5 هي الافتراضية التي يمكن لأي شخص معرفتها. عيّن كلمة مرورك أولًا، ثم يعمل SSH.",
 "fr": "Le mot de passe ps5 est toujours celui par défaut, que tout le monde peut trouver. Choisissez d'abord le vôtre, puis SSH s'active.",
 "tr": "ps5 şifresi hâlâ herkesin bulabileceği varsayılan şifre. Önce kendi şifrenizi belirleyin, ardından SSH açılır.",
-"es": "La contraseña de ps5 sigue siendo la inicial, que cualquiera puede averiguar. Pon primero la tuya y luego se activa SSH."
+"es": "La contraseña de ps5 sigue siendo la inicial, que cualquiera puede averiguar. Pon primero la tuya y luego se activa SSH.",
+"de": "Das ps5-Passwort ist noch das Standardpasswort, das jeder nachschlagen kann. Lege zuerst dein eigenes fest, dann wird SSH eingeschaltet.",
+"it": "La password di ps5 è ancora quella predefinita, che chiunque può trovare. Imposta prima la tua password, poi SSH si attiva.",
+"pt": "A senha do ps5 ainda é a padrão, que qualquer um pode descobrir. Defina sua própria senha primeiro, depois o SSH é ativado."
 },
 "Connect with": {
 "ar": "الاتصال باستخدام",
 "fr": "Se connecter avec",
 "tr": "Bağlanma komutu",
-"es": "Conectar con"
+"es": "Conectar con",
+"de": "Verbinden mit",
+"it": "Connettiti con",
+"pt": "Conectar com"
 },
 "Turning SSH on…": {
 "ar": "جارٍ تشغيل SSH…",
 "fr": "Activation de SSH…",
 "tr": "SSH açılıyor…",
-"es": "Activando SSH…"
+"es": "Activando SSH…",
+"de": "SSH wird eingeschaltet…",
+"it": "Attivazione di SSH…",
+"pt": "Ativando o SSH…"
 },
 "Turning SSH off…": {
 "ar": "جارٍ إيقاف SSH…",
 "fr": "Désactivation de SSH…",
 "tr": "SSH kapatılıyor…",
-"es": "Desactivando SSH…"
+"es": "Desactivando SSH…",
+"de": "SSH wird ausgeschaltet…",
+"it": "Disattivazione di SSH…",
+"pt": "Desativando o SSH…"
 },
 "Could not change SSH.": {
 "ar": "تعذر تغيير SSH.",
 "fr": "Impossible de modifier SSH.",
 "tr": "SSH değiştirilemedi.",
-"es": "No se pudo cambiar SSH."
+"es": "No se pudo cambiar SSH.",
+"de": "SSH konnte nicht geändert werden.",
+"it": "Impossibile modificare SSH.",
+"pt": "Não foi possível alterar o SSH."
 },
 "Open About": {
 "ar": "فتح صفحة حول",
 "fr": "Ouvrir À propos",
 "tr": "Hakkında'yı aç",
-"es": "Abrir Acerca de"
+"es": "Abrir Acerca de",
+"de": "Info öffnen",
+"it": "Apri Informazioni",
+"pt": "Abrir Sobre"
 },
 "The credits of everything it is built with.": {
 "ar": "شكر لكل ما بُني به هذا النظام.",
 "fr": "Les crédits de tout ce qui le compose.",
 "tr": "Yapımında kullanılan her şeyin emeği.",
-"es": "Los créditos de todo con lo que está hecho."
+"es": "Los créditos de todo con lo que está hecho.",
+"de": "Die Danksagungen für alles, womit es gebaut ist.",
+"it": "I riconoscimenti per tutto ciò con cui è costruito.",
+"pt": "Os créditos de tudo com que ele foi feito."
 },
 "Play time": {
 "ar": "وقت اللعب",
 "fr": "Temps de jeu",
 "tr": "Oyun süresi",
-"es": "Tiempo de juego"
+"es": "Tiempo de juego",
+"de": "Spielzeit",
+"it": "Tempo di gioco",
+"pt": "Tempo de jogo"
 },
 "Played {a}": {
 "ar": "لُعبت {a}",
 "fr": "Joué {a}",
 "tr": "{a} oynandı",
-"es": "Jugado {a}"
+"es": "Jugado {a}",
+"de": "Gespielt: {a}",
+"it": "Giocato {a}",
+"pt": "Jogado {a}"
 },
 "last {a}": {
 "ar": "آخر مرة {a}",
 "fr": "dernière fois {a}",
 "tr": "son: {a}",
-"es": "última vez {a}"
+"es": "última vez {a}",
+"de": "zuletzt {a}",
+"it": "ultima volta {a}",
+"pt": "última vez {a}"
 },
 "less than a minute": {
 "ar": "أقل من دقيقة",
 "fr": "moins d'une minute",
 "tr": "bir dakikadan az",
-"es": "menos de un minuto"
+"es": "menos de un minuto",
+"de": "weniger als eine Minute",
+"it": "meno di un minuto",
+"pt": "menos de um minuto"
 },
 "not played yet": {
 "ar": "لم تُلعب بعد",
 "fr": "pas encore joué",
 "tr": "henüz oynanmadı",
-"es": "aún sin jugar"
+"es": "aún sin jugar",
+"de": "noch nicht gespielt",
+"it": "non ancora giocato",
+"pt": "ainda não jogado"
 },
 "No play time yet: it is counted from now on.": {
 "ar": "لا يوجد وقت لعب بعد: يُحسب من الآن فصاعدًا.",
 "fr": "Pas encore de temps de jeu : il est compté à partir de maintenant.",
 "tr": "Henüz oyun süresi yok: bundan sonra sayılır.",
-"es": "Aún no hay tiempo de juego: se cuenta a partir de ahora."
+"es": "Aún no hay tiempo de juego: se cuenta a partir de ahora.",
+"de": "Noch keine Spielzeit: Sie wird ab jetzt gezählt.",
+"it": "Ancora nessun tempo di gioco: viene contato da ora in poi.",
+"pt": "Ainda sem tempo de jogo: ele é contado a partir de agora."
 },
 "Favorite": {
 "ar": "المفضلة",
 "fr": "Favori",
 "tr": "Favori",
-"es": "Favorito"
+"es": "Favorito",
+"de": "Favorit",
+"it": "Preferito",
+"pt": "Favorito"
 },
 "Hide from the home screen": {
 "ar": "إخفاء من الشاشة الرئيسية",
 "fr": "Masquer de l'écran d'accueil",
 "tr": "Ana ekrandan gizle",
-"es": "Ocultar en la pantalla de inicio"
+"es": "Ocultar en la pantalla de inicio",
+"de": "Auf dem Startbildschirm verbergen",
+"it": "Nascondi dalla schermata Home",
+"pt": "Ocultar na tela inicial"
 },
 "Game settings": {
 "ar": "إعدادات اللعبة",
 "fr": "Réglages du jeu",
 "tr": "Oyun ayarları",
-"es": "Ajustes del juego"
+"es": "Ajustes del juego",
+"de": "Spieleinstellungen",
+"it": "Impostazioni del gioco",
+"pt": "Configurações do jogo"
 },
 "Game settings are used the next time the game starts.": {
 "ar": "تُستخدم إعدادات اللعبة عند تشغيلها في المرة القادمة.",
 "fr": "Les réglages du jeu s'appliquent à son prochain lancement.",
 "tr": "Oyun ayarları oyun bir sonraki açılışında kullanılır.",
-"es": "Los ajustes del juego se usan la próxima vez que se inicie."
+"es": "Los ajustes del juego se usan la próxima vez que se inicie.",
+"de": "Spieleinstellungen gelten beim nächsten Start des Spiels.",
+"it": "Le impostazioni del gioco valgono dal prossimo avvio.",
+"pt": "As configurações do jogo valem na próxima vez que ele iniciar."
 },
 "Skip startup logos": {
 "ar": "تخطي شعارات البداية",
 "fr": "Passer les logos de démarrage",
 "tr": "Açılış logolarını atla",
-"es": "Saltar los logos de inicio"
+"es": "Saltar los logos de inicio",
+"de": "Startlogos überspringen",
+"it": "Salta i loghi iniziali",
+"pt": "Pular os logos iniciais"
 },
 "Local network for the game": {
 "ar": "شبكة محلية للعبة",
 "fr": "Réseau local pour le jeu",
 "tr": "Oyun için yerel ağ",
-"es": "Red local para el juego"
+"es": "Red local para el juego",
+"de": "Lokales Netzwerk für das Spiel",
+"it": "Rete locale per il gioco",
+"pt": "Rede local para o jogo"
 },
 "Keep compiled shaders": {
 "ar": "الاحتفاظ بالمظللات المترجمة",
 "fr": "Garder les shaders compilés",
 "tr": "Derlenmiş gölgelendiricileri sakla",
-"es": "Guardar los shaders compilados"
+"es": "Guardar los shaders compilados",
+"de": "Kompilierte Shader behalten",
+"it": "Mantieni gli shader compilati",
+"pt": "Manter os shaders compilados"
 },
 "Performance overlay": {
 "ar": "عرض الأداء",
 "fr": "Affichage des performances",
 "tr": "Performans katmanı",
-"es": "Panel de rendimiento"
+"es": "Panel de rendimiento",
+"de": "Leistungsanzeige",
+"it": "Indicatore delle prestazioni",
+"pt": "Painel de desempenho"
 },
 "Render at 1920x1080": {
 "ar": "العرض بدقة 1920x1080",
 "fr": "Rendu en 1920x1080",
 "tr": "1920x1080'de işle",
-"es": "Renderizar a 1920x1080"
+"es": "Renderizar a 1920x1080",
+"de": "In 1920x1080 rendern",
+"it": "Rendering a 1920x1080",
+"pt": "Renderizar em 1920x1080"
 },
 "Order": {
 "ar": "الترتيب",
 "fr": "Ordre",
 "tr": "Sıralama",
-"es": "Orden"
+"es": "Orden",
+"de": "Reihenfolge",
+"it": "Ordine",
+"pt": "Ordem"
 },
 "Recently played": {
 "ar": "التي لُعبت مؤخرًا",
 "fr": "Joués récemment",
 "tr": "Son oynananlar",
-"es": "Jugados recientemente"
+"es": "Jugados recientemente",
+"de": "Zuletzt gespielt",
+"it": "Giocati di recente",
+"pt": "Jogados recentemente"
 },
 "Show hidden games": {
 "ar": "إظهار الألعاب المخفية",
 "fr": "Afficher les jeux masqués",
 "tr": "Gizli oyunları göster",
-"es": "Mostrar juegos ocultos"
+"es": "Mostrar juegos ocultos",
+"de": "Verborgene Spiele zeigen",
+"it": "Mostra i giochi nascosti",
+"pt": "Mostrar jogos ocultos"
 },
 "Show FPS counter in games": {
 "ar": "إظهار عداد الإطارات في الألعاب",
 "fr": "Afficher le compteur d'IPS dans les jeux",
 "tr": "Oyunlarda FPS sayacını göster",
-"es": "Mostrar el contador de FPS en los juegos"
+"es": "Mostrar el contador de FPS en los juegos",
+"de": "FPS-Zähler in Spielen zeigen",
+"it": "Mostra il contatore FPS nei giochi",
+"pt": "Mostrar o contador de FPS nos jogos"
 },
 "The FPS counter shows the game's frames per second in the bottom-left corner. It is used from the next game you start.": {
 "ar": "يعرض عداد الإطارات عدد إطارات اللعبة في الثانية في الزاوية السفلية اليسرى. يُستخدم من اللعبة التالية التي تشغلها.",
 "fr": "Le compteur affiche les images par seconde du jeu en bas à gauche. Il s'applique au prochain jeu lancé.",
 "tr": "FPS sayacı oyunun saniyedeki kare sayısını sol alt köşede gösterir. Açtığınız bir sonraki oyundan itibaren kullanılır.",
-"es": "El contador muestra los fotogramas por segundo del juego abajo a la izquierda. Se usa desde el próximo juego que inicies."
+"es": "El contador muestra los fotogramas por segundo del juego abajo a la izquierda. Se usa desde el próximo juego que inicies.",
+"de": "Der FPS-Zähler zeigt die Bilder pro Sekunde des Spiels unten links. Er gilt ab dem nächsten Spiel, das du startest.",
+"it": "Il contatore FPS mostra i fotogrammi al secondo del gioco in basso a sinistra. Vale dal prossimo gioco che avvii.",
+"pt": "O contador de FPS mostra os quadros por segundo do jogo no canto inferior esquerdo. Vale a partir do próximo jogo que você iniciar."
 },
 "Press OPTIONS on a game for favorites, hiding it and its own settings.": {
 "ar": "اضغط OPTIONS على لعبة للمفضلة أو إخفائها أو إعداداتها الخاصة.",
 "fr": "Appuyez sur OPTIONS sur un jeu pour les favoris, le masquer et ses propres réglages.",
 "tr": "Favoriler, gizleme ve kendi ayarları için bir oyunda OPTIONS'a basın.",
-"es": "Pulsa OPTIONS sobre un juego para favoritos, ocultarlo y sus propios ajustes."
+"es": "Pulsa OPTIONS sobre un juego para favoritos, ocultarlo y sus propios ajustes.",
+"de": "Drücke OPTIONS auf einem Spiel für Favoriten, Verbergen und eigene Einstellungen.",
+"it": "Premi OPTIONS su un gioco per preferiti, nasconderlo e le sue impostazioni.",
+"pt": "Aperte OPTIONS num jogo para favoritos, ocultá-lo e as configurações dele."
 },
 "Favorites come first and have a star.": {
 "ar": "تظهر المفضلة أولًا وعليها نجمة.",
 "fr": "Les favoris viennent en premier et ont une étoile.",
 "tr": "Favoriler önce gelir ve yıldızlıdır.",
-"es": "Los favoritos van primero y tienen una estrella."
+"es": "Los favoritos van primero y tienen una estrella.",
+"de": "Favoriten stehen vorne und haben einen Stern.",
+"it": "I preferiti vengono per primi e hanno una stella.",
+"pt": "Os favoritos vêm primeiro e têm uma estrela."
 },
 "For all games": {
 "ar": "لكل الألعاب",
 "fr": "Pour tous les jeux",
 "tr": "Tüm oyunlar için",
-"es": "Para todos los juegos"
+"es": "Para todos los juegos",
+"de": "Für alle Spiele",
+"it": "Per tutti i giochi",
+"pt": "Para todos os jogos"
 },
 "Game language": {
 "ar": "لغة الألعاب",
 "fr": "Langue des jeux",
 "tr": "Oyun dili",
-"es": "Idioma de los juegos"
+"es": "Idioma de los juegos",
+"de": "Spielsprache",
+"it": "Lingua dei giochi",
+"pt": "Idioma dos jogos"
 },
 "HDR (on HDR TVs)": {
 "ar": "HDR (على أجهزة التلفاز التي تدعم HDR)",
 "fr": "HDR (sur les télés HDR)",
 "tr": "HDR (HDR TV'lerde)",
-"es": "HDR (en teles HDR)"
+"es": "HDR (en teles HDR)",
+"de": "HDR (auf HDR-Fernsehern)",
+"it": "HDR (su TV HDR)",
+"pt": "HDR (em TVs HDR)"
 },
 "Frame pacing": {
 "ar": "توقيت الإطارات",
 "fr": "Cadence d'images",
 "tr": "Kare zamanlaması",
-"es": "Ritmo de fotogramas"
+"es": "Ritmo de fotogramas",
+"de": "Bildtakt",
+"it": "Cadenza dei fotogrammi",
+"pt": "Ritmo de quadros"
 },
 "Balanced (default)": {
 "ar": "متوازن (افتراضي)",
 "fr": "Équilibré (par défaut)",
 "tr": "Dengeli (varsayılan)",
-"es": "Equilibrado (predeterminado)"
+"es": "Equilibrado (predeterminado)",
+"de": "Ausgewogen (Standard)",
+"it": "Bilanciato (predefinito)",
+"pt": "Equilibrado (padrão)"
 },
 "Smooth (no tearing)": {
 "ar": "سلس (بدون تمزق)",
 "fr": "Fluide (sans déchirure)",
 "tr": "Akıcı (yırtılma yok)",
-"es": "Fluido (sin cortes)"
+"es": "Fluido (sin cortes)",
+"de": "Flüssig (kein Tearing)",
+"it": "Fluido (senza tearing)",
+"pt": "Suave (sem tearing)"
 },
 "Lowest latency": {
 "ar": "أقل تأخير",
 "fr": "Latence minimale",
 "tr": "En düşük gecikme",
-"es": "Mínima latencia"
+"es": "Mínima latencia",
+"de": "Geringste Latenz",
+"it": "Latenza minima",
+"pt": "Menor latência"
 },
 "These are used from the next game you start. A game's own settings (OPTIONS) add to them.": {
 "ar": "تُستخدم هذه من اللعبة التالية التي تشغلها. وتُضاف إليها إعدادات كل لعبة (OPTIONS).",
 "fr": "Ils s'appliquent au prochain jeu lancé. Les réglages propres à un jeu (OPTIONS) s'y ajoutent.",
 "tr": "Bunlar açtığınız bir sonraki oyundan itibaren kullanılır. Oyunun kendi ayarları (OPTIONS) bunlara eklenir.",
-"es": "Se usan desde el próximo juego que inicies. Los ajustes propios de cada juego (OPTIONS) se suman."
+"es": "Se usan desde el próximo juego que inicies. Los ajustes propios de cada juego (OPTIONS) se suman.",
+"de": "Diese gelten ab dem nächsten Spiel, das du startest. Die eigenen Einstellungen eines Spiels (OPTIONS) kommen hinzu.",
+"it": "Valgono dal prossimo gioco che avvii. Le impostazioni proprie di un gioco (OPTIONS) si aggiungono.",
+"pt": "Valem a partir do próximo jogo que você iniciar. As configurações próprias de cada jogo (OPTIONS) se somam."
 },
 "Close the game": {
 "ar": "إغلاق اللعبة",
 "fr": "Fermer le jeu",
 "tr": "Oyunu kapat",
-"es": "Cerrar el juego"
+"es": "Cerrar el juego",
+"de": "Spiel schließen",
+"it": "Chiudi il gioco",
+"pt": "Fechar o jogo"
 },
 "Resume the game": {
 "ar": "متابعة اللعبة",
 "fr": "Reprendre le jeu",
 "tr": "Oyuna devam et",
-"es": "Reanudar el juego"
+"es": "Reanudar el juego",
+"de": "Spiel fortsetzen",
+"it": "Riprendi il gioco",
+"pt": "Continuar o jogo"
 },
 "the game": {
 "ar": "اللعبة",
 "fr": "le jeu",
 "tr": "oyun",
-"es": "el juego"
+"es": "el juego",
+"de": "das Spiel",
+"it": "il gioco",
+"pt": "o jogo"
 },
 "Close {a}? What the game has not saved is lost.": {
 "ar": "إغلاق {a}؟ سيضيع ما لم تحفظه اللعبة.",
 "fr": "Fermer {a} ? Ce que le jeu n'a pas enregistré est perdu.",
 "tr": "{a} kapatılsın mı? Oyunun kaydetmediği her şey kaybolur.",
-"es": "¿Cerrar {a}? Se pierde lo que el juego no haya guardado."
+"es": "¿Cerrar {a}? Se pierde lo que el juego no haya guardado.",
+"de": "{a} schließen? Was das Spiel nicht gespeichert hat, geht verloren.",
+"it": "Chiudere {a}? Ciò che il gioco non ha salvato andrà perso.",
+"pt": "Fechar {a}? O que o jogo não salvou será perdido."
 },
 "Close {a} and start {b}? What {a} has not saved is lost.": {
 "ar": "إغلاق {a} وتشغيل {b}؟ سيضيع ما لم تحفظه {a}.",
 "fr": "Fermer {a} et lancer {b} ? Ce que {a} n'a pas enregistré est perdu.",
 "tr": "{a} kapatılıp {b} başlatılsın mı? {a} oyununun kaydetmediği her şey kaybolur.",
-"es": "¿Cerrar {a} e iniciar {b}? Se pierde lo que {a} no haya guardado."
+"es": "¿Cerrar {a} e iniciar {b}? Se pierde lo que {a} no haya guardado.",
+"de": "{a} schließen und {b} starten? Was {a} nicht gespeichert hat, geht verloren.",
+"it": "Chiudere {a} e avviare {b}? Ciò che {a} non ha salvato andrà perso.",
+"pt": "Fechar {a} e iniciar {b}? O que {a} não salvou será perdido."
 },
 "Close and start": {
 "ar": "إغلاق وتشغيل",
 "fr": "Fermer et lancer",
 "tr": "Kapat ve başlat",
-"es": "Cerrar e iniciar"
+"es": "Cerrar e iniciar",
+"de": "Schließen und starten",
+"it": "Chiudi e avvia",
+"pt": "Fechar e iniciar"
 },
 "No games yet": {
 "ar": "لا توجد ألعاب بعد",
 "fr": "Pas encore de jeux",
 "tr": "Henüz oyun yok",
-"es": "Todavía no hay juegos"
+"es": "Todavía no hay juegos",
+"de": "Noch keine Spiele",
+"it": "Ancora nessun gioco",
+"pt": "Nenhum jogo ainda"
 },
 "Put PS5 game folders in one of these places:": {
 "ar": "ضع مجلدات ألعاب PS5 في أحد هذه الأماكن:",
 "fr": "Mettez les dossiers de jeux PS5 à l'un de ces endroits :",
 "tr": "PS5 oyun klasörlerini şu yerlerden birine koyun:",
-"es": "Pon las carpetas de juegos de PS5 en uno de estos sitios:"
+"es": "Pon las carpetas de juegos de PS5 en uno de estos sitios:",
+"de": "Lege PS5-Spielordner an einen dieser Orte:",
+"it": "Metti le cartelle dei giochi PS5 in uno di questi posti:",
+"pt": "Coloque as pastas de jogos de PS5 em um destes lugares:"
 },
 "  •  the PS5 folder of a USB drive": {
 "ar": "  •  مجلد PS5 على وحدة USB",
 "fr": "  •  le dossier PS5 d'une clé USB",
 "tr": "  •  bir USB belleğin PS5 klasörü",
-"es": "  •  la carpeta PS5 de un USB"
+"es": "  •  la carpeta PS5 de un USB",
+"de": "  •  den Ordner PS5 eines USB-Laufwerks",
+"it": "  •  la cartella PS5 di un'unità USB",
+"pt": "  •  a pasta PS5 de um pendrive"
 },
 "  •  {a} on the PS4, with GoldHEN FTP": {
 "ar": "  •  {a} على PS4، باستخدام GoldHEN FTP",
 "fr": "  •  {a} sur la PS4, avec GoldHEN FTP",
 "tr": "  •  PS4'te {a}, GoldHEN FTP ile",
-"es": "  •  {a} en la PS4, con GoldHEN FTP"
+"es": "  •  {a} en la PS4, con GoldHEN FTP",
+"de": "  •  {a} auf der PS4, mit GoldHEN FTP",
+"it": "  •  {a} sulla PS4, con GoldHEN FTP",
+"pt": "  •  {a} no PS4, com o GoldHEN FTP"
 },
 "  •  a shared folder on a PC (Settings, at the top)": {
 "ar": "  •  مجلد مشترك على كمبيوتر (الإعدادات، في الأعلى)",
 "fr": "  •  un dossier partagé sur un PC (Paramètres, en haut)",
 "tr": "  •  bir PC'deki paylaşılan klasör (Ayarlar, en üstte)",
-"es": "  •  una carpeta compartida en un PC (Ajustes, arriba)"
+"es": "  •  una carpeta compartida en un PC (Ajustes, arriba)",
+"de": "  •  einen freigegebenen Ordner auf einem PC (Einstellungen, ganz oben)",
+"it": "  •  una cartella condivisa su un PC (Impostazioni, in alto)",
+"pt": "  •  uma pasta compartilhada num PC (Configurações, no topo)"
 },
 "They show up here by themselves.": {
 "ar": "ستظهر هنا تلقائيًا.",
 "fr": "Ils apparaissent ici tout seuls.",
 "tr": "Burada kendiliğinden görünürler.",
-"es": "Aparecen aquí solos."
+"es": "Aparecen aquí solos.",
+"de": "Sie erscheinen hier von selbst.",
+"it": "Compaiono qui da soli.",
+"pt": "Eles aparecem aqui sozinhos."
 },
 "version {a}": {
 "ar": "الإصدار {a}",
 "fr": "version {a}",
 "tr": "sürüm {a}",
-"es": "versión {a}"
+"es": "versión {a}",
+"de": "Version {a}",
+"it": "versione {a}",
+"pt": "versão {a}"
 },
 "Screenshots": {
 "ar": "لقطات الشاشة",
 "fr": "Captures d'écran",
 "tr": "Ekran görüntüleri",
-"es": "Capturas de pantalla"
+"es": "Capturas de pantalla",
+"de": "Screenshots",
+"it": "Screenshot",
+"pt": "Capturas de tela"
 },
 "No screenshots yet": {
 "ar": "لا توجد لقطات شاشة بعد",
 "fr": "Pas encore de captures",
 "tr": "Henüz ekran görüntüsü yok",
-"es": "Todavía no hay capturas"
+"es": "Todavía no hay capturas",
+"de": "Noch keine Screenshots",
+"it": "Ancora nessuno screenshot",
+"pt": "Nenhuma captura ainda"
 },
 "Press PS + Square, or Share, to take one, in a game too.": {
 "ar": "اضغط PS + مربع، أو Share، لالتقاط واحدة، حتى أثناء اللعب.",
 "fr": "Appuyez sur PS + Carré, ou Share, pour en prendre une, même en jeu.",
 "tr": "Bir tane almak için PS + Kare'ye ya da Share'e basın, oyunda da olur.",
-"es": "Pulsa PS + Cuadrado, o Share, para hacer una, también en un juego."
+"es": "Pulsa PS + Cuadrado, o Share, para hacer una, también en un juego.",
+"de": "Drücke PS + Quadrat oder Share, um einen aufzunehmen, auch im Spiel.",
+"it": "Premi PS + Quadrato, o Share, per farne uno, anche durante un gioco.",
+"pt": "Aperte PS + Quadrado, ou Share, para tirar uma, também num jogo."
 },
 "They are saved in PS5-screenshots on the USB drive.": {
 "ar": "تُحفظ في PS5-screenshots على وحدة USB.",
 "fr": "Elles sont enregistrées dans PS5-screenshots sur la clé USB.",
 "tr": "USB bellekteki PS5-screenshots klasörüne kaydedilir.",
-"es": "Se guardan en PS5-screenshots del USB."
+"es": "Se guardan en PS5-screenshots del USB.",
+"de": "Sie werden in PS5-screenshots auf dem USB-Laufwerk gespeichert.",
+"it": "Vengono salvati in PS5-screenshots sull'unità USB.",
+"pt": "Elas são salvas em PS5-screenshots no pendrive."
 },
 "Delete this screenshot? It cannot be brought back.": {
 "ar": "حذف لقطة الشاشة هذه؟ لا يمكن استعادتها.",
 "fr": "Supprimer cette capture ? Elle ne pourra pas être récupérée.",
 "tr": "Bu ekran görüntüsü silinsin mi? Geri getirilemez.",
-"es": "¿Eliminar esta captura? No se puede recuperar."
+"es": "¿Eliminar esta captura? No se puede recuperar.",
+"de": "Diesen Screenshot löschen? Er kann nicht wiederhergestellt werden.",
+"it": "Eliminare questo screenshot? Non potrà essere recuperato.",
+"pt": "Excluir esta captura? Ela não pode ser recuperada."
 },
 "Screenshot saved": {
 "ar": "تم حفظ لقطة الشاشة",
 "fr": "Capture enregistrée",
 "tr": "Ekran görüntüsü kaydedildi",
-"es": "Captura guardada"
+"es": "Captura guardada",
+"de": "Screenshot gespeichert",
+"it": "Screenshot salvato",
+"pt": "Captura salva"
 },
 "Screenshot failed": {
 "ar": "فشل التقاط الشاشة",
 "fr": "Échec de la capture",
 "tr": "Ekran görüntüsü alınamadı",
-"es": "Falló la captura"
+"es": "Falló la captura",
+"de": "Screenshot fehlgeschlagen",
+"it": "Screenshot non riuscito",
+"pt": "A captura falhou"
 },
 "The screen could not be read.": {
 "ar": "تعذرت قراءة الشاشة.",
 "fr": "L'écran n'a pas pu être lu.",
 "tr": "Ekran okunamadı.",
-"es": "No se pudo leer la pantalla."
+"es": "No se pudo leer la pantalla.",
+"de": "Der Bildschirm konnte nicht gelesen werden.",
+"it": "Impossibile leggere lo schermo.",
+"pt": "Não foi possível ler a tela."
 },
 "Home screen": {
 "ar": "الشاشة الرئيسية",
 "fr": "Écran d'accueil",
 "tr": "Ana ekran",
-"es": "Pantalla de inicio"
+"es": "Pantalla de inicio",
+"de": "Startbildschirm",
+"it": "Schermata Home",
+"pt": "Tela inicial"
 },
 "PS5-screenshots on the USB drive": {
 "ar": "PS5-screenshots على وحدة USB",
 "fr": "PS5-screenshots sur la clé USB",
 "tr": "USB bellekteki PS5-screenshots",
-"es": "PS5-screenshots del USB"
+"es": "PS5-screenshots del USB",
+"de": "PS5-screenshots auf dem USB-Laufwerk",
+"it": "PS5-screenshots sull'unità USB",
+"pt": "PS5-screenshots no pendrive"
 },
 "~/data on the PS4": {
 "ar": "~/data على PS4",
 "fr": "~/data sur la PS4",
 "tr": "PS4'te ~/data",
-"es": "~/data en la PS4"
+"es": "~/data en la PS4",
+"de": "~/data auf der PS4",
+"it": "~/data sulla PS4",
+"pt": "~/data no PS4"
 },
 "PAUSED": {
 "ar": "متوقفة مؤقتًا",
 "fr": "EN PAUSE",
 "tr": "DURAKLATILDI",
-"es": "EN PAUSA"
+"es": "EN PAUSA",
+"de": "PAUSIERT",
+"it": "IN PAUSA",
+"pt": "PAUSADO"
 },
 "Menu language": {
 "ar": "لغة القوائم",
 "fr": "Langue des menus",
 "tr": "Menü dili",
-"es": "Idioma de los menús"
+"es": "Idioma de los menús",
+"de": "Menüsprache",
+"it": "Lingua dei menu",
+"pt": "Idioma dos menus"
 },
 "English (US)": {
 "ar": "الإنجليزية (الولايات المتحدة)",
 "fr": "Anglais (États-Unis)",
 "tr": "İngilizce (ABD)",
-"es": "Inglés (EE. UU.)"
+"es": "Inglés (EE. UU.)",
+"de": "Englisch (USA)",
+"it": "Inglese (USA)",
+"pt": "Inglês (EUA)"
 },
 "English (UK)": {
 "ar": "الإنجليزية (المملكة المتحدة)",
 "fr": "Anglais (Royaume-Uni)",
 "tr": "İngilizce (BK)",
-"es": "Inglés (Reino Unido)"
+"es": "Inglés (Reino Unido)",
+"de": "Englisch (UK)",
+"it": "Inglese (Regno Unito)",
+"pt": "Inglês (Reino Unido)"
 },
 "Japanese": {
 "ar": "اليابانية",
 "fr": "Japonais",
 "tr": "Japonca",
-"es": "Japonés"
+"es": "Japonés",
+"de": "Japanisch",
+"it": "Giapponese",
+"pt": "Japonês"
 },
 "French": {
 "ar": "الفرنسية",
 "fr": "Français",
 "tr": "Fransızca",
-"es": "Francés"
+"es": "Francés",
+"de": "Französisch",
+"it": "Francese",
+"pt": "Francês"
 },
 "French (Canada)": {
 "ar": "الفرنسية (كندا)",
 "fr": "Français (Canada)",
 "tr": "Fransızca (Kanada)",
-"es": "Francés (Canadá)"
+"es": "Francés (Canadá)",
+"de": "Französisch (Kanada)",
+"it": "Francese (Canada)",
+"pt": "Francês (Canadá)"
 },
 "Spanish": {
 "ar": "الإسبانية",
 "fr": "Espagnol",
 "tr": "İspanyolca",
-"es": "Español"
+"es": "Español",
+"de": "Spanisch",
+"it": "Spagnolo",
+"pt": "Espanhol"
 },
 "Spanish (Latin America)": {
 "ar": "الإسبانية (أمريكا اللاتينية)",
 "fr": "Espagnol (Amérique latine)",
 "tr": "İspanyolca (Latin Amerika)",
-"es": "Español (Latinoamérica)"
+"es": "Español (Latinoamérica)",
+"de": "Spanisch (Lateinamerika)",
+"it": "Spagnolo (America Latina)",
+"pt": "Espanhol (América Latina)"
 },
 "German": {
 "ar": "الألمانية",
 "fr": "Allemand",
 "tr": "Almanca",
-"es": "Alemán"
+"es": "Alemán",
+"de": "Deutsch",
+"it": "Tedesco",
+"pt": "Alemão"
 },
 "Italian": {
 "ar": "الإيطالية",
 "fr": "Italien",
 "tr": "İtalyanca",
-"es": "Italiano"
+"es": "Italiano",
+"de": "Italienisch",
+"it": "Italiano",
+"pt": "Italiano"
 },
 "Dutch": {
 "ar": "الهولندية",
 "fr": "Néerlandais",
 "tr": "Felemenkçe",
-"es": "Neerlandés"
+"es": "Neerlandés",
+"de": "Niederländisch",
+"it": "Olandese",
+"pt": "Holandês"
 },
 "Portuguese": {
 "ar": "البرتغالية",
 "fr": "Portugais",
 "tr": "Portekizce",
-"es": "Portugués"
+"es": "Portugués",
+"de": "Portugiesisch",
+"it": "Portoghese",
+"pt": "Português"
 },
 "Portuguese (Brazil)": {
 "ar": "البرتغالية (البرازيل)",
 "fr": "Portugais (Brésil)",
 "tr": "Portekizce (Brezilya)",
-"es": "Portugués (Brasil)"
+"es": "Portugués (Brasil)",
+"de": "Portugiesisch (Brasilien)",
+"it": "Portoghese (Brasile)",
+"pt": "Português (Brasil)"
 },
 "Russian": {
 "ar": "الروسية",
 "fr": "Russe",
 "tr": "Rusça",
-"es": "Ruso"
+"es": "Ruso",
+"de": "Russisch",
+"it": "Russo",
+"pt": "Russo"
 },
 "Korean": {
 "ar": "الكورية",
 "fr": "Coréen",
 "tr": "Korece",
-"es": "Coreano"
+"es": "Coreano",
+"de": "Koreanisch",
+"it": "Coreano",
+"pt": "Coreano"
 },
 "Chinese (traditional)": {
 "ar": "الصينية (التقليدية)",
 "fr": "Chinois (traditionnel)",
 "tr": "Çince (geleneksel)",
-"es": "Chino (tradicional)"
+"es": "Chino (tradicional)",
+"de": "Chinesisch (traditionell)",
+"it": "Cinese (tradizionale)",
+"pt": "Chinês (tradicional)"
 },
 "Chinese (simplified)": {
 "ar": "الصينية (المبسطة)",
 "fr": "Chinois (simplifié)",
 "tr": "Çince (basitleştirilmiş)",
-"es": "Chino (simplificado)"
+"es": "Chino (simplificado)",
+"de": "Chinesisch (vereinfacht)",
+"it": "Cinese (semplificato)",
+"pt": "Chinês (simplificado)"
 },
 "Finnish": {
 "ar": "الفنلندية",
 "fr": "Finnois",
 "tr": "Fince",
-"es": "Finés"
+"es": "Finés",
+"de": "Finnisch",
+"it": "Finlandese",
+"pt": "Finlandês"
 },
 "Swedish": {
 "ar": "السويدية",
 "fr": "Suédois",
 "tr": "İsveççe",
-"es": "Sueco"
+"es": "Sueco",
+"de": "Schwedisch",
+"it": "Svedese",
+"pt": "Sueco"
 },
 "Danish": {
 "ar": "الدنماركية",
 "fr": "Danois",
 "tr": "Danca",
-"es": "Danés"
+"es": "Danés",
+"de": "Dänisch",
+"it": "Danese",
+"pt": "Dinamarquês"
 },
 "Norwegian": {
 "ar": "النرويجية",
 "fr": "Norvégien",
 "tr": "Norveççe",
-"es": "Noruego"
+"es": "Noruego",
+"de": "Norwegisch",
+"it": "Norvegese",
+"pt": "Norueguês"
 },
 "Polish": {
 "ar": "البولندية",
 "fr": "Polonais",
 "tr": "Lehçe",
-"es": "Polaco"
+"es": "Polaco",
+"de": "Polnisch",
+"it": "Polacco",
+"pt": "Polonês"
 },
 "Turkish": {
 "ar": "التركية",
 "fr": "Turc",
 "tr": "Türkçe",
-"es": "Turco"
+"es": "Turco",
+"de": "Türkisch",
+"it": "Turco",
+"pt": "Turco"
 },
 "Arabic": {
 "ar": "العربية",
 "fr": "Arabe",
 "tr": "Arapça",
-"es": "Árabe"
+"es": "Árabe",
+"de": "Arabisch",
+"it": "Arabo",
+"pt": "Árabe"
 },
 "Czech": {
 "ar": "التشيكية",
 "fr": "Tchèque",
 "tr": "Çekçe",
-"es": "Checo"
+"es": "Checo",
+"de": "Tschechisch",
+"it": "Ceco",
+"pt": "Tcheco"
 },
 "Hungarian": {
 "ar": "المجرية",
 "fr": "Hongrois",
 "tr": "Macarca",
-"es": "Húngaro"
+"es": "Húngaro",
+"de": "Ungarisch",
+"it": "Ungherese",
+"pt": "Húngaro"
 },
 "Greek": {
 "ar": "اليونانية",
 "fr": "Grec",
 "tr": "Yunanca",
-"es": "Griego"
+"es": "Griego",
+"de": "Griechisch",
+"it": "Greco",
+"pt": "Grego"
 },
 "Romanian": {
 "ar": "الرومانية",
 "fr": "Roumain",
 "tr": "Rumence",
-"es": "Rumano"
+"es": "Rumano",
+"de": "Rumänisch",
+"it": "Rumeno",
+"pt": "Romeno"
 },
 "Thai": {
 "ar": "التايلاندية",
 "fr": "Thaï",
 "tr": "Tayca",
-"es": "Tailandés"
+"es": "Tailandés",
+"de": "Thailändisch",
+"it": "Thailandese",
+"pt": "Tailandês"
 },
 "Vietnamese": {
 "ar": "الفيتنامية",
 "fr": "Vietnamien",
 "tr": "Vietnamca",
-"es": "Vietnamita"
+"es": "Vietnamita",
+"de": "Vietnamesisch",
+"it": "Vietnamita",
+"pt": "Vietnamita"
 },
 "Indonesian": {
 "ar": "الإندونيسية",
 "fr": "Indonésien",
 "tr": "Endonezce",
-"es": "Indonesio"
+"es": "Indonesio",
+"de": "Indonesisch",
+"it": "Indonesiano",
+"pt": "Indonésio"
+},
+"Who's playing?": {
+"ar": "من يلعب؟",
+"fr": "Qui joue ?",
+"tr": "Kim oynuyor?",
+"es": "¿Quién juega?",
+"de": "Wer spielt?",
+"it": "Chi gioca?",
+"pt": "Quem está jogando?"
+},
+"Add a profile": {
+"ar": "إضافة ملف شخصي",
+"fr": "Ajouter un profil",
+"tr": "Profil ekle",
+"es": "Añadir un perfil",
+"de": "Profil hinzufügen",
+"it": "Aggiungi un profilo",
+"pt": "Adicionar um perfil"
+},
+"Switch profile": {
+"ar": "تبديل الملف الشخصي",
+"fr": "Changer de profil",
+"tr": "Profil değiştir",
+"es": "Cambiar de perfil",
+"de": "Profil wechseln",
+"it": "Cambia profilo",
+"pt": "Trocar de perfil"
+},
+"Delete this profile": {
+"ar": "حذف هذا الملف الشخصي",
+"fr": "Supprimer ce profil",
+"tr": "Bu profili sil",
+"es": "Eliminar este perfil",
+"de": "Dieses Profil löschen",
+"it": "Elimina questo profilo",
+"pt": "Excluir este perfil"
+},
+"Profiles": {
+"ar": "الملفات الشخصية",
+"fr": "Profils",
+"tr": "Profiller",
+"es": "Perfiles",
+"de": "Profile",
+"it": "Profili",
+"pt": "Perfis"
+},
+"Up to 8 profiles.": {
+"ar": "حتى 8 ملفات شخصية.",
+"fr": "8 profils au plus.",
+"tr": "En fazla 8 profil.",
+"es": "Hasta 8 perfiles.",
+"de": "Bis zu 8 Profile.",
+"it": "Fino a 8 profili.",
+"pt": "Até 8 perfis."
+},
+"Each profile has its own saves, trophies and play time.": {
+"ar": "لكل ملف شخصي بياناته المحفوظة وجوائزه ووقت لعبه.",
+"fr": "Chaque profil a ses propres sauvegardes, trophées et temps de jeu.",
+"tr": "Her profilin kendi kayıtları, kupaları ve oyun süresi vardır.",
+"es": "Cada perfil tiene sus propias partidas, trofeos y tiempo de juego.",
+"de": "Jedes Profil hat eigene Spielstände, Trophäen und Spielzeit.",
+"it": "Ogni profilo ha i propri salvataggi, trofei e tempo di gioco.",
+"pt": "Cada perfil tem seus próprios jogos salvos, troféus e tempo de jogo."
+},
+"Name of the new profile": {
+"ar": "اسم الملف الشخصي الجديد",
+"fr": "Nom du nouveau profil",
+"tr": "Yeni profilin adı",
+"es": "Nombre del perfil nuevo",
+"de": "Name des neuen Profils",
+"it": "Nome del nuovo profilo",
+"pt": "Nome do novo perfil"
+},
+"Welcome, {a}": {
+"ar": "أهلًا {a}",
+"fr": "Bienvenue, {a}",
+"tr": "Hoş geldin, {a}",
+"es": "Hola, {a}",
+"de": "Willkommen, {a}",
+"it": "Benvenuto, {a}",
+"pt": "Bem-vindo, {a}"
+},
+"{a} deleted.": {
+"ar": "تم حذف {a}.",
+"fr": "{a} supprimé.",
+"tr": "{a} silindi.",
+"es": "{a} eliminado.",
+"de": "{a} gelöscht.",
+"it": "{a} eliminato.",
+"pt": "{a} excluído."
+},
+"Delete {a}? Their saves, trophies and play time are deleted.": {
+"ar": "حذف {a}؟ ستُحذف بياناته المحفوظة وجوائزه ووقت لعبه.",
+"fr": "Supprimer {a} ? Ses sauvegardes, trophées et temps de jeu sont supprimés.",
+"tr": "{a} silinsin mi? Kayıtları, kupaları ve oyun süresi silinir.",
+"es": "¿Eliminar {a}? Se eliminan sus partidas, trofeos y tiempo de juego.",
+"de": "{a} löschen? Spielstände, Trophäen und Spielzeit werden gelöscht.",
+"it": "Eliminare {a}? Salvataggi, trofei e tempo di gioco vengono eliminati.",
+"pt": "Excluir {a}? Os jogos salvos, troféus e tempo de jogo são excluídos."
+},
+"Controller connected": {
+"ar": "تم توصيل وحدة التحكم",
+"fr": "Manette connectée",
+"tr": "Kontrolcü bağlandı",
+"es": "Mando conectado",
+"de": "Controller verbunden",
+"it": "Controller connesso",
+"pt": "Controle conectado"
+},
+"Battery {n}%": {
+"ar": "البطارية {n}%",
+"fr": "Batterie {n} %",
+"tr": "Pil %{n}",
+"es": "Batería {n} %",
+"de": "Akku {n} %",
+"it": "Batteria {n}%",
+"pt": "Bateria {n}%"
+},
+"Battery {n}%, charging": {
+"ar": "البطارية {n}%، قيد الشحن",
+"fr": "Batterie {n} %, en charge",
+"tr": "Pil %{n}, şarj oluyor",
+"es": "Batería {n} %, cargando",
+"de": "Akku {n} %, wird geladen",
+"it": "Batteria {n}%, in carica",
+"pt": "Bateria {n}%, carregando"
+},
+"Controller battery low": {
+"ar": "بطارية وحدة التحكم منخفضة",
+"fr": "Batterie de la manette faible",
+"tr": "Kontrolcü pili zayıf",
+"es": "Batería del mando baja",
+"de": "Controller-Akku schwach",
+"it": "Batteria del controller scarica",
+"pt": "Bateria do controle fraca"
+},
+"{n}% left. Connect a USB cable to charge it.": {
+"ar": "متبقٍ {n}%. صِل كابل USB لشحنها.",
+"fr": "Il reste {n} %. Branchez un câble USB pour la recharger.",
+"tr": "%{n} kaldı. Şarj etmek için USB kablosu takın.",
+"es": "Queda un {n} %. Conecta un cable USB para cargarlo.",
+"de": "Noch {n} %. Schließe ein USB-Kabel an, um ihn zu laden.",
+"it": "Resta il {n}%. Collega un cavo USB per caricarlo.",
+"pt": "Restam {n}%. Conecte um cabo USB para carregar."
+},
+"The game stopped (error code {n}). {a} The log is ~/kytyps5.log.": {
+"ar": "توقفت اللعبة (رمز الخطأ {n}). {a} السجل في ~/kytyps5.log.",
+"fr": "Le jeu s'est arrêté (code d'erreur {n}). {a} Le journal est ~/kytyps5.log.",
+"tr": "Oyun durdu (hata kodu {n}). {a} Günlük: ~/kytyps5.log.",
+"es": "El juego se detuvo (código de error {n}). {a} El registro está en ~/kytyps5.log.",
+"de": "Das Spiel wurde beendet (Fehlercode {n}). {a} Das Protokoll ist ~/kytyps5.log.",
+"it": "Il gioco si è fermato (codice di errore {n}). {a} Il registro è ~/kytyps5.log.",
+"pt": "O jogo parou (código de erro {n}). {a} O registro está em ~/kytyps5.log."
+},
+"The PS4 ran out of memory, so the game was closed before the PS4 froze. Save often in long sessions.": {
+"ar": "نفدت ذاكرة PS4، لذا أُغلقت اللعبة قبل أن يتجمد. احفظ كثيرًا في الجلسات الطويلة.",
+"fr": "La PS4 manquait de mémoire : le jeu a été fermé avant qu'elle ne se bloque. Sauvegardez souvent pendant les longues parties.",
+"tr": "PS4'ün belleği bitti, bu yüzden oyun PS4 donmadan önce kapatıldı. Uzun oturumlarda sık kaydedin.",
+"es": "La PS4 se quedó sin memoria, así que el juego se cerró antes de que se bloqueara. Guarda a menudo en sesiones largas.",
+"de": "Der PS4 ging der Speicher aus, daher wurde das Spiel geschlossen, bevor die PS4 einfror. Speichere in langen Sitzungen oft.",
+"it": "La PS4 ha esaurito la memoria, quindi il gioco è stato chiuso prima che la PS4 si bloccasse. Salva spesso nelle sessioni lunghe.",
+"pt": "O PS4 ficou sem memória, então o jogo foi fechado antes que o PS4 travasse. Salve com frequência em sessões longas."
+},
+"Vibration strength": {
+"ar": "قوة الاهتزاز",
+"fr": "Force des vibrations",
+"tr": "Titreşim gücü",
+"es": "Intensidad de la vibración",
+"de": "Vibrationsstärke",
+"it": "Intensità della vibrazione",
+"pt": "Intensidade da vibração"
+},
+"Light bar brightness": {
+"ar": "سطوع شريط الإضاءة",
+"fr": "Luminosité de la barre lumineuse",
+"tr": "Işık çubuğu parlaklığı",
+"es": "Brillo de la barra de luz",
+"de": "Helligkeit der Lichtleiste",
+"it": "Luminosità della barra luminosa",
+"pt": "Brilho da barra de luz"
+},
+"Controller microphone": {
+"ar": "ميكروفون وحدة التحكم",
+"fr": "Micro de la manette",
+"tr": "Kontrolcü mikrofonu",
+"es": "Micrófono del mando",
+"de": "Controller-Mikrofon",
+"it": "Microfono del controller",
+"pt": "Microfone do controle"
+},
+"The microphone works when the controller is on a USB cable.": {
+"ar": "يعمل الميكروفون عندما تكون وحدة التحكم موصولة بكابل USB.",
+"fr": "Le micro fonctionne quand la manette est branchée avec un câble USB.",
+"tr": "Mikrofon, kontrolcü USB kablosuyla bağlıyken çalışır.",
+"es": "El micrófono funciona con el mando conectado por cable USB.",
+"de": "Das Mikrofon funktioniert, wenn der Controller per USB-Kabel verbunden ist.",
+"it": "Il microfono funziona quando il controller è collegato con un cavo USB.",
+"pt": "O microfone funciona com o controle conectado por cabo USB."
+},
+"Set automatically": {
+"ar": "الضبط تلقائيًا",
+"fr": "Régler automatiquement",
+"tr": "Otomatik ayarla",
+"es": "Ajustar automáticamente",
+"de": "Automatisch einstellen",
+"it": "Imposta automaticamente",
+"pt": "Definir automaticamente"
+},
+"Set by hand. It is kept until you turn Set automatically on again.": {
+"ar": "مضبوط يدويًا. يبقى كذلك حتى تشغّل الضبط التلقائي مرة أخرى.",
+"fr": "Réglé à la main. Il reste ainsi jusqu'à ce que vous réactiviez le réglage automatique.",
+"tr": "Elle ayarlandı. Otomatik ayarı yeniden açana kadar böyle kalır.",
+"es": "Ajustada a mano. Se mantiene hasta que vuelvas a activar el ajuste automático.",
+"de": "Von Hand eingestellt. Das bleibt so, bis du Automatisch einstellen wieder einschaltest.",
+"it": "Impostata a mano. Resta così finché non riattivi l'impostazione automatica.",
+"pt": "Definida manualmente. Fica assim até você ativar a definição automática de novo."
+},
+"Turning automatic time on…": {
+"ar": "جارٍ تشغيل الوقت التلقائي…",
+"fr": "Activation de l'heure automatique…",
+"tr": "Otomatik saat açılıyor…",
+"es": "Activando la hora automática…",
+"de": "Automatische Zeit wird eingeschaltet…",
+"it": "Attivazione dell'ora automatica…",
+"pt": "Ativando a hora automática…"
+},
+"Turning automatic time off…": {
+"ar": "جارٍ إيقاف الوقت التلقائي…",
+"fr": "Désactivation de l'heure automatique…",
+"tr": "Otomatik saat kapatılıyor…",
+"es": "Desactivando la hora automática…",
+"de": "Automatische Zeit wird ausgeschaltet…",
+"it": "Disattivazione dell'ora automatica…",
+"pt": "Desativando a hora automática…"
+},
+"Setting the date and time…": {
+"ar": "جارٍ ضبط التاريخ والوقت…",
+"fr": "Réglage de la date et de l'heure…",
+"tr": "Tarih ve saat ayarlanıyor…",
+"es": "Ajustando la fecha y la hora…",
+"de": "Datum und Uhrzeit werden eingestellt…",
+"it": "Impostazione di data e ora…",
+"pt": "Definindo a data e a hora…"
+},
+"Date and time saved": {
+"ar": "تم حفظ التاريخ والوقت",
+"fr": "Date et heure enregistrées",
+"tr": "Tarih ve saat kaydedildi",
+"es": "Fecha y hora guardadas",
+"de": "Datum und Uhrzeit gespeichert",
+"it": "Data e ora salvate",
+"pt": "Data e hora salvas"
+},
+"Day": {
+"ar": "اليوم",
+"fr": "Jour",
+"tr": "Gün",
+"es": "Día",
+"de": "Tag",
+"it": "Giorno",
+"pt": "Dia"
+},
+"Month": {
+"ar": "الشهر",
+"fr": "Mois",
+"tr": "Ay",
+"es": "Mes",
+"de": "Monat",
+"it": "Mese",
+"pt": "Mês"
+},
+"Year": {
+"ar": "السنة",
+"fr": "Année",
+"tr": "Yıl",
+"es": "Año",
+"de": "Jahr",
+"it": "Anno",
+"pt": "Ano"
+},
+"Hour": {
+"ar": "الساعة",
+"fr": "Heure",
+"tr": "Saat",
+"es": "Hora",
+"de": "Stunde",
+"it": "Ora",
+"pt": "Hora"
+},
+"Minute": {
+"ar": "الدقيقة",
+"fr": "Minute",
+"tr": "Dakika",
+"es": "Minuto",
+"de": "Minute",
+"it": "Minuto",
+"pt": "Minuto"
+},
+"Save": {
+"ar": "حفظ",
+"fr": "Enregistrer",
+"tr": "Kaydet",
+"es": "Guardar",
+"de": "Speichern",
+"it": "Salva",
+"pt": "Salvar"
+},
+"Up / Down: change": {
+"ar": "أعلى / أسفل: تغيير",
+"fr": "Haut / bas : changer",
+"tr": "Yukarı / aşağı: değiştir",
+"es": "Arriba / abajo: cambiar",
+"de": "Oben / unten: ändern",
+"it": "Su / giù: cambia",
+"pt": "Cima / baixo: alterar"
+},
+"Could not turn automatic time on.": {
+"ar": "تعذر تشغيل الوقت التلقائي.",
+"fr": "Impossible d'activer l'heure automatique.",
+"tr": "Otomatik saat açılamadı.",
+"es": "No se pudo activar la hora automática.",
+"de": "Automatische Zeit konnte nicht eingeschaltet werden.",
+"it": "Impossibile attivare l'ora automatica.",
+"pt": "Não foi possível ativar a hora automática."
+},
+"Could not turn automatic time off.": {
+"ar": "تعذر إيقاف الوقت التلقائي.",
+"fr": "Impossible de désactiver l'heure automatique.",
+"tr": "Otomatik saat kapatılamadı.",
+"es": "No se pudo desactivar la hora automática.",
+"de": "Automatische Zeit konnte nicht ausgeschaltet werden.",
+"it": "Impossibile disattivare l'ora automatica.",
+"pt": "Não foi possível desativar a hora automática."
+},
+"Could not set the time.": {
+"ar": "تعذر ضبط الوقت.",
+"fr": "Impossible de régler l'heure.",
+"tr": "Saat ayarlanamadı.",
+"es": "No se pudo ajustar la hora.",
+"de": "Die Uhrzeit konnte nicht eingestellt werden.",
+"it": "Impossibile impostare l'ora.",
+"pt": "Não foi possível definir a hora."
 }
 }

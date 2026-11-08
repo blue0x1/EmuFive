@@ -198,12 +198,12 @@ class Text:
 
     def fit(self, text, size, width, bold=False):
         """The text, cut with an ellipsis to fit `width` units."""
-        text = i18n.translate(text)
+        text = i18n.Final(i18n.translate(text))
         if self.width(text, size, bold) <= width:
             return text
         while text and self.width(text + "…", size, bold) > width:
             text = text[:-1]
-        return text + "…"
+        return i18n.Final(text + "…")
 
     def wrap(self, text, size, width, bold=False):
         text = i18n.translate(text)
@@ -217,7 +217,7 @@ class Text:
                 line = word
         if line:
             lines.append(line)
-        return lines
+        return [i18n.Final(line) for line in lines]
 
 
 # --------------------------------------------------------------------------------------------
@@ -500,15 +500,22 @@ def draw_power(c, x, y, radius, color, width=4):
     c.line(color, x, y - radius - 2, x, y - 2, width)
 
 
+BATTERY_HIGH, BATTERY_MID, BATTERY_LOW = (60, 205, 110), (240, 200, 60), (235, 70, 70)
+
+
 def draw_battery(c, x, y, percent, color, charging=False):
-    """A battery 24 units wide at (x, y) top-left."""
+    """A battery 24 units wide at (x, y) top-left. The fill is green above 50%, yellow from 16 to
+    50% and red at 15% or less; charging adds a small lightning bolt on its left."""
     c.rect(color, x, y, 22, 12, 3, 2)
     c.rect(color, x + 22, y + 3, 3, 6, 1)
     if percent is not None:
         fill = max(0.0, min(1.0, percent / 100))
-        inner = GOOD if charging else (BAD if percent <= 15 else color)
+        inner = BATTERY_HIGH if percent > 50 else BATTERY_MID if percent > 15 else BATTERY_LOW
         if fill > 0:
-            c.rect(inner, x + 3, y + 3, 16 * fill, 6, 1)
+            c.rect(inner, x + 3, y + 3, max(1.5, 16 * fill), 6, 1)
+    if charging:
+        c.polygon(BATTERY_MID, [(x - 4, y - 1), (x - 10, y + 7), (x - 6, y + 7), (x - 8, y + 13),
+                                (x - 2, y + 4), (x - 6, y + 4)])
 
 
 def draw_star(c, x, y, r, color):

@@ -14,7 +14,8 @@ import json
 import os
 import re
 
-LANGUAGES = {"en": "English", "ar": "العربية", "fr": "Français", "tr": "Türkçe", "es": "Español"}
+LANGUAGES = {"en": "English", "ar": "العربية", "fr": "Français", "tr": "Türkçe", "es": "Español",
+             "de": "Deutsch", "it": "Italiano", "pt": "Português (Brasil)"}
 RTL_LANGUAGES = {"ar"}
 TABLE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "translations.json")
 SEPARATOR = "  ·  "
@@ -75,9 +76,15 @@ def _compile(english):
     return re.compile("".join(parts), re.S)
 
 
+class Final(str):
+    """Text that is already in the menu language (a translated line cut to fit, or one line of a
+    wrapped text), so it is never looked up again: a game title's second line ("PS4 drive")
+    must stay as it is."""
+
+
 def translate(text):
     """`text` in the menu language (unchanged when there is no translation)."""
-    if _language == "en" or not text:
+    if _language == "en" or not text or isinstance(text, Final):
         return text
     result = _done.get(text)
     if result is None:
@@ -96,7 +103,7 @@ def _translate(text):
     for regex, translation in _templates:
         m = regex.fullmatch(text)
         if m:
-            values = {k: _translate(v) for k, v in m.groupdict().items()}
+            values = {k: _translate(v.strip()) for k, v in m.groupdict().items()}
             try:
                 return translation.format(**values)
             except (KeyError, IndexError, ValueError):

@@ -78,7 +78,9 @@ while :; do
         # Trusted first: the controller opens its input connection as soon as
         # it is paired, and an untrusted one would be asked to wait.
         bluetoothctl trust "$mac" > /dev/null 2>&1
-        bluetoothctl pair "$mac" > /dev/null 2>&1
+        # This call brings its own agent too, in case the long-running one was lost.
+        result="$(timeout 30 bluetoothctl --agent NoInputNoOutput pair "$mac" 2>&1 | tail -n 2 | tr '\n' ' ')"
+        log "pair $mac: $result"
         if bluetoothctl info "$mac" 2>/dev/null | grep -q "Bonded: yes"; then
             bluetoothctl connect "$mac" > /dev/null 2>&1
             log "paired and connected $mac"

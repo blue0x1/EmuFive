@@ -57,6 +57,7 @@ TILE_SEL = 190                   # The largest tile: icons are loaded at least t
 TILE_GAP = 18
 ROW_X, ROW_Y = 64, 112
 REOPEN = os.path.expanduser("~/.cache/ps5-on-ps4/reopen")    # Settings page to show after a restart.
+PROFILE_CHOSEN = os.path.join(system.RUNTIME, "ps5-profile-chosen")   # "Who's playing?" was shown.
 AVATAR_CACHE = os.path.expanduser("~/.cache/ps5-on-ps4/avatars")
 DICEBEAR_STYLES = ["adventurer", "avataaars", "big-smile", "bottts", "croodles", "fun-emoji", "lorelei",
                    "micah", "miniavs", "notionists", "open-peeps", "personas", "pixel-art", "thumbs"]
@@ -850,12 +851,34 @@ class SettingsScreen(RowList):
 
     def rows_profile(self):
         h = self.home
-        return [
+        profiles = h.profiles.all()
+        rows = [
             Row("button", "Name", h.settings["name"], ok=self.edit_name),
             Row("button", "Avatar", ok=lambda: h.push(AvatarPicker(h)), picture=h.avatar(36)),
             Row("info", "Your name and avatar are shown on the home screen. Games get your name as the "
                         "player name."),
+            Row("header", "Profiles"),
         ]
+        if len(profiles) > 1:
+            rows.append(Row("action", "Switch profile", ok=lambda: h.push(ProfilePicker(h))))
+        rows.append(Row("action", "Add a profile", ok=lambda: add_profile(h)) if len(profiles) < store.MAX_PROFILES
+                    else Row("info", "Up to 8 profiles."))
+        if len(profiles) > 1:
+            rows.append(Row("action", "Delete this profile", ok=self.delete_profile))
+        rows.append(Row("info", "Each profile has its own saves, trophies and play time."))
+        return rows
+
+    def delete_profile(self):
+        h = self.home
+        current = h.profiles.current()
+
+        def delete():
+            h.profiles.remove(current["id"], h.settings)
+            h.switch_profile(h.profiles.current_id)
+            h.toast(f"{current['name']} deleted.")
+
+        h.push(Dialog(h, f"Delete {current['name']}? Their saves, trophies and play time are deleted.",
+                      [("Delete", delete), ("Cancel", None)]))
 
     def edit_name(self):
         h = self.home
@@ -864,7 +887,7 @@ class SettingsScreen(RowList):
             text = text.strip()
             if not text:
                 return "Type a name."
-            h.settings.set(name=text)
+            h.set_profile(name=text)
             return None
 
         h.push(KeyboardDialog(h, "Your name (up to 16 letters)", h.settings["name"], on_done=done, max_length=16))
@@ -1201,7 +1224,15 @@ class SettingsScreen(RowList):
             Row("header", "Controller settings"),
             self.setting_choice("Light bar color", "lightbar", [(k, v[0]) for k, v in store.LIGHTBAR_COLORS.items()],
                                 after=h.apply_lightbar),
-            self.setting_slider("Vibration", "vibration", 10, 0, 100, after=h.make_input),
+            self.setting_choice("Light bar brightness", "lightbar_brightness",
+                                [(v, f"{v}%") for v in (25, 50, 75, 100)], after=h.apply_lightbar),
+            self.setting_toggle("Vibration", "vibration_on", after=h.make_input),
+        ]
+        if h.settings["vibration_on"]:
+            rows.append(self.setting_slider("Vibration strength", "vibration", 10, 0, 100, after=h.make_input))
+        rows += [
+            self.setting_toggle("Controller microphone", "controller_mic", after=h.apply_mic),
+            Row("info", "The microphone works when the controller is on a USB cable."),
             self.setting_choice("Button layout", "swap_buttons", [(False, "Standard (X to choose)"),
                                                                    (True, "X and O swapped (O to choose)")],
                                 after=h.make_input),
@@ -1391,12 +1422,29 @@ class SettingsScreen(RowList):
     def rows_date_and_time(self):
         h = self.home
         zone = h.poll.get("zone", system.current_timezone, 5.0, "UTC")
-        return [
+        automatic = h.poll.get("ntp", system.time_automatic, 5.0, True)
+        rows = [
+            Row("toggle", "Set automatically", automatic, ok=lambda: self.set_automatic(not automatic)),
+        ]
+        if automatic:
+            rows.append(Row("info", "The time itself is set from the internet."))
+        else:
+            now = time.strftime("%d %b %Y  %H:%M" if h.settings["clock_24h"] else "%d %b %Y  %I:%M %p")
+            rows.append(Row("button", "Date and time", now, ok=lambda: h.push(DateTimeEditor(h))))
+            rows.append(Row("info", "Set by hand. It is kept until you turn Set automatically on again."))
+        rows += [
             Row("button", "Time zone", zone, ok=self.pick_region),
             Row("choice", "Clock", "24-hour" if h.settings["clock_24h"] else "12-hour",
                 ok=self.toggle_clock, left=self.toggle_clock, right=self.toggle_clock),
-            Row("info", "The time itself is set from the internet."),
         ]
+        return rows
+
+    def set_automatic(self, on):
+        h = self.home
+        h.push(Busy(h, "Turning automatic time on…" if on else "Turning automatic time off…",
+                    lambda: system.set_time_automatic(on),
+                    after=lambda ok, msg: (h.poll.forget("ntp"),
+                                           None if ok else h.push(Dialog(h, msg or "Could not set it.")))))
 
     def toggle_clock(self):
         self.home.settings.set(clock_24h=not self.home.settings["clock_24h"])
@@ -1749,7 +1797,7 @@ class AvatarPicker(Modal):
     def choose(self):
         h = self.home
         if self.tab == 0:
-            h.settings.set(avatar=f"builtin:{self.index}")
+            h.set_profile(avatar=f"builtin:{self.index}")
         else:
             path = self.cache_path(self.tab, self.index)
             if not isinstance(self.image(self.tab, self.index), pygame.Surface) or not os.path.exists(path):
@@ -1759,13 +1807,14 @@ class AvatarPicker(Modal):
                 with open(path, "rb") as f:
                     data = f.read()
                 os.makedirs(store.CONFIG_DIR, mode=0o700, exist_ok=True)
-                with open(store.AVATAR_FILE + ".new", "wb") as f:
+                target = store.avatar_file(h.profiles.current_id)
+                with open(target + ".new", "wb") as f:
                     f.write(data)
-                os.replace(store.AVATAR_FILE + ".new", store.AVATAR_FILE)
+                os.replace(target + ".new", target)
             except OSError:
                 h.sounds.play("error")
                 return
-            h.settings.set(avatar="file")
+            h.set_profile(avatar="file")
         h.avatar_cache.clear()
         h.sounds.play("select")
         h.toast("Avatar changed")
@@ -1973,6 +2022,8 @@ class QuickMenu(RowList):
                 [("Close", lambda: h.finish("CLOSE")), ("Cancel", None)]))))
         else:
             rows.append(Row("action", "Settings", ok=lambda: (self.close(), h.push(SettingsScreen(h)))))
+            if len(h.profiles.all()) > 1:
+                rows.append(Row("action", "Switch profile", ok=lambda: (self.close(), h.push(ProfilePicker(h)))))
         volume = h.poll.get("volume", system.sound_volume, 2.0)
         rows.append(Row("slider", "Volume", volume if volume is not None else 0,
                         left=lambda: change_volume(h, -5), right=lambda: change_volume(h, 5)))
@@ -2036,6 +2087,168 @@ class QuickMenu(RowList):
 
 
 # --------------------------------------------------------------------------------------------
+# Date and time by hand: Left / Right choose a part, Up / Down change it, X saves.
+
+class DateTimeEditor(Modal):
+    FIELDS = ("day", "month", "year", "hour", "minute")
+
+    def __init__(self, home):
+        super().__init__(home)
+        import datetime
+        now = datetime.datetime.now()
+        self.values = {"day": now.day, "month": now.month, "year": now.year, "hour": now.hour,
+                       "minute": now.minute}
+        self.field = 0
+
+    def days(self):
+        import calendar
+        return calendar.monthrange(self.values["year"], self.values["month"])[1]
+
+    def change(self, step):
+        v = self.values
+        name = self.FIELDS[self.field]
+        low, high = {"day": (1, self.days()), "month": (1, 12), "year": (2024, 2099), "hour": (0, 23),
+                     "minute": (0, 59)}[name]
+        v[name] = low + (v[name] - low + step) % (high - low + 1)
+        v["day"] = min(v["day"], self.days())
+
+    def act(self, action):
+        h = self.home
+        if action in (LEFT, RIGHT):
+            self.field = (self.field + (1 if action == RIGHT else -1)) % len(self.FIELDS)
+            h.sounds.play("move")
+        elif action in (UP, DOWN):
+            self.change(1 if action == UP else -1)
+            h.sounds.play("move")
+        elif action == OK:
+            import datetime
+            when = datetime.datetime(*(self.values[k] for k in ("year", "month", "day", "hour", "minute")))
+            h.sounds.play("select")
+            self.close()
+            h.push(Busy(h, "Setting the date and time…", lambda: system.set_time(when),
+                        after=lambda ok, msg: (h.poll.forget("ntp"),
+                                               h.toast("Date and time saved") if ok else
+                                               h.push(Dialog(h, msg or "Could not set it.")))))
+        elif action == BACK:
+            h.sounds.play("back")
+            self.close()
+
+    def draw(self, c):
+        a = ease_out(self.appear)
+        c.dim(170 * a)
+        w, ht = 760, 330
+        x, y = ui.W / 2 - w / 2, ui.H / 2 - ht / 2 + (1 - a) * 20
+        c.rect(DIALOG, x, y, w, ht, 20)
+        c.text("Date and time", 26, ui.W / 2, y + 30, WHITE, True, "midtop")
+        labels = {"day": "Day", "month": "Month", "year": "Year", "hour": "Hour", "minute": "Minute"}
+        widths = {"day": 96, "month": 96, "year": 140, "hour": 96, "minute": 96}
+        gap = 22
+        total = sum(widths.values()) + gap * (len(self.FIELDS) - 1) + 40
+        bx = ui.W / 2 - total / 2
+        for i, name in enumerate(self.FIELDS):
+            if name == "hour":
+                bx += 40          # Space between the date and the time.
+            on = i == self.field
+            bw = widths[name]
+            c.text(labels[name], 15, bx + bw / 2, y + 88, SOFT, False, "midtop")
+            c.rect(WHITE if on else KEY, bx, y + 130, bw, 90, 16)
+            value = f"{self.values[name]:04d}" if name == "year" else f"{self.values[name]:02d}"
+            c.text(value, 40, bx + bw / 2, y + 175, INK if on else WHITE, True, "center")
+            if on:
+                mx = bx + bw / 2           # Up and down arrows, drawn (the fonts have no arrows).
+                c.polygon(WHITE, [(mx, y + 112), (mx - 9, y + 123), (mx + 9, y + 123)])
+                c.polygon(WHITE, [(mx, y + 238), (mx - 9, y + 227), (mx + 9, y + 227)])
+            bx += bw + gap
+
+    def hints(self):
+        return [("cross", "Save"), (None, "Up / Down: change"), (None, "Left / Right: next"), ("circle", "Cancel")]
+
+
+# --------------------------------------------------------------------------------------------
+# Profiles: "Who's playing?" (at the start with more than one profile, and Switch profile).
+
+def add_profile(h):
+    def done(text):
+        text = text.strip()
+        if not text:
+            return "Type a name."
+        count = len(h.profiles.all())
+        new_id = h.profiles.add(text, f"builtin:{count % ui.BUILTIN_AVATARS}")
+        if new_id is None:
+            return "Up to 8 profiles."
+        h.switch_profile(new_id)
+        return None
+
+    h.push(KeyboardDialog(h, "Name of the new profile", "", on_done=done, max_length=16))
+
+
+class ProfilePicker(Modal):
+    covers = True
+    SIZE, GAP = 150, 54
+
+    def __init__(self, home):
+        super().__init__(home)
+        self.items = home.profiles.all()
+        ids = [p["id"] for p in self.items]
+        self.index = ids.index(home.profiles.current_id) if home.profiles.current_id in ids else 0
+
+    def count(self):
+        return len(self.items) + (1 if len(self.items) < store.MAX_PROFILES else 0)
+
+    def act(self, action):
+        h = self.home
+        if action in (LEFT, RIGHT):
+            step = -1 if action == LEFT else 1
+            if i18n.rtl():
+                step = -step
+            new = max(0, min(self.count() - 1, self.index + step))
+            if new != self.index:
+                self.index = new
+                h.sounds.play("move")
+        elif action == OK:
+            h.sounds.play("select")
+            self.close()
+            if self.index < len(self.items):
+                if self.items[self.index]["id"] != h.profiles.current_id:
+                    h.switch_profile(self.items[self.index]["id"])
+            else:
+                add_profile(h)
+        elif action in (BACK, GUIDE):
+            h.sounds.play("back")
+            self.close()
+
+    def draw(self, c):
+        h = self.home
+        c.s.fill(ui.BACKDROP)
+        a = ease_out(self.appear)
+        c.text("Who's playing?", 34, ui.W / 2, 150 - (1 - a) * 12, WHITE, True, "midtop")
+        n = self.count()
+        total = n * self.SIZE + (n - 1) * self.GAP
+        order = list(range(n))
+        if i18n.rtl():
+            order.reverse()
+        for slot, i in enumerate(order):
+            x = ui.W / 2 - total / 2 + slot * (self.SIZE + self.GAP)
+            y = 270
+            on = i == self.index
+            if on:
+                c.circle(WHITE, x + self.SIZE / 2, y + self.SIZE / 2, self.SIZE / 2 + 8, 4)
+            if i < len(self.items):
+                profile = self.items[i]
+                c.blit(h.avatar(self.SIZE, profile), x, y)
+                name = c.t.fit(profile["name"], 20, self.SIZE + self.GAP - 10, on)
+            else:
+                c.circle(KEY, x + self.SIZE / 2, y + self.SIZE / 2, self.SIZE / 2)
+                c.line(WHITE, x + self.SIZE / 2 - 24, y + self.SIZE / 2, x + self.SIZE / 2 + 24, y + self.SIZE / 2, 4)
+                c.line(WHITE, x + self.SIZE / 2, y + self.SIZE / 2 - 24, x + self.SIZE / 2, y + self.SIZE / 2 + 24, 4)
+                name = c.t.fit("Add a profile", 20, self.SIZE + self.GAP - 10, on)
+            c.text(name, 20, x + self.SIZE / 2, y + self.SIZE + 26, WHITE if on else SOFT, on, "midtop")
+
+    def hints(self):
+        return [("cross", "Choose"), ("circle", "Back")]
+
+
+# --------------------------------------------------------------------------------------------
 # Trophies of one game (full screen).
 
 GRADE_COLORS = {"platinum": ((230, 236, 255), (150, 160, 200)), "gold": ((255, 215, 90), (200, 140, 30)),
@@ -2069,7 +2282,8 @@ class TrophyList(Modal):
         self.row = 0
 
         def load():
-            title, items = system.trophies(game.path, game.title_id, home.settings["console_language"])
+            title, items = system.trophies(game.path, game.title_id, home.settings["console_language"],
+                                           home.profiles.current_id)
             for t in items:
                 if t["icon"]:
                     try:
@@ -2449,7 +2663,11 @@ class Home:
         self.make_sounds()
         self.input = ui.Input()
         self.make_input()
-        self.games_store = store.Games()
+        self.profiles = store.Profiles(self.settings)
+        current = self.profiles.current()
+        if (self.settings["name"], self.settings["avatar"]) != (current["name"], current["avatar"]):
+            self.settings.set(name=current["name"], avatar=current["avatar"])
+        self.games_store = store.Games(current["id"])
         self.poll = Poller()
         self.quick = args.quick_menu is not None
         self.running_path = args.suspended            # The paused game (Home in the PS button menu).
@@ -2501,6 +2719,7 @@ class Home:
             return
         self.refresh_games(force=True)
         self.apply_lightbar()
+        self.apply_mic()
         if args.message:
             self.push(Dialog(self, args.message))
         # Settings that restart the home screen (theme, text...) come back to the same page.
@@ -2510,6 +2729,15 @@ class Home:
             os.remove(REOPEN)
             self.push(SettingsScreen(self, category, focus="rows"))
         except (OSError, ValueError):
+            pass
+        # At the start of the session, with more than one profile: "Who's playing?"
+        if not self.running_path and not self.modals and len(self.profiles.all()) > 1 \
+                and not os.path.exists(PROFILE_CHOSEN):
+            self.push(ProfilePicker(self))
+        try:
+            with open(PROFILE_CHOSEN, "w"):
+                pass
+        except OSError:
             pass
 
     # Helpers -----------------------------------------------------------------------------------
@@ -2544,25 +2772,29 @@ class Home:
         s = self.settings
         self.input.swap = s["swap_buttons"]
         self.input.rumble_on = s["rumble"]
-        self.input.strength = max(0, min(100, s["vibration"])) / 100
+        self.input.strength = store.vibration(s) / 100
 
     def apply_lightbar(self):
-        rgb = store.LIGHTBAR_COLORS.get(self.settings["lightbar"], store.LIGHTBAR_COLORS["blue"])[1]
-        threading.Thread(target=system.set_lightbar, args=(rgb,), daemon=True).start()
+        threading.Thread(target=system.set_lightbar, args=(store.lightbar_rgb(self.settings),), daemon=True).start()
+
+    def apply_mic(self):
+        threading.Thread(target=system.set_controller_mic, args=(self.settings["controller_mic"],),
+                         daemon=True).start()
 
     def make_particles(self):
         count = ORB_COUNTS.get(self.settings["orb_amount"], 34)
         self.particles = [ui.new_particle(True) for _ in range(count)]
 
-    def avatar(self, size):
-        """The profile picture as a circle `size` units wide."""
-        choice = self.settings["avatar"]
-        key = (choice, size)
+    def avatar(self, size, profile=None):
+        """A profile's picture (the current one's by default) as a circle `size` units wide."""
+        profile = profile or {"id": self.profiles.current_id, "avatar": self.settings["avatar"]}
+        choice = profile["avatar"]
+        key = (profile["id"], choice, size)
         surface = self.avatar_cache.get(key)
         if surface is None:
             if choice == "file":
                 try:
-                    surface = ui.circle_image(pygame.image.load(store.AVATAR_FILE), px(size))
+                    surface = ui.circle_image(pygame.image.load(store.avatar_file(profile["id"])), px(size))
                 except (pygame.error, OSError):
                     surface = None
             if surface is None:
@@ -2573,6 +2805,19 @@ class Home:
                 surface = ui.builtin_avatar(index, px(size))
             self.avatar_cache[key] = surface
         return surface
+
+    def switch_profile(self, profile_id):
+        self.profiles.switch(profile_id, self.settings)
+        self.games_store = store.Games(profile_id)
+        self.avatar_cache.clear()
+        self.games_changed = True
+        self.toast(f"Welcome, {self.settings['name']}", 3.0)
+
+    def set_profile(self, **changes):
+        """Name or picture of the current profile."""
+        self.settings.set(**changes)
+        self.profiles.update(self.profiles.current_id, **changes)
+        self.avatar_cache.clear()
 
     def play(self, game):
         self.games_store.played(game.key)

@@ -4,6 +4,8 @@
 # user runs it with sudo and no password (/etc/sudoers.d/ps5-admin).
 #   ps5-admin ssh on|off            SSH login on or off (now and at boot)
 #   ps5-admin timezone ZONE         the time zone, for example Europe/Istanbul
+#   ps5-admin ntp on|off            the time from the internet (automatic) or set by hand
+#   ps5-admin settime "YYYY-MM-DD HH:MM"   set the date and time by hand (turns automatic off)
 #   ps5-admin eject                 unmount the USB drive so it can be unplugged
 #   ps5-admin reboot                restart the PS4
 #   ps5-admin pair                  look for new controllers for 60 seconds
@@ -24,6 +26,20 @@ ssh)
     off) systemctl disable --now ssh.service >/dev/null 2>&1 || die "Could not stop SSH." ;;
     *)   die "ssh on|off" ;;
     esac
+    ;;
+ntp)
+    case "${2:-}" in
+    on)  timedatectl set-ntp true || die "Could not turn automatic time on." ;;
+    off) timedatectl set-ntp false || die "Could not turn automatic time off." ;;
+    *)   die "ntp on|off" ;;
+    esac
+    ;;
+settime)
+    when="${2:-}"
+    printf '%s' "$when" | grep -Eq '^20[0-9]{2}-[01][0-9]-[0-3][0-9] [0-2][0-9]:[0-5][0-9]$' \
+        || die "Not a date and time: $when"
+    timedatectl set-ntp false 2>/dev/null
+    timedatectl set-time "$when:00" || die "Could not set the time."
     ;;
 timezone)
     zone="${2:-}"

@@ -1,0 +1,33 @@
+#!/bin/sh
+# Copyright (C) 2026 Chokri Hammedi (blue0x1) <https://github.com/blue0x1>
+# Swap space for games (ps5-swap.service): a 4 GB swap file on the system disk.
+# Linux on the PS4 has about 6 GB of memory and a big game can use all of it;
+# without swap the PS4 then freezes for minutes. With swap a game slows down
+# instead, and ps5-launch closes it before memory and swap run out.
+# Made once, when there is room: the system disk keeps at least 4 GB free.
+set -u
+PATH=/usr/sbin:/usr/bin:/sbin:/bin
+SWAP=/var/lib/ps5-on-ps4/swapfile
+SIZE_MB=4096
+KEEP_FREE_MB=4096
+
+log() { echo "ps5-swap: $*"; }
+
+if [ ! -f "$SWAP" ]; then
+    free_mb=$(df -Pm /var/lib | awk 'NR == 2 { print $4 }')
+    if [ "${free_mb:-0}" -lt $((SIZE_MB + KEEP_FREE_MB)) ]; then
+        log "not enough room on the system disk (${free_mb:-0} MB free); no swap"
+        exit 0
+    fi
+    mkdir -p "$(dirname "$SWAP")"
+    if ! fallocate -l "${SIZE_MB}M" "$SWAP" 2>/dev/null; then
+        dd if=/dev/zero of="$SWAP" bs=1M count="$SIZE_MB" status=none || { rm -f "$SWAP"; exit 1; }
+    fi
+    chmod 600 "$SWAP"
+    mkswap "$SWAP" > /dev/null || { rm -f "$SWAP"; exit 1; }
+    log "made a ${SIZE_MB} MB swap file"
+fi
+grep -q "^$SWAP " /proc/swaps || swapon "$SWAP" || exit 1
+# Keep games in memory as long as possible; swap is the safety net.
+sysctl -q vm.swappiness=10
+log "swap on: $(awk -v f="$SWAP" '$1 == f { print int($3 / 1024) " MB" }' /proc/swaps)"

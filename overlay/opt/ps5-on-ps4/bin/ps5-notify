@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 # Copyright (C) 2026 Chokri Hammedi (blue0x1) <https://github.com/blue0x1>
-# A small notification in the top-right corner for a few seconds, over anything, a game too: a
-# tooltip window (the window manager leaves it alone and it never takes the input focus).
+# A small notification in the top-left corner for a few seconds, over anything, a game too: a
+# tooltip window (the window manager leaves it alone and it never takes the input focus). It is
+# drawn by the CPU (SDL's software renderer), once: a GPU window of its own next to a full-screen
+# game or the home screen showed garbage on the PS4.
 #   ps5-notify TITLE [TEXT] [--picture PNG]
 import argparse
 import os
@@ -10,6 +12,8 @@ import time
 
 os.environ.setdefault("PYGAME_HIDE_SUPPORT_PROMPT", "1")
 os.environ.setdefault("SDL_VIDEO_MINIMIZE_ON_FOCUS_LOSS", "0")
+# Not managed by the window manager: matchbox would make it full screen (one huge, stretched notice).
+os.environ["SDL_X11_FORCE_OVERRIDE_REDIRECT"] = "1"
 import pygame  # noqa: E402
 from pygame._sdl2 import video  # noqa: E402
 
@@ -34,10 +38,9 @@ def main():
     ui.S = scale
     text = ui.Text(settings["font"], settings["text_size"] / 100)
     w, h = int(380 * scale), int(86 * scale)
-    window = video.Window("PS5 on PS4", size=(w, h), position=((info.current_w or 1920) - w - int(28 * scale),
-                                                               int(28 * scale)),
+    window = video.Window("PS5 on PS4", size=(w, h), position=(int(28 * scale), int(28 * scale)),
                           tooltip=True, always_on_top=True, skip_taskbar=True)
-    renderer = video.Renderer(window)
+    renderer = video.Renderer(window, accelerated=0)
     surface = pygame.Surface((w, h), pygame.SRCALPHA)
     c = ui.Canvas(surface, text)
     c.rect(ui.DIALOG, 0, 0, 380, 86)
@@ -57,13 +60,18 @@ def main():
     if args.text:
         c.text(text.fit(args.text, 14, 380 - x - 20), 14, x, 48, ui.SOFT)
     texture = video.Texture.from_surface(renderer, surface)
+
+    def show():
+        renderer.clear()
+        texture.draw(dstrect=(0, 0, w, h))
+        renderer.present()
+
+    show()
     start = time.monotonic()
     while time.monotonic() - start < args.seconds:
-        for _ in pygame.event.get():
-            pass
-        renderer.clear()
-        texture.draw()
-        renderer.present()
+        # Drawn again only when X says the window was covered or shown again.
+        if any(e.type == pygame.WINDOWEXPOSED or e.type == pygame.WINDOWSHOWN for e in pygame.event.get()):
+            show()
         time.sleep(0.05)
     window.destroy()
     return 0

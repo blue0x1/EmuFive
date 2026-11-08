@@ -1,0 +1,13 @@
+# Copyright (C) 2026 Chokri Hammedi (blue0x1) <https://github.com/blue0x1>
+# Swap space for games, so a game that needs more memory slows down instead of freezing the PS4.
+[Unit]
+Description=Swap space for games
+After=local-fs.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/opt/ps5-on-ps4/bin/ps5-swap
+
+[Install]
+WantedBy=multi-user.target

@@ -15,6 +15,9 @@
 # Screenshots, anywhere: PS + Square, or Share (Create on a DualSense). Saved in PS5-screenshots on
 # the USB drive (or ~/Screenshots without one), with a notification.
 #
+# Controller notices, anywhere: when a controller connects (with its battery level), and once when
+# its battery drops to 15% (again after it was charged).
+#
 # It reads the controllers' input devices directly (evdev), so it works whatever the game does with
 # the controller.
 import json
@@ -39,6 +42,8 @@ PAUSED = os.path.join(system.RUNTIME, "ps5-game-paused")    # Seconds paused, re
 EV_KEY = 0x01
 BTN_WEST, BTN_SELECT, BTN_MODE = 0x134, 0x13a, 0x13c        # Square, Share, PS
 EVENT = struct.Struct("llHHi")
+LOW_BATTERY = 15            # Percent: the low battery notice.
+BATTERY_OK_AGAIN = 25       # Percent (or charging): the notice can come again.
 
 
 def log(text):
@@ -73,6 +78,21 @@ def controller_devices():
     return found
 
 
+def session_pid():
+    """The ps5-session shell this runs in (it exits with that session), or None."""
+    for name in os.listdir("/proc"):
+        if not name.isdigit():
+            continue
+        try:
+            with open(f"/proc/{name}/cmdline", "rb") as f:
+                argv = f.read().split(b"\0")
+        except OSError:
+            continue
+        if len(argv) > 1 and argv[1].endswith(b"bin/ps5-session"):
+            return int(name)
+    return None
+
+
 def running_game():
     """The game's state ({pid, path, title}) while KytyPS5 runs, else None."""
     try:
@@ -98,6 +118,12 @@ class Guide:
         self.state = None         # The paused game.
         self.paused_at = None
         self.last_shot = 0.0
+        # Controllers already connected when the session starts get no notice.
+        self.pads = {pad["mac"] + "/" + pad["connection"] for pad in system.controllers()}
+        self.waiting_battery = {}   # mac -> time it connected, until its battery level is known
+        self.low_warned = set()
+        self.last_pad_check = 0.0
+        self.session = session_pid()
 
     # The game ---------------------------------------------------------------------------------
 
@@ -223,6 +249,58 @@ class Guide:
 
         threading.Thread(target=work, daemon=True).start()
 
+    # Controller notices ---------------------------------------------------------------------
+
+    def notify(self, title, text):
+        subprocess.Popen([sys.executable, NOTIFY, title, text], stdout=subprocess.DEVNULL,
+                         stderr=subprocess.DEVNULL)
+
+    def apply_mic(self):
+        from ps5 import store
+        on = store.Settings()["controller_mic"]
+        for _ in range(5):
+            time.sleep(2)
+            if system.set_controller_mic(on):
+                log(f"controller microphone {'on' if on else 'off'}")
+                return
+
+    def check_pads(self):
+        now = time.monotonic()
+        # By controller and connection: one that moves from the cable to Bluetooth (or back) gets a
+        # notice too.
+        pads = {pad["mac"] + "/" + pad["connection"]: pad for pad in system.controllers()}
+        for mac in set(pads) - self.pads:
+            self.waiting_battery[mac] = now
+        for mac in list(self.waiting_battery):
+            pad = pads.get(mac)
+            if pad is None:
+                del self.waiting_battery[mac]
+                continue
+            # The battery level comes a moment after the controller connects.
+            if not pad["battery"] and now - self.waiting_battery[mac] < 4:
+                continue
+            del self.waiting_battery[mac]
+            text = f"{pad['name']}  ·  {pad['connection']}"
+            if pad["battery"] is not None:
+                text += f"  ·  Battery {pad['battery']}%" + (", charging" if pad["charging"] else "")
+            log(f"controller connected: {text}")
+            if pad["connection"] != "Bluetooth":
+                # Its microphone appears a moment later; set it a few times.
+                threading.Thread(target=self.apply_mic, daemon=True).start()
+            self.notify("Controller connected", text)
+        for mac, pad in pads.items():
+            battery = pad["battery"]
+            if battery is None or mac in self.waiting_battery:
+                continue
+            if pad["charging"] or battery >= BATTERY_OK_AGAIN:
+                self.low_warned.discard(pad["mac"])
+            elif battery <= LOW_BATTERY and pad["mac"] not in self.low_warned:
+                self.low_warned.add(pad["mac"])
+                log(f"{pad['name']} battery low: {battery}%")
+                self.notify("Controller battery low", f"{battery}% left. Connect a USB cable to charge it.")
+        self.low_warned &= {pad["mac"] for pad in pads.values()}
+        self.pads = set(pads)
+
     # Input ------------------------------------------------------------------------------------
 
     def key(self, code, value):
@@ -257,6 +335,15 @@ class Guide:
                         pass
             if self.menu is not None and self.menu.poll() is not None:
                 self.menu_done()
+            if now - self.last_pad_check > 2.0:
+                self.last_pad_check = now
+                if self.session and not os.path.exists(f"/proc/{self.session}"):
+                    log("the session ended")
+                    return 0
+                try:
+                    self.check_pads()
+                except Exception as error:   # A notice must never stop the PS button.
+                    log(f"controller check failed: {error}")
             if not self.files:
                 time.sleep(0.5)
                 continue

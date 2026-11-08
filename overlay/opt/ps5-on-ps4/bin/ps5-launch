@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 # Copyright (C) 2026 Chokri Hammedi (blue0x1) <https://github.com/blue0x1>
 # Runs one game in KytyPS5 (called by ps5-session) and waits for it:
-#   - the profile name from the home screen is the game's user name,
+#   - the profile chosen on the home screen is the game's user (name and user ID), and its own
+#     KytyPS5 folder keeps its saves and trophies,
 #   - the settings for all games (Settings, Games and Controller) and the game's own options
 #     (OPTIONS on its tile) become KytyPS5 options,
 #   - $XDG_RUNTIME_DIR/ps5-game.json says which game runs and its process (for ps5-guide),
-#   - the time played is added to the game (minus the time it spent paused by the PS button).
+#   - the time played is added to the game (minus the time it spent paused by the PS button),
+#   - memory is watched: when memory and swap are almost used up, the game is closed before the
+#     PS4 freezes, and the home screen says why.
 # Exits with KytyPS5's exit code (128 + the signal when it was stopped by one).
 #   ps5-launch GAME [extra KytyPS5 options...]
 import json
@@ -19,8 +22,9 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), "..
 from ps5 import store, system  # noqa: E402
 
 KYTY = "/opt/kytyps5/kyty_emulator"
-WORK = os.path.expanduser("~/.kytyps5")     # The emulator's own files (shader caches...).
 STATE = os.path.join(system.RUNTIME, "ps5-game.json")
+LOW_MEMORY_MB = 160         # Memory plus swap left when the game is closed...
+LOW_MEMORY_SECONDS = 3      # ...for this long.
 PAUSED = os.path.join(system.RUNTIME, "ps5-game-paused")   # Seconds paused, added by ps5-guide.
 
 
@@ -30,15 +34,57 @@ def user_name(name):
     return data.decode("utf-8", errors="ignore").strip() or "Player"
 
 
-def kyty_options(settings, games, game):
-    args = ["--user-name", user_name(settings["name"]),
+def memory_left_mb():
+    """Memory that can still be had (MemAvailable) plus free swap, in MB."""
+    values = {}
+    try:
+        with open("/proc/meminfo") as f:
+            for line in f:
+                key, _, rest = line.partition(":")
+                values[key] = int(rest.split()[0])
+    except (OSError, ValueError, IndexError):
+        return None
+    return (values.get("MemAvailable", 0) + values.get("SwapFree", 0)) // 1024
+
+
+def wait_watching_memory(child):
+    """Waits for the game; closes it when memory runs out. Returns (exit code, closed for memory)."""
+    low_since = None
+    while True:
+        try:
+            return child.wait(timeout=1.0), False
+        except subprocess.TimeoutExpired:
+            pass
+        left = memory_left_mb()
+        if left is None or left > LOW_MEMORY_MB:
+            low_since = None
+            continue
+        now = time.monotonic()
+        low_since = low_since or now
+        if now - low_since < LOW_MEMORY_SECONDS:
+            continue
+        print(f"ps5-launch: only {left} MB of memory left; closing the game", flush=True)
+        child.terminate()
+        try:
+            child.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            child.kill()
+        # ps5-session shows the two lines after an "--- ... Error ---" line.
+        print("--- Memory Error ---", flush=True)
+        print("The PS4 ran out of memory, so the game was closed before the PS4 froze.", flush=True)
+        print("Save often in long sessions.", flush=True)
+        return child.wait(), True
+
+
+def kyty_options(settings, games, game, profile):
+    args = ["--user-name", user_name(profile["name"]), "--user-id", str(profile["id"]),
             "--console-language", str(settings["console_language"]),
             "--present-mode", settings["present_mode"]]
     if settings["hdr"]:
         args.append("--hdr")
-    rgb = store.LIGHTBAR_COLORS.get(settings["lightbar"], store.LIGHTBAR_COLORS["blue"])[1]
+    rgb = store.lightbar_rgb(settings)
     args += ["--controller-color", "#%02X%02X%02X" % rgb,
-             "--controller-vibration", str(settings["vibration"])]
+             "--controller-vibration", str(store.vibration(settings))]
     if settings["swap_buttons"]:
         args += ["--keymap", "Cross=East", "--keymap", "Circle=South"]
     return args + games.options(game.key, settings)
@@ -52,7 +98,9 @@ def main():
     extra = sys.argv[2:]
     game = system.Game(path)
     settings = store.Settings()
-    games = store.Games()
+    profile = store.Profiles(settings).current()
+    games = store.Games(profile["id"])
+    work = store.work_dir(profile["id"])     # Saves, trophies; caches shared by all profiles.
 
     mounts = "/data=" + system.DATA_DIR
     if system.mounted(system.USB_MOUNT):
@@ -63,10 +111,10 @@ def main():
     if settings["fps_counter"]:
         os.environ["KYTY_FPS_COUNTER"] = "1"     # Patch 0005: FPS in the bottom-left corner.
     os.makedirs(system.DATA_DIR, exist_ok=True)
-    os.makedirs(WORK, exist_ok=True)
-    os.chdir(WORK)
+    os.chdir(work)
+    system.set_controller_mic(settings["controller_mic"])
 
-    args = [KYTY, "--game", path, "--fullscreen", "--hide-cursor"] + kyty_options(settings, games, game) + extra
+    args = [KYTY, "--game", path, "--fullscreen", "--hide-cursor"] + kyty_options(settings, games, game, profile) + extra
     print("ps5-launch: " + " ".join(args), flush=True)
     try:
         os.remove(PAUSED)
@@ -82,7 +130,7 @@ def main():
         store.write_private(STATE, json.dumps(state) + "\n")
     except OSError:
         pass
-    code = child.wait()
+    code, _ = wait_watching_memory(child)
     played = time.monotonic() - started
     try:
         with open(PAUSED) as f:
