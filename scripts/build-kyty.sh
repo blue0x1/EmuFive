@@ -68,7 +68,7 @@ cp -a "$SRC/$BUILD_DIR/assets" "$stage/kytyps5/"
 cp "$SRC/LICENSE" "$stage/kytyps5/LICENSE"
 {
     printf 'KytyPS5 %s, built for -march=btver2\n' "$version"
-    printf 'Source: %s at %s with these patches from PS5 on PS4:\n' "$KYTY_URL" "$KYTY_COMMIT"
+    printf 'Source: %s at %s with these patches from EmuFive:\n' "$KYTY_URL" "$KYTY_COMMIT"
     (cd "$PATCHES" && ls ./*.patch | sed 's|^\./|  |')
 } > "$stage/kytyps5/VERSION"
 cp -a "$PATCHES" "$stage/kytyps5/patches"

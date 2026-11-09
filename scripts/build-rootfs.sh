@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Copyright (C) 2026 Chokri Hammedi (blue0x1) <https://github.com/blue0x1>
-# Builds out/ps5-ps4-rootfs.tar.xz, the PS5 on PS4 system for PS4 Multiboot.
+# Builds out/ps5-ps4-rootfs.tar.xz, the EmuFive system for PS4 Multiboot.
 #   scripts/build-kyty.sh && scripts/build-rootfs.sh
 # PS4_MESA defaults to ../PS4-Multiboot/out/ps4-mesa.tar.xz (make mesa there),
 # KYTY to out/kytyps5-ps4.tar.xz (scripts/build-kyty.sh).
@@ -10,7 +10,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BUILD="$ROOT/build"
 OUT="$ROOT/out"
 IMAGE=ps5-on-ps4-rootfs
-NAME="PS5 on PS4"
+NAME="EmuFive"
 ARCHIVE=ps5-ps4-rootfs.tar.xz
 PS4_MESA="${PS4_MESA:-$ROOT/../PS4-Multiboot/out/ps4-mesa.tar.xz}"
 KYTY="${KYTY:-$OUT/kytyps5-ps4.tar.xz}"

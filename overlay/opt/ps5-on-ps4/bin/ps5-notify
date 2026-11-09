@@ -38,7 +38,7 @@ def main():
     ui.S = scale
     text = ui.Text(settings["font"], settings["text_size"] / 100)
     w, h = int(380 * scale), int(86 * scale)
-    window = video.Window("PS5 on PS4", size=(w, h), position=(int(28 * scale), int(28 * scale)),
+    window = video.Window("EmuFive", size=(w, h), position=(int(28 * scale), int(28 * scale)),
                           tooltip=True, always_on_top=True, skip_taskbar=True)
     renderer = video.Renderer(window, accelerated=0)
     surface = pygame.Surface((w, h), pygame.SRCALPHA)

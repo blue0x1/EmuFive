@@ -4,7 +4,7 @@ Subject: [PATCH] presentation: a small FPS counter in the bottom-left corner
 KYTY_FPS_COUNTER=1 shows the game's frames per second in a small box in the
 bottom-left corner, green, yellow or red like the performance panel. It only
 counts the guest's flips, so it costs next to nothing, unlike the full panel
-(--perf-overlay), and it hides while that panel shows. The PS5 on PS4 home
+(--perf-overlay), and it hides while that panel shows. The EmuFive home
 screen turns it on with "Show FPS counter" in Settings.
 ---
 diff --git a/src/graphics/presentation/performanceOverlay.cpp b/src/graphics/presentation/performanceOverlay.cpp

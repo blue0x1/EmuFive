@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Copyright (C) 2026 Chokri Hammedi (blue0x1) <https://github.com/blue0x1>
-# The PS5 on PS4 home screen: the PS5 games as a row of tiles over each game's
+# The EmuFive home screen: the PS5 games as a row of tiles over each game's
 # own art, your profile, Wi-Fi with an on-screen keyboard, Settings, the PS
 # button's quick menu, and power. Everything works with a controller, and it is
 # drawn at the TV's own resolution. The games come from:
@@ -1869,7 +1869,7 @@ class SettingsScreen(RowList):
     def rows_about(self):
         h = self.home
         return [Row("action", "Open About", ok=lambda: h.push(AboutPage(h))),
-                Row("info", "PS5 on PS4, by Chokri Hammedi (blue0x1). github.com/blue0x1"),
+                Row("info", "EmuFive, by Chokri Hammedi (blue0x1). github.com/blue0x1"),
                 Row("info", "The credits of everything it is built with.")]
 
     # Input and drawing ------------------------------------------------------------------------
@@ -3218,7 +3218,7 @@ class Home:
             size = (int(w), int(ht))
         self.overscan = self.settings["overscan"]
         self.real_screen, self.screen = ui.init_display(size, args.windowed or size is not None, self.overscan)
-        pygame.display.set_caption("PS5 on PS4")
+        pygame.display.set_caption("EmuFive")
         pygame.mouse.set_visible(False)
         pygame.key.set_repeat(320, 70)
         pygame.key.start_text_input()
@@ -4176,7 +4176,7 @@ class Home:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="PS5 on PS4 home screen")
+    parser = argparse.ArgumentParser(description="EmuFive home screen")
     parser.add_argument("--games", default=system.USB_GAMES, help="the USB drive's folder of PS5 games")
     parser.add_argument("--ps4-games", default=system.PS4_GAMES, help="the PS4 drive's folder of PS5 games")
     parser.add_argument("--pc-test", default=None, metavar="DIR",

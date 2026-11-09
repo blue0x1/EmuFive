@@ -187,7 +187,7 @@ class AboutArt:
         pygame.draw.rect(page, FRAME, pygame.Rect(ui.px(cx - 360), ui.px(70), ui.px(720), ui.px(520)), ui.px(6))
         pygame.draw.rect(page, FRAME_INNER, pygame.Rect(ui.px(cx - 348), ui.px(82), ui.px(696), ui.px(496)),
                          max(1, ui.px(2)))
-        _gold(page, "PS5 ON PS4", 44, cx, 96, "midtop", 0.14)
+        _gold(page, "EMUFIVE", 44, cx, 96, "midtop", 0.14)
         # The author.
         pygame.draw.rect(page, (176, 112, 52), pygame.Rect(ui.px(cx - 266), ui.px(176), ui.px(140), ui.px(140)))
         page.blit(self._pixel_avatar(ui.px(128)), (ui.px(cx - 260), ui.px(182)))

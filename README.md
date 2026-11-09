@@ -1,4 +1,4 @@
-<h1 align="center">PS5 on PS4</h1>
+<h1 align="center">EmuFive</h1>
 
 <p align="center">
   <img src="https://img.shields.io/badge/platform-PS4-003791?logo=playstation&logoColor=white" alt="Platform: PS4">
@@ -21,7 +21,7 @@ Created by **[Chokri Hammedi (blue0x1)](https://github.com/blue0x1)**. Built on 
   - `0002`: a C library for homebrew. PS5 homebrew built with the ps5-native-app-boilerplate ships a stand-in `sce_module/libc.prx` whose functions all return 0 (the console uses its own C library), so in KytyPS5 its `malloc` failed. The patch adds the C library functions such homebrew imports and uses them only for such a stand-in module.
   - `0003`: more for homebrew: files and folders, system calls, the foreground user, and extra mounts (`KYTY_MOUNTS`).
   - `0004`: PS5 code on the PS4's CPU. Every AVX2, FMA and BMI2 instruction is rewritten into SSE4.2/AVX/BMI1 code when a module loads; one that cannot be rewritten there is replaced the first time it runs. See [The CPU problem](#the-cpu-problem).
-- **PS5 on PS4** packs all of it into a small Linux system that boots straight into the emulator, full screen, with no desktop. It installs through PS4 Multiboot like any other system.
+- **EmuFive** packs all of it into a small Linux system that boots straight into the emulator, full screen, with no desktop. It installs through PS4 Multiboot like any other system.
 
 ## The CPU problem
 
@@ -40,7 +40,7 @@ The Jaguar is still far slower than the PS5's CPU, and the replacements add to t
 | Vulkan on the PS4 GPU meets KytyPS5's requirements | Done (`RADV_EXPERIMENTAL=sparse`) |
 | KytyPS5 built for the PS4's CPU | Done (`KYTY_HOST_ARCH=btver2`) |
 | KytyPS5 starts on the PS4 and sets up the GPU | Done, PS4 Pro |
-| PS5 on PS4 system image, installs through PS4 Multiboot | Done, PS4 Pro |
+| EmuFive system image, installs through PS4 Multiboot | Done, PS4 Pro |
 | A PS5 homebrew app without AVX2 runs and draws | Done: Snes9x PS5 2.11 rebuilt for btver2, PS4 Pro |
 | Controller, `/data` and USB storage, loading a game in that app | Done on a PC test build (same patches); PS4 next |
 | AVX2, BMI2 and FMA translation for game code | Done (`0004`), checked on a PC; first game test on the PS4 next |
@@ -61,7 +61,7 @@ scripts/build-rootfs.sh    # out/ps5-ps4-rootfs.tar.xz
 ## Installing
 
 1. Copy `ps5-ps4-rootfs.tar.xz` to `/user/home/` on the PS4 (GoldHEN FTP).
-2. Start PS4 Multiboot and install **PS5 on PS4** from the menu.
+2. Start PS4 Multiboot and install **EmuFive** from the menu.
 3. Put your games in one of the places below. A game is a folder with `eboot.bin` (and `sce_sys`), or a ZArchive (`.zar`) dump.
 
 The system starts in the home screen and needs no keyboard:

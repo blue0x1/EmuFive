@@ -1,5 +1,5 @@
 # Copyright (C) 2026 Chokri Hammedi (blue0x1) <https://github.com/blue0x1>
-# The PS5 on PS4 system: Debian, X, the PS4 Mesa (Vulkan on the PS4 GPU) and
+# The EmuFive system: Debian, X, the PS4 Mesa (Vulkan on the PS4 GPU) and
 # KytyPS5 built for the PS4's CPU, starting straight into the emulator. Built
 # with `docker build` and exported as a rootfs archive by
 # scripts/build-rootfs.sh; PS4 Multiboot installs it and adds the PS4 kernel

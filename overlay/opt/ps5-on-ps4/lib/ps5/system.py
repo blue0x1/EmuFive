@@ -848,7 +848,7 @@ def system_info():
         model = "PS4"
     info.append(("Console", model + (f", {cores} CPU cores" if cores else "")))
     info.append(("KytyPS5", read_first("/opt/kytyps5/VERSION").replace("KytyPS5 ", "") or "unknown"))
-    info.append(("PS5 on PS4", read_first("/etc/ps5-on-ps4-release") or "unknown"))
+    info.append(("EmuFive", read_first("/etc/ps5-on-ps4-release") or "unknown"))
     info.append(("Linux", os.uname().release))
     addresses = ip_addresses()
     info.append(("IP address", ", ".join(a for _, a in addresses) or "not connected"))
