@@ -1,0 +1,12 @@
+# Copyright (C) 2026 Chokri Hammedi (blue0x1) <https://github.com/blue0x1>
+# Clears the game logs every 24 hours (the PS4 has no cron; a systemd timer does the same job).
+[Unit]
+Description=Clear the game logs every 24 hours
+
+[Timer]
+OnBootSec=24h
+OnUnitActiveSec=24h
+Persistent=true
+
+[Install]
+WantedBy=timers.target

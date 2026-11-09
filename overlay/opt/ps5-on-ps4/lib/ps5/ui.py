@@ -223,6 +223,90 @@ class Text:
 # --------------------------------------------------------------------------------------------
 # Canvas: drawing in layout units.
 
+ALPHA_RECTS = {}
+
+# Smooth edges. pygame draws shapes with hard, stepped edges, which show on a big TV. Shapes are
+# drawn 4 times larger and scaled down (edge pixels get partial light), and kept: the corners of
+# rounded rectangles, and small icon pieces (circles, arcs, lines, polygons).
+SMOOTH = 4
+SMOOTH_SPRITES = {}
+
+
+def _keep(key, make):
+    sprite = SMOOTH_SPRITES.get(key)
+    if sprite is None:
+        if len(SMOOTH_SPRITES) > 700:
+            SMOOTH_SPRITES.clear()
+        sprite = SMOOTH_SPRITES[key] = make()
+    return sprite
+
+
+def _smooth(size, draw, color):
+    """A sprite of `size` pixels: draw(big surface, factor) in white at 4x, scaled down, in color."""
+    w, h = max(1, size[0]), max(1, size[1])
+    big = pygame.Surface((w * SMOOTH, h * SMOOTH), pygame.SRCALPHA)
+    big.fill((255, 255, 255, 0))          # Clear white: no dark fringe when scaled down.
+    draw(big, SMOOTH)
+    sprite = pygame.transform.smoothscale(big, (w, h))
+    color = tuple(color) + ((255,) if len(color) == 3 else ())
+    if color != (255, 255, 255, 255):
+        tint = pygame.Surface((w, h), pygame.SRCALPHA)
+        tint.fill(color)
+        sprite.blit(tint, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+    return sprite
+
+
+def _corners(radius, width, color):
+    """The corners (top left, top right, bottom left, bottom right) of a smooth rounded rectangle."""
+    def make():
+        side = radius * 2
+        disc = _smooth((side, side), lambda big, k: pygame.draw.rect(
+            big, (255, 255, 255, 255), big.get_rect(), width * k, border_radius=radius * k), color)
+        return [disc.subsurface((x, y, radius, radius)) for y in (0, radius) for x in (0, radius)]
+    return _keep(("corners", radius, width, tuple(color)), make)
+
+
+def draw_round(surface, color, rect, radius, width=0, replace=False):
+    """A rounded rectangle (`width` 0: filled) with smooth corners, in pixels. `replace`: on a
+    see-through layer or mask, the corners replace what is there instead of being drawn over it."""
+    rect = pygame.Rect(rect)
+    radius = max(0, min(int(radius), rect.w // 2, rect.h // 2))
+    if radius < 2 or (width and width >= radius):
+        pygame.draw.rect(surface, color, rect, width, border_radius=radius)
+        return
+    x, y, w, h, r = rect.x, rect.y, rect.w, rect.h, radius
+    if width:
+        for part in ((x + r, y, w - 2 * r, width), (x + r, y + h - width, w - 2 * r, width),
+                     (x, y + r, width, h - 2 * r), (x + w - width, y + r, width, h - 2 * r)):
+            if part[2] > 0 and part[3] > 0:
+                pygame.draw.rect(surface, color, part)
+    else:
+        for part in ((x, y + r, w, h - 2 * r), (x + r, y, w - 2 * r, r), (x + r, y + h - r, w - 2 * r, r)):
+            if part[2] > 0 and part[3] > 0:
+                pygame.draw.rect(surface, color, part)
+    tl, tr, bl, br = _corners(r, width, color)
+    for piece, at in ((tl, (x, y)), (tr, (x + w - r, y)), (bl, (x, y + h - r)), (br, (x + w - r, y + h - r))):
+        if replace:
+            surface.fill(tuple(color[:3]) + (0,), (at, (r, r)))     # Its color, clear: no dark edge.
+        surface.blit(piece, at)
+
+
+def round_mask(w, h, radius, width=0):
+    """A white mask (alpha) of a rounded rectangle with smooth edges, to cut pictures with
+    BLEND_RGBA_MIN or BLEND_RGBA_MULT."""
+    mask = pygame.Surface((max(1, w), max(1, h)), pygame.SRCALPHA)
+    mask.fill((255, 255, 255, 0))
+    draw_round(mask, (255, 255, 255, 255), (0, 0, w, h), radius, width, True)
+    return mask
+
+
+def circle_mask(size):
+    """A white mask (alpha) of a circle `size` pixels across, with a smooth edge."""
+    return _keep(("circle mask", size), lambda: _smooth((size, size), lambda big, k: pygame.draw.circle(
+        big, (255, 255, 255, 255), (size * k // 2, size * k // 2), size * k // 2), (255, 255, 255)))
+
+
+
 class Canvas:
     def __init__(self, surface, text):
         self.s = surface
@@ -232,33 +316,79 @@ class Canvas:
     def rect(self, color, x, y, w, h, radius=0, width=0):
         r = pygame.Rect(px(x), px(y), max(1, px(x + w) - px(x)), max(1, px(y + h) - px(y)))
         if len(color) == 4 and color[3] < 255:
-            layer = pygame.Surface(r.size, pygame.SRCALPHA)
-            pygame.draw.rect(layer, color, layer.get_rect(), max(0, px(width)) if width else 0,
-                             border_radius=px(radius))
+            # See-through rectangles are made once and kept (the PS4's CPU is slow).
+            key = (r.size, tuple(color), px(radius), px(width) if width else 0)
+            layer = ALPHA_RECTS.get(key)
+            if layer is None:
+                layer = pygame.Surface(r.size, pygame.SRCALPHA)
+                layer.fill(tuple(color[:3]) + (0,))
+                draw_round(layer, color, layer.get_rect(), px(radius), max(0, px(width)) if width else 0, True)
+                if len(ALPHA_RECTS) > 400:
+                    ALPHA_RECTS.clear()
+                ALPHA_RECTS[key] = layer
             self.s.blit(layer, r.topleft)
         else:
-            pygame.draw.rect(self.s, color[:3], r, max(1, px(width)) if width else 0, border_radius=px(radius))
+            draw_round(self.s, color[:3], r, px(radius), max(1, px(width)) if width else 0)
         return r
 
-    def circle(self, color, x, y, r, width=0):
+    # Circles, lines, polygons and arcs: smooth sprites, kept by shape and color. A shape's
+    # position keeps its fraction of a pixel (in 1/4 pixels), so it sits where it should.
+
+    def _piece(self, color, key, left, top, right, bottom, draw):
+        """Draws a smooth shape over the pixel box (left, top)-(right, bottom); draw(big, k, ox, oy)
+        draws it 4x larger, with (ox, oy) the box's corner in big pixels."""
+        x0, y0 = int(math.floor(left)) - 1, int(math.floor(top)) - 1
+        x1, y1 = int(math.ceil(right)) + 2, int(math.ceil(bottom)) + 2
+        fx, fy = round((left - x0) * SMOOTH), round((top - y0) * SMOOTH)
+        size = (x1 - x0, y1 - y0)
+        sprite = _keep(key + (size, fx, fy, tuple(color)),
+                       lambda: _smooth(size, lambda big, k: draw(big, k, fx, fy), color))
+        self.s.blit(sprite, (x0, y0))
+
+    def circle(self, color, x, y, r, width=0, fast=False):
+        """`fast`: plain pygame (for things that move and change color every frame, the orbs)."""
         thick = max(1, px(width)) if width else 0
-        if len(color) == 4 and color[3] < 255:
-            radius = max(1, px(r))
-            layer = pygame.Surface((radius * 2 + 2, radius * 2 + 2), pygame.SRCALPHA)
-            pygame.draw.circle(layer, color, (radius + 1, radius + 1), radius, thick)
-            self.s.blit(layer, (px(x) - radius - 1, px(y) - radius - 1))
-        else:
+        if fast:
             pygame.draw.circle(self.s, color[:3], (px(x), px(y)), max(1, px(r)), thick)
+            return
+        cx, cy, radius = x * S, y * S, max(1.0, r * S)
+        self._piece(color, ("circle", round(radius * SMOOTH), thick), cx - radius, cy - radius,
+                    cx + radius, cy + radius,
+                    lambda big, k, ox, oy: pygame.draw.circle(
+                        big, (255, 255, 255, 255), (ox + round(radius * k), oy + round(radius * k)),
+                        round(radius * k), thick * k))
 
     def line(self, color, x1, y1, x2, y2, width=1):
-        pygame.draw.line(self.s, color, (px(x1), px(y1)), (px(x2), px(y2)), max(1, px(width)))
+        a, b = (x1 * S, y1 * S), (x2 * S, y2 * S)
+        thick = max(1, px(width))
+        left, top = min(a[0], b[0]) - thick, min(a[1], b[1]) - thick
+        right, bottom = max(a[0], b[0]) + thick, max(a[1], b[1]) + thick
+        rel = (round((a[0] - left) * SMOOTH), round((a[1] - top) * SMOOTH),
+               round((b[0] - left) * SMOOTH), round((b[1] - top) * SMOOTH))
+        self._piece(color, ("line", rel, thick), left, top, right, bottom,
+                    lambda big, k, ox, oy: pygame.draw.line(
+                        big, (255, 255, 255, 255), (ox + rel[0], oy + rel[1]), (ox + rel[2], oy + rel[3]),
+                        thick * k))
 
     def polygon(self, color, points, width=0):
-        pygame.draw.polygon(self.s, color, [(px(x), px(y)) for x, y in points],
-                            max(1, px(width)) if width else 0)
+        pts = [(x * S, y * S) for x, y in points]
+        left, top = min(p[0] for p in pts), min(p[1] for p in pts)
+        right, bottom = max(p[0] for p in pts), max(p[1] for p in pts)
+        rel = tuple((round((p[0] - left) * SMOOTH), round((p[1] - top) * SMOOTH)) for p in pts)
+        thick = max(1, px(width)) if width else 0
+        self._piece(color, ("polygon", rel, thick), left, top, right, bottom,
+                    lambda big, k, ox, oy: pygame.draw.polygon(
+                        big, (255, 255, 255, 255), [(ox + p[0], oy + p[1]) for p in rel], thick * k))
 
     def arc(self, color, x, y, w, h, start, stop, width=1):
-        pygame.draw.arc(self.s, color, pygame.Rect(px(x), px(y), px(w), px(h)), start, stop, max(1, px(width)))
+        thick = max(1, px(width))
+        left, top, ww, hh = x * S, y * S, w * S, h * S
+        size = (round(ww * SMOOTH), round(hh * SMOOTH))
+        self._piece(color, ("arc", size, round(start, 3), round(stop, 3), thick), left, top,
+                    left + ww, top + hh,
+                    lambda big, k, ox, oy: pygame.draw.arc(
+                        big, (255, 255, 255, 255), pygame.Rect(ox, oy, size[0], size[1]), start, stop,
+                        thick * k))
 
     def blit(self, surface, x, y, anchor="topleft"):
         r = surface.get_rect(**{anchor: (px(x), px(y))})
@@ -293,7 +423,9 @@ class Canvas:
 # --------------------------------------------------------------------------------------------
 # Sounds, made here (no files): a tick when moving, a chime when choosing, a low note back.
 
-SOUND_STYLES = {"chimes": "Soft chimes", "clicks": "Clicks", "retro": "Retro 8-bit"}
+SOUND_STYLES = {"crystal": "Crystal", "chimes": "Soft chimes", "clicks": "Clicks", "retro": "Retro 8-bit"}
+# Recorded styles: WAV files (made in code, not samples) in share/sounds/<style>/.
+SOUND_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "share", "sounds")
 
 
 class Sounds:
@@ -309,7 +441,9 @@ class Sounds:
             return
         self.style = style
         v = max(0, min(100, volume)) / 100
-        if style == "clicks":
+        if style == "crystal" and self.load_style(style, v):
+            pass
+        elif style == "clicks":
             self.move = self.tone([(2600, 0.012)], 0.22 * v, "click")
             self.select = self.tone([(1800, 0.018), (2600, 0.02)], 0.25 * v, "click")
             self.back = self.tone([(1400, 0.02)], 0.22 * v, "click")
@@ -343,6 +477,20 @@ class Sounds:
                     envelope = math.exp(-t * 260) * min(1.0, n / 20)
                 samples.append(int(32767 * volume * envelope * phase))
         return pygame.mixer.Sound(buffer=samples.tobytes())
+
+    def load_style(self, style, volume):
+        """Loads a recorded style; False when its files are missing (then chimes are used)."""
+        sounds = {}
+        for name in ("move", "select", "back", "error"):
+            try:
+                sound = pygame.mixer.Sound(os.path.join(SOUND_DIR, style, name + ".wav"))
+            except (pygame.error, FileNotFoundError):
+                return False
+            sound.set_volume(volume)
+            sounds[name] = sound
+        for name, sound in sounds.items():
+            setattr(self, name, sound)
+        return True
 
     def play(self, name):
         if self.ok and (self.enabled or name == "test"):
@@ -569,9 +717,7 @@ def draw_hints(c, hints, x=64, y=None, soft=None, dim=None):
 def rounded_image(surface, size_px, radius_px):
     """A copy of `surface` scaled to a square of size_px with rounded corners."""
     tile = pygame.transform.smoothscale(surface, (size_px, size_px)).convert_alpha()
-    mask = pygame.Surface((size_px, size_px), pygame.SRCALPHA)
-    pygame.draw.rect(mask, (255, 255, 255, 255), mask.get_rect(), border_radius=radius_px)
-    tile.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    tile.blit(round_mask(size_px, size_px, radius_px), (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
     return tile
 
 
@@ -581,9 +727,7 @@ def circle_image(surface, size_px):
     side = min(w, h)
     square = surface.subsurface(pygame.Rect((w - side) // 2, (h - side) // 2, side, side))
     image = pygame.transform.smoothscale(square, (size_px, size_px)).convert_alpha()
-    mask = pygame.Surface((size_px, size_px), pygame.SRCALPHA)
-    pygame.draw.circle(mask, (255, 255, 255, 255), (size_px // 2, size_px // 2), size_px // 2)
-    image.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    image.blit(circle_mask(size_px), (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
     return image
 
 
@@ -602,6 +746,12 @@ BUILTIN_AVATARS = len(AVATAR_SHAPES)
 
 
 def builtin_avatar(index, size_px):
+    """A built-in avatar, drawn 4 times larger and scaled down for smooth edges."""
+    big = _builtin_avatar(index, size_px * SMOOTH)
+    return pygame.transform.smoothscale(big, (size_px, size_px))
+
+
+def _builtin_avatar(index, size_px):
     index %= BUILTIN_AVATARS
     a, b = AVATAR_COLORS[index]
     surface = pygame.Surface((size_px, size_px), pygame.SRCALPHA)

@@ -1,0 +1,118 @@
+#!/usr/bin/env python3
+# Copyright (C) 2026 Chokri Hammedi (blue0x1) <https://github.com/blue0x1>
+# Keeps Bluetooth controllers working (ps5-bt-watchdog.service, as root).
+#
+# Only gentle fixes, that never touch the chip. The PS4's Bluetooth is one chip with the Wi-Fi
+# (Marvell): resetting the Bluetooth side (unbinding it from its driver) could fail and freeze
+# the Wi-Fi with it, until the PS4 was restarted. So the chip is never reset here.
+#
+# Every few seconds this checks, and repairs:
+#   - a dead link: Bluetooth calls a controller connected but no input comes from it. It is
+#     closed, so the controller can connect again with its PS button.
+#   - a search for controllers that is stuck when nobody asked for one: it is stopped, since it
+#     keeps paired controllers from reconnecting.
+import glob
+import os
+import signal
+import subprocess
+import sys
+import time
+
+REQUEST = "/run/ps5-pad-pair/search-until"       # A search for new controllers was asked for.
+CHECK_EVERY = 5            # Seconds.
+STUCK_SEARCH = 45          # Seconds of searching nobody asked for.
+DEAD_LINK = 8              # Seconds "connected" without input before the link is closed.
+PAD_NAMES = ("Wireless Controller", "DualSense")
+
+
+def log(text):
+    print("ps5-bt-watchdog: " + text, flush=True)
+
+
+def run(args, timeout=10):
+    try:
+        done = subprocess.run(args, capture_output=True, text=True, timeout=timeout)
+        return done.returncode, done.stdout
+    except (OSError, subprocess.TimeoutExpired):
+        return 1, ""
+
+
+def bluetooth_pads():
+    """MAC addresses of the PlayStation controllers connected over Bluetooth now."""
+    found = set()
+    for supply in glob.glob("/sys/class/power_supply/ps-controller-battery-*"):
+        device = os.path.basename(os.path.realpath(os.path.join(supply, "device")))
+        if device.split(":")[0].upper() == "0005":
+            found.add(supply.rsplit("-", 1)[-1].upper())
+    return found
+
+
+def searching():
+    code, out = run(["bluetoothctl", "show"], 5)
+    return code == 0 and "Discovering: yes" in out
+
+
+def search_requested():
+    try:
+        with open(REQUEST) as f:
+            return int(f.read().strip() or 0) > time.time()
+    except (OSError, ValueError):
+        return False
+
+
+class Watchdog:
+    def __init__(self):
+        self.search_since = None
+        self.dead_since = {}        # mac -> when Bluetooth called it connected with no input
+
+    def check(self):
+        pads = bluetooth_pads()
+        self.check_dead_links(pads)
+        # A search nobody asked for keeps paired controllers from reconnecting. ps5-pad-pair
+        # searches by itself while no controller is connected, so only then is it left alone.
+        if pads and searching() and not search_requested():
+            self.search_since = self.search_since or time.monotonic()
+            if time.monotonic() - self.search_since > STUCK_SEARCH:
+                log("a search nobody asked for is stuck; stopping it")
+                run(["bluetoothctl", "scan", "off"], 8)
+                self.search_since = None
+        else:
+            self.search_since = None
+
+    def check_dead_links(self, pads):
+        """A controller Bluetooth calls connected, with no input from it: the link is closed (it
+        would keep the controller from connecting again)."""
+        code, out = run(["bluetoothctl", "devices", "Connected"], 5)
+        linked = set()
+        for line in out.splitlines() if code == 0 else []:
+            parts = line.split(" ", 2)
+            if len(parts) == 3 and parts[0] == "Device" and any(n in parts[2] for n in PAD_NAMES):
+                linked.add(parts[1].upper())
+        now = time.monotonic()
+        for mac in list(self.dead_since):
+            if mac not in linked or mac in pads:
+                self.dead_since.pop(mac)
+        for mac in linked - pads:
+            since = self.dead_since.setdefault(mac, now)
+            if now - since < DEAD_LINK:
+                continue
+            self.dead_since.pop(mac)
+            log(f"{mac}: connected but no input for {DEAD_LINK} s; closing the link")
+            run(["bluetoothctl", "disconnect", mac], 10)
+
+    def loop(self):
+        log("watching Bluetooth controllers (gentle fixes only; the chip is never reset)")
+        while True:
+            try:
+                self.check()
+            except Exception as error:      # The watchdog itself must never stop.
+                log(f"check failed: {error}")
+            time.sleep(CHECK_EVERY)
+
+
+if __name__ == "__main__":
+    signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
+    # "Pair a new controller" (ps5-admin pair) still sends SIGUSR1: nothing to do now (the
+    # search itself is ps5-pad-pair's), but the signal must not stop the watchdog.
+    signal.signal(signal.SIGUSR1, lambda *_: None)
+    sys.exit(Watchdog().loop())

@@ -4,11 +4,13 @@
 # (DualShock 4) or Create + PS (DualSense) until the light bar double-blinks.
 # A paired controller reconnects by itself when its PS button is pressed.
 #
-# It searches for new controllers only when none is paired yet, or for 60
-# seconds after "Pair a new controller" in Settings (ps5-admin pair). While
-# it searches, the PS4's Bluetooth (one chip with the Wi-Fi) answers a
-# controller that tries to reconnect late or not at all, so a paired
-# controller must not find it searching.
+# It searches while no controller is connected over Bluetooth (its input
+# working), and for 60 seconds after "Pair a new controller" in Settings
+# (ps5-admin pair). While it searches, the PS4's Bluetooth (one chip with the
+# Wi-Fi) answers a controller that reconnects late, so between searches it
+# waits 10 seconds while a paired controller is away: pressing PS gets in.
+# A paired controller answers a search only in pairing mode (SHARE + PS): it
+# has dropped its old link, so the PS4 forgets it and pairs it again, by itself.
 NAMES='Wireless Controller'
 REQUEST=/run/ps5-pad-pair/search-until
 
@@ -46,6 +48,34 @@ paired_controllers() {
     bluetoothctl devices Paired 2>/dev/null | grep -c "$NAMES"
 }
 
+# True while a PlayStation controller's input comes over Bluetooth (bus 0005).
+bluetooth_pad_connected() {
+    for supply in /sys/class/power_supply/ps-controller-battery-*; do
+        [ -e "$supply" ] || continue
+        case "$(basename "$(readlink -f "$supply/device")")" in
+            0005:*) return 0 ;;
+        esac
+    done
+    return 1
+}
+
+pair_controller() {  # mac
+    # Trusted first: the controller opens its input connection as soon as
+    # it is paired, and an untrusted one would be asked to wait.
+    bluetoothctl trust "$1" > /dev/null 2>&1
+    # This call brings its own agent too, in case the long-running one was lost.
+    result="$(timeout 30 bluetoothctl --agent NoInputNoOutput pair "$1" 2>&1 | tail -n 2 | tr '\n' ' ')"
+    log "pair $1: $result"
+    if bluetoothctl info "$1" 2>/dev/null | grep -q "Bonded: yes"; then
+        bluetoothctl connect "$1" > /dev/null 2>&1
+        log "paired and connected $1"
+        rm -f "$REQUEST"
+    else
+        log "could not pair $1, trying again on the next search"
+        bluetoothctl remove "$1" > /dev/null 2>&1
+    fi
+}
+
 search_requested() {
     [ -f "$REQUEST" ] || return 1
     until="$(cat "$REQUEST" 2>/dev/null)"
@@ -59,36 +89,38 @@ while :; do
         checked=$(date +%s)
         fast_connectable || { log "Bluetooth settings were reset; setting them again"; make_connectable; }
     fi
-    if ! search_requested; then
-        if [ "$(paired_controllers)" -gt 0 ] || \
-           bluetoothctl devices Connected 2>/dev/null | grep -q "$NAMES"; then
-            sleep 3
-            continue
-        fi
+    if ! search_requested && bluetooth_pad_connected; then
+        searching=""
+        sleep 3
+        continue
+    fi
+    if [ -z "$searching" ]; then
+        log "searching for controllers (none connected over Bluetooth)"
+        searching=yes
     fi
 
-    # Search for a few seconds, then try the controllers that showed up and are
-    # not bonded yet. (BlueZ clears their signal strength when the search
-    # stops, so it cannot tell which ones answered just now.)
-    log "searching for controllers"
-    bluetoothctl --timeout 10 scan on > /dev/null 2>&1
-    bluetoothctl devices 2>/dev/null | grep "$NAMES" | while read -r _ mac _; do
-        bluetoothctl info "$mac" 2>/dev/null | grep -q "Bonded: yes" && continue
-        log "found $mac, pairing"
-        # Trusted first: the controller opens its input connection as soon as
-        # it is paired, and an untrusted one would be asked to wait.
-        bluetoothctl trust "$mac" > /dev/null 2>&1
-        # This call brings its own agent too, in case the long-running one was lost.
-        result="$(timeout 30 bluetoothctl --agent NoInputNoOutput pair "$mac" 2>&1 | tail -n 2 | tr '\n' ' ')"
-        log "pair $mac: $result"
-        if bluetoothctl info "$mac" 2>/dev/null | grep -q "Bonded: yes"; then
-            bluetoothctl connect "$mac" > /dev/null 2>&1
-            log "paired and connected $mac"
-            rm -f "$REQUEST"
-        else
-            log "could not pair $mac, trying again on the next search"
+    # Search for a few seconds; the controllers that answered are in its output
+    # (only those: Bluetooth also lists every device it remembers).
+    seen="$(timeout 15 bluetoothctl --timeout 10 scan on 2>&1 \
+        | sed -n 's/.*Device \([0-9A-Fa-f:]\{17\}\).*/\1/p' | tr a-f A-F | sort -u)"
+    for mac in $seen; do
+        info="$(bluetoothctl info "$mac" 2>/dev/null)"
+        echo "$info" | grep -q "Name: .*$NAMES" || continue
+        echo "$info" | grep -q "Connected: yes" && continue
+        if echo "$info" | grep -q "Bonded: yes"; then
+            # Paired, yet it answered a search: it is in pairing mode and has
+            # dropped its old link. Forget it here too and pair it again.
+            log "$mac is in pairing mode (SHARE + PS): pairing it again"
             bluetoothctl remove "$mac" > /dev/null 2>&1
+            timeout 10 bluetoothctl --timeout 6 scan on > /dev/null 2>&1
+        else
+            log "found $mac, pairing"
         fi
+        pair_controller "$mac"
     done
+    if ! search_requested && [ "$(paired_controllers)" -gt 0 ]; then
+        sleep 10        # Room for a paired controller to reconnect with its PS button.
+        continue
+    fi
     sleep 2
 done

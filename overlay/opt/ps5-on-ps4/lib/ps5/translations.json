@@ -4606,5 +4606,293 @@
 "de": "Verbinde die PS4 zuerst mit einem Netzwerk.",
 "it": "Collega prima la PS4 a una rete.",
 "pt": "Conecte o PS4 a uma rede primeiro."
+},
+"Selected": {
+"ar": "المحدد",
+"fr": "Sélectionné",
+"tr": "Seçili",
+"es": "Seleccionado",
+"de": "Ausgewählt",
+"it": "Selezionato",
+"pt": "Selecionado"
+},
+"Played": {
+"ar": "وقت اللعب",
+"fr": "Joué",
+"tr": "Oynanan",
+"es": "Jugado",
+"de": "Gespielt",
+"it": "Giocato",
+"pt": "Jogado"
+},
+"From": {
+"ar": "المصدر",
+"fr": "Source",
+"tr": "Kaynak",
+"es": "Origen",
+"de": "Quelle",
+"it": "Origine",
+"pt": "Origem"
+},
+"Preview": {
+"ar": "معاينة",
+"fr": "Aperçu",
+"tr": "Önizleme",
+"es": "Vista previa",
+"de": "Vorschau",
+"it": "Anteprima",
+"pt": "Prévia"
+},
+"Changes show here as you make them.": {
+"ar": "تظهر التغييرات هنا فور إجرائها.",
+"fr": "Les changements s'affichent ici au fur et à mesure.",
+"tr": "Değişiklikler yaptıkça burada görünür.",
+"es": "Los cambios se ven aquí al hacerlos.",
+"de": "Änderungen erscheinen hier sofort.",
+"it": "Le modifiche compaiono qui mentre le fai.",
+"pt": "As mudanças aparecem aqui na hora."
+},
+"Your name, avatar and profiles": {
+"ar": "اسمك وصورتك الرمزية وملفاتك الشخصية",
+"fr": "Votre nom, votre avatar et les profils",
+"tr": "Adınız, avatarınız ve profiller",
+"es": "Tu nombre, avatar y perfiles",
+"de": "Dein Name, Avatar und Profile",
+"it": "Il tuo nome, l'avatar e i profili",
+"pt": "Seu nome, avatar e perfis"
+},
+"Make the home screen yours": {
+"ar": "اجعل الشاشة الرئيسية على ذوقك",
+"fr": "Personnalisez l'écran d'accueil",
+"tr": "Ana ekranı kendinize göre yapın",
+"es": "Haz tuya la pantalla de inicio",
+"de": "Gestalte den Startbildschirm",
+"it": "Personalizza la schermata Home",
+"pt": "Deixe a tela inicial do seu jeito"
+},
+"Wi-Fi and network cable": {
+"ar": "Wi-Fi وكابل الشبكة",
+"fr": "Wi-Fi et câble réseau",
+"tr": "Wi-Fi ve ağ kablosu",
+"es": "Wi-Fi y cable de red",
+"de": "WLAN und Netzwerkkabel",
+"it": "Wi-Fi e cavo di rete",
+"pt": "Wi-Fi e cabo de rede"
+},
+"A shared folder on your PC": {
+"ar": "مجلد مشترك على الكمبيوتر",
+"fr": "Un dossier partagé sur votre PC",
+"tr": "PC'nizdeki paylaşılan klasör",
+"es": "Una carpeta compartida en tu PC",
+"de": "Ein freigegebener Ordner auf deinem PC",
+"it": "Una cartella condivisa sul tuo PC",
+"pt": "Uma pasta compartilhada no seu PC"
+},
+"The TV and headphones": {
+"ar": "التلفاز والسماعات",
+"fr": "La télé et le casque",
+"tr": "TV ve kulaklık",
+"es": "La tele y los auriculares",
+"de": "Fernseher und Kopfhörer",
+"it": "La TV e le cuffie",
+"pt": "A TV e os fones"
+},
+"Light bar, vibration and pairing": {
+"ar": "شريط الإضاءة والاهتزاز والإقران",
+"fr": "Barre lumineuse, vibration et association",
+"tr": "Işık çubuğu, titreşim ve eşleme",
+"es": "Barra de luz, vibración y vinculación",
+"de": "Lichtleiste, Vibration und Koppeln",
+"it": "Barra luminosa, vibrazione e associazione",
+"pt": "Barra de luz, vibração e pareamento"
+},
+"USB drive and PS4 drive": {
+"ar": "وحدة USB وقرص PS4",
+"fr": "Clé USB et disque de la PS4",
+"tr": "USB bellek ve PS4 diski",
+"es": "USB y disco de la PS4",
+"de": "USB-Laufwerk und PS4-Festplatte",
+"it": "Unità USB e disco della PS4",
+"pt": "Pendrive e disco do PS4"
+},
+"Settings for all games": {
+"ar": "إعدادات لكل الألعاب",
+"fr": "Réglages pour tous les jeux",
+"tr": "Tüm oyunlar için ayarlar",
+"es": "Ajustes para todos los juegos",
+"de": "Einstellungen für alle Spiele",
+"it": "Impostazioni per tutti i giochi",
+"pt": "Configurações para todos os jogos"
+},
+"Back up and restore game saves": {
+"ar": "النسخ الاحتياطي للحفظ واستعادته",
+"fr": "Sauvegarder et restaurer les parties",
+"tr": "Oyun kayıtlarını yedekle ve geri yükle",
+"es": "Copiar y restaurar partidas",
+"de": "Spielstände sichern und wiederherstellen",
+"it": "Backup e ripristino dei salvataggi",
+"pt": "Copiar e restaurar jogos salvos"
+},
+"Restart and turn off": {
+"ar": "إعادة التشغيل وإيقاف التشغيل",
+"fr": "Redémarrer et éteindre",
+"tr": "Yeniden başlat ve kapat",
+"es": "Reiniciar y apagar",
+"de": "Neu starten und ausschalten",
+"it": "Riavvia e spegni",
+"pt": "Reiniciar e desligar"
+},
+"Clock and time zone": {
+"ar": "الساعة والمنطقة الزمنية",
+"fr": "Horloge et fuseau horaire",
+"tr": "Saat ve saat dilimi",
+"es": "Reloj y zona horaria",
+"de": "Uhr und Zeitzone",
+"it": "Orologio e fuso orario",
+"pt": "Relógio e fuso horário"
+},
+"Language, temperature, logs": {
+"ar": "اللغة والحرارة والسجلات",
+"fr": "Langue, température, journaux",
+"tr": "Dil, sıcaklık, günlükler",
+"es": "Idioma, temperatura, registros",
+"de": "Sprache, Temperatur, Protokolle",
+"it": "Lingua, temperatura, registri",
+"pt": "Idioma, temperatura, registros"
+},
+"Password and SSH": {
+"ar": "كلمة المرور و SSH",
+"fr": "Mot de passe et SSH",
+"tr": "Şifre ve SSH",
+"es": "Contraseña y SSH",
+"de": "Passwort und SSH",
+"it": "Password e SSH",
+"pt": "Senha e SSH"
+},
+"Versions and credits": {
+"ar": "الإصدارات والشكر",
+"fr": "Versions et crédits",
+"tr": "Sürümler ve emeği geçenler",
+"es": "Versiones y créditos",
+"de": "Versionen und Danksagungen",
+"it": "Versioni e riconoscimenti",
+"pt": "Versões e créditos"
+},
+"Crystal": {
+"ar": "كريستال",
+"fr": "Cristal",
+"tr": "Kristal",
+"es": "Cristal",
+"de": "Kristall",
+"it": "Cristallo",
+"pt": "Cristal"
+},
+"Disconnect controller": {
+"ar": "فصل وحدة التحكم",
+"fr": "Déconnecter la manette",
+"tr": "Kontrolcünün bağlantısını kes",
+"es": "Desconectar el mando",
+"de": "Controller trennen",
+"it": "Disconnetti il controller",
+"pt": "Desconectar o controle"
+},
+"Controller disconnected. Press PS to connect it again.": {
+"ar": "تم فصل وحدة التحكم. اضغط PS لتوصيلها مرة أخرى.",
+"fr": "Manette déconnectée. Appuyez sur PS pour la reconnecter.",
+"tr": "Kontrolcünün bağlantısı kesildi. Yeniden bağlamak için PS'ye basın.",
+"es": "Mando desconectado. Pulsa PS para conectarlo de nuevo.",
+"de": "Controller getrennt. Drücke PS, um ihn wieder zu verbinden.",
+"it": "Controller disconnesso. Premi PS per riconnetterlo.",
+"pt": "Controle desconectado. Aperte PS para conectar de novo."
+},
+"Could not disconnect it.": {
+"ar": "تعذر فصلها.",
+"fr": "Impossible de la déconnecter.",
+"tr": "Bağlantısı kesilemedi.",
+"es": "No se pudo desconectar.",
+"de": "Konnte nicht getrennt werden.",
+"it": "Impossibile disconnetterlo.",
+"pt": "Não foi possível desconectar."
+},
+"Share to your phone": {
+"ar": "المشاركة إلى هاتفك",
+"fr": "Partager sur votre téléphone",
+"tr": "Telefonuna paylaş",
+"es": "Compartir en tu teléfono",
+"de": "Aufs Handy teilen",
+"it": "Condividi sul telefono",
+"pt": "Compartilhar no celular"
+},
+"Open your phone's camera": {
+"ar": "افتح كاميرا هاتفك",
+"fr": "Ouvrez l'appareil photo du téléphone",
+"tr": "Telefonunun kamerasını aç",
+"es": "Abre la cámara del teléfono",
+"de": "Öffne die Kamera deines Handys",
+"it": "Apri la fotocamera del telefono",
+"pt": "Abra a câmera do celular"
+},
+"Point it at the code": {
+"ar": "وجّهها نحو الرمز",
+"fr": "Visez le code",
+"tr": "Kodu kameraya göster",
+"es": "Apunta al código",
+"de": "Richte sie auf den Code",
+"it": "Inquadra il codice",
+"pt": "Aponte para o código"
+},
+"Save or share the picture": {
+"ar": "احفظ الصورة أو شاركها",
+"fr": "Enregistrez ou partagez l'image",
+"tr": "Resmi kaydet veya paylaş",
+"es": "Guarda o comparte la imagen",
+"de": "Bild speichern oder teilen",
+"it": "Salva o condividi l'immagine",
+"pt": "Salve ou compartilhe a imagem"
+},
+"Your phone must be on the same network as the PS4.": {
+"ar": "يجب أن يكون هاتفك على نفس شبكة PS4.",
+"fr": "Votre téléphone doit être sur le même réseau que la PS4.",
+"tr": "Telefonun PS4 ile aynı ağda olmalı.",
+"es": "Tu teléfono debe estar en la misma red que la PS4.",
+"de": "Dein Handy muss im selben Netzwerk wie die PS4 sein.",
+"it": "Il telefono deve essere sulla stessa rete della PS4.",
+"pt": "O celular precisa estar na mesma rede que o PS4."
+},
+"Delete logs": {
+"ar": "حذف السجلات",
+"fr": "Supprimer les journaux",
+"tr": "Kayıtları sil",
+"es": "Borrar registros",
+"de": "Protokolle löschen",
+"it": "Elimina log",
+"pt": "Apagar registros"
+},
+"Delete the game logs?": {
+"ar": "حذف سجلات الألعاب؟",
+"fr": "Supprimer les journaux des jeux ?",
+"tr": "Oyun kayıtları silinsin mi?",
+"es": "¿Borrar los registros de juegos?",
+"de": "Die Spielprotokolle löschen?",
+"it": "Eliminare i log dei giochi?",
+"pt": "Apagar os registros dos jogos?"
+},
+"Logs deleted.": {
+"ar": "تم حذف السجلات.",
+"fr": "Journaux supprimés.",
+"tr": "Kayıtlar silindi.",
+"es": "Registros borrados.",
+"de": "Protokolle gelöscht.",
+"it": "Log eliminati.",
+"pt": "Registros apagados."
+},
+"Could not delete the logs.": {
+"ar": "تعذر حذف السجلات.",
+"fr": "Impossible de supprimer les journaux.",
+"tr": "Kayıtlar silinemedi.",
+"es": "No se pudieron borrar los registros.",
+"de": "Die Protokolle konnten nicht gelöscht werden.",
+"it": "Impossibile eliminare i log.",
+"pt": "Não foi possível apagar os registros."
 }
 }

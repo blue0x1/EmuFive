@@ -491,16 +491,17 @@ def controllers():
 
 
 def paired_controllers():
-    """[(mac, name, connected)] for paired Bluetooth controllers."""
+    """[(mac, name, connected)] for paired Bluetooth controllers. Connected means its input works
+    now (Bluetooth can keep calling a dead link "connected")."""
     code, out, _ = run(["bluetoothctl", "devices", "Paired"], timeout=8)
     result = []
     if code != 0:
         return result
+    working = {pad["mac"].upper() for pad in controllers() if pad["connection"] == "Bluetooth"}
     for line in out.splitlines():
         parts = line.split(" ", 2)
         if len(parts) == 3 and parts[0] == "Device" and "Controller" in parts[2]:
-            _, info, _ = run(["bluetoothctl", "info", parts[1]], timeout=8)
-            result.append((parts[1], parts[2], "Connected: yes" in info))
+            result.append((parts[1], parts[2], parts[1].upper() in working))
     return result
 
 
@@ -787,6 +788,18 @@ def read_log(lines=400):
             return f.read().splitlines()[-lines:]
     except OSError:
         return []
+
+
+def clear_logs():
+    """Empties the game log and removes the one from the run before."""
+    try:
+        if os.path.isfile(GAME_LOG):
+            open(GAME_LOG, "w").close()
+        if os.path.isfile(GAME_LOG + ".1"):
+            os.remove(GAME_LOG + ".1")
+        return True
+    except OSError:
+        return False
 
 
 def copy_logs_to_usb():
@@ -1104,6 +1117,11 @@ def set_lightbar(rgb):
 
 def pair_mode():
     code, out, err = admin("pair")
+    return code == 0
+
+
+def disconnect_controller(mac):
+    code, out, err = admin("disconnect", mac)
     return code == 0
 
 

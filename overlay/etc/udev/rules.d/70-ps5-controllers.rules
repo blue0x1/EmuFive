@@ -1,0 +1,6 @@
+# Copyright (C) 2026 Chokri Hammedi (blue0x1) <https://github.com/blue0x1>
+# The ps5 user (group input) may read PlayStation controllers directly (hidraw, Sony's USB
+# vendor 054C, over a cable or Bluetooth). SDL then uses the controller's own driver: the
+# touchpad button is a controller button, not a mouse click, in games and on the home screen.
+KERNEL=="hidraw*", KERNELS=="*:054C:*", MODE="0660", GROUP="input"
+KERNEL=="hidraw*", ATTRS{idVendor}=="054c", MODE="0660", GROUP="input"

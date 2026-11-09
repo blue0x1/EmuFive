@@ -1,0 +1,8 @@
+# Copyright (C) 2026 Chokri Hammedi (blue0x1) <https://github.com/blue0x1>
+# Empties the game log (run by ps5-clear-logs.timer every 24 hours).
+[Unit]
+Description=Clear the game logs
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c ': > /home/ps5/kytyps5.log; rm -f /home/ps5/kytyps5.log.1'

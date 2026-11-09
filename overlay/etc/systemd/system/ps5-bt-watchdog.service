@@ -1,0 +1,14 @@
+# Copyright (C) 2026 Chokri Hammedi (blue0x1) <https://github.com/blue0x1>
+# Keeps Bluetooth controllers able to reconnect: closes dead links and stops stuck searches. It
+# never resets the chip (it is shared with the Wi-Fi, and a failed reset froze the Wi-Fi).
+[Unit]
+Description=Bluetooth watchdog for controllers
+After=bluetooth.service
+
+[Service]
+ExecStart=/usr/bin/python3 /opt/ps5-on-ps4/bin/ps5-bt-watchdog
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

@@ -48,7 +48,7 @@ DEFAULT_SETTINGS = {
     "show_ip": False,
     "sounds": True,
     "sound_volume": 80,
-    "sound_style": "chimes",   # ui.SOUND_STYLES
+    "sound_style": "crystal",  # ui.SOUND_STYLES
     "rumble": True,
     "hints": True,
     "overscan": 0,             # 0-10 percent

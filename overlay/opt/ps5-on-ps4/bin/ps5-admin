@@ -10,6 +10,7 @@
 #   ps5-admin reboot                restart the PS4
 #   ps5-admin pair                  look for new controllers for 60 seconds
 #   ps5-admin forget MAC            remove a paired Bluetooth controller
+#   ps5-admin disconnect MAC        disconnect a Bluetooth controller (it turns off; PS connects it again)
 #   ps5-admin default-password      "yes" while the ps5 password is still "ps5"
 #   ps5-admin lightbar R G B        the light bar color of the connected controllers (0-255 each)
 set -u
@@ -59,6 +60,13 @@ reboot)
 pair)
     mkdir -p /run/ps5-pad-pair
     echo $(( $(date +%s) + 60 )) > /run/ps5-pad-pair/search-until
+    # ps5-pad-pair sees the request and searches. The chip is never reset for it: the Bluetooth
+    # and the Wi-Fi share it, and a failed reset froze the Wi-Fi.
+    ;;
+disconnect)
+    mac="${2:-}"
+    printf '%s' "$mac" | grep -Eq '^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$' || die "Not a controller address: $mac"
+    bluetoothctl disconnect "$mac" >/dev/null 2>&1 || die "Could not disconnect $mac."
     ;;
 forget)
     mac="${2:-}"

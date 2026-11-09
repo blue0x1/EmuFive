@@ -47,14 +47,17 @@ ui.apply_theme(SETTINGS["theme"], SETTINGS["accent"])
 i18n.set_language(SETTINGS["menu_language"])
 from ps5.ui import (ACCENT, ART_SOFT, ART_TEXT, BACK, BAD, DIALOG, DIM, DOWN, GOLD, GOOD,  # noqa: E402
                     GUIDE, INK, KEY, KEY_ON, LEFT, OK, OPTIONS, PAGE_DOWN, PAGE_UP, PANEL, PANEL_LINE,
-                    RIGHT, ROW_ON, SOFT, SQUARE, TRIANGLE, UP, WHITE, px)
+                    RIGHT, SOFT, SQUARE, TRIANGLE, UP, WHITE, px)
 
 pygame = ui.pygame
 
 BG_W, BG_H = 1400, 788           # Backgrounds are a little larger than the screen, to drift.
-TILE_SIZES = {"small": (84, 124), "medium": (104, 156), "large": (128, 190)}   # Normal, selected.
+TILE_SIZES = {"small": (96, 140), "medium": (113, 167), "large": (128, 190)}   # Normal, selected.
 TILE_SEL = 190                   # The largest tile: icons are loaded at least twice this big.
-TILE_GAP = 18
+TILE_GAP = 16
+CHAMPAGNE = (238, 214, 168)      # Aurora: the light gold of borders and labels.
+CARD_X, CARD_Y, CARD_W, CARD_H = 787, 347, 453, 240     # Aurora: the selected game's glass card.
+TILES_X, TILES_RIGHT, TILES_Y = 73, 767, 373             # Aurora: where the tiles are.
 ROW_X, ROW_Y = 64, 112
 REOPEN = os.path.expanduser("~/.cache/ps5-on-ps4/reopen")    # Settings page to show after a restart.
 PROFILE_CHOSEN = os.path.join(system.RUNTIME, "ps5-profile-chosen")   # "Who's playing?" was shown.
@@ -83,23 +86,142 @@ def ease_out(t):
 # (they are large at the TV's resolution). Loaded in a background thread; turned into the
 # screen's pixel format in the main thread.
 
-def readability_shade(w, h):
-    """Dark on the left and at the bottom, where the text is."""
+# --------------------------------------------------------------------------------------------
+# Aurora: soft light in the picture's own colors, baked into each background once.
+
+def surface_palette(surface):
+    """Two colors of a picture: its most vivid one (for light and borders) and a deep one."""
+    import colorsys
+    small = pygame.transform.smoothscale(surface, (24, 14))
+    pixels = [small.get_at((x, y))[:3] for y in range(14) for x in range(24)]
+    avg = tuple(sum(p[i] for p in pixels) // len(pixels) for i in range(3))
+
+    def vividness(p):
+        h, sat, v = colorsys.rgb_to_hsv(*(c / 255 for c in p))
+        return sat * v
+
+    vivid = max(pixels, key=vividness)
+    if vividness(vivid) < 0.15:                 # A grey picture: a light grey of its own.
+        vivid = ui.mix(avg, (255, 255, 255), 0.4)
+    deep = ui.mix(avg, (0, 0, 0), 0.6)
+    return tuple(int(c) for c in vivid), tuple(int(c) for c in deep)
+
+
+def h_gradient(w, h, c1, c2):
+    """A left-to-right gradient (colors with alpha allowed)."""
+    two = pygame.Surface((2, 1), pygame.SRCALPHA)
+    two.set_at((0, 0), c1 if len(c1) == 4 else c1 + (255,))
+    two.set_at((1, 0), c2 if len(c2) == 4 else c2 + (255,))
+    return pygame.transform.smoothscale(two, (max(2, w), max(1, h)))
+
+
+def soft_blur(surface, amount=8):
+    w, h = surface.get_size()
+    small = pygame.transform.smoothscale(surface, (max(1, w // amount), max(1, h // amount)))
+    return pygame.transform.smoothscale(small, (w, h))
+
+
+def aurora_shade(w, h):
+    """Darker toward the bottom (tiles and card) and at the very top (the top bar)."""
     shade = pygame.Surface((w, h), pygame.SRCALPHA)
-    for x in range(w):
-        a = int(230 * max(0.0, 1.0 - x / (w * 0.88)) ** 1.1)
-        pygame.draw.line(shade, (8, 7, 20, a), (x, 0), (x, h))
-    bottom = pygame.Surface((w, h), pygame.SRCALPHA)
     for y in range(h):
-        a = int(150 * max(0.0, (y - h * 0.55) / (h * 0.45)) ** 1.6)
-        pygame.draw.line(bottom, (8, 7, 20, a), (0, y), (w, y))
-    shade.blit(bottom, (0, 0))
-    top = max(1, h * 90 // 788)
+        t = y / max(1, h - 1)
+        a = int(55 + 170 * t ** 1.35)
+        pygame.draw.line(shade, (5, 4, 12, a), (0, y), (w, y))
+    top = max(1, h // 9)
     band = pygame.Surface((w, top), pygame.SRCALPHA)
     for y in range(top):
-        pygame.draw.line(band, (8, 7, 20, int(120 * (1 - y / top))), (0, y), (w, y))
+        pygame.draw.line(band, (5, 4, 12, int(110 * (1 - y / top))), (0, y), (w, y))
     shade.blit(band, (0, 0))
     return shade
+
+
+def aurora_light(w, h, vivid):
+    """Ribbons of light and a glow in the picture's colors, on black, to add to a background."""
+    layer = pygame.Surface((w, h))
+    layer.fill((0, 0, 0))
+    k = h / 1080
+    for n, (color, phase) in enumerate(((vivid, 0.0), (CHAMPAGNE, 1.7), ((255, 140, 70), 3.1))):
+        points = [(x, h * 0.28 + 90 * k * math.sin(x / (260 * k) + phase) + n * 40 * k)
+                  for x in range(-40, w + 60, 20)]
+        for width, strength in ((60, 0.10), (26, 0.16), (8, 0.35)):
+            pygame.draw.lines(layer, tuple(int(c * strength) for c in color), False, points,
+                              max(1, int(width * k)))
+    glow = pygame.Surface((w, h))
+    glow.fill((0, 0, 0))
+    cx, cy, r = int(w * 0.78), int(h * 0.2), int(h * 0.4)
+    for i in range(r, 0, -max(2, r // 90)):
+        strength = (1 - i / r) ** 2.2 * 0.15
+        pygame.draw.circle(glow, tuple(int(c * strength) for c in vivid), (cx, cy), i)
+    layer.blit(glow, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
+    return soft_blur(layer, 6)
+
+
+def aurora_background(surface, vivid):
+    """`surface` (a background) with the Aurora shade and light."""
+    w, h = surface.get_size()
+    surface.blit(aurora_shade(w, h), (0, 0))
+    surface.blit(aurora_light(w, h, vivid), (0, 0), special_flags=pygame.BLEND_RGB_ADD)
+    return surface
+
+
+GLOWS = {}
+
+
+def glow_sprite(radius, color):
+    """A round soft light (black is none) to add with BLEND_RGB_ADD."""
+    key = (radius, color)
+    sprite = GLOWS.get(key)
+    if sprite is None:
+        sprite = pygame.Surface((radius * 2, radius * 2))
+        sprite.fill((0, 0, 0))
+        for i in range(radius, 0, -max(2, radius // 60)):
+            strength = (1 - i / radius) ** 2 * 0.42
+            pygame.draw.circle(sprite, tuple(int(c * strength) for c in color), (radius, radius), i)
+        sprite = soft_blur(sprite, 4)
+        GLOWS[key] = sprite
+    return sprite
+
+
+BORDERS = {}
+
+
+def gradient_border(w, h, radius, c1, c2, width):
+    """A rounded rectangle outline running from c1 (left) to c2 (right)."""
+    key = (w, h, radius, c1, c2, width)
+    border = BORDERS.get(key)
+    if border is None:
+        border = h_gradient(w, h, c1, c2)
+        border.blit(ui.round_mask(w, h, radius, width), (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+        if len(BORDERS) > 60:
+            BORDERS.clear()
+        BORDERS[key] = border
+    return border
+
+
+def tilted(image, amount):
+    """A fake 3D turn: the far side is shorter (amount 0.12: 12% shorter)."""
+    w, h = image.get_size()
+    big = pygame.transform.smoothscale(image, (w * 2, h * 2))     # Twice the size: smooth edges.
+    out = pygame.Surface((w * 2, h * 2), pygame.SRCALPHA)
+    out.fill((255, 255, 255, 0))
+    for x in range(w * 2):
+        exact = h * 2 * (1 - amount * (x / (w * 2)))
+        nh = max(1, int(exact))
+        col = pygame.transform.smoothscale(big.subsurface((x, 0, 1, h * 2)), (1, nh))
+        out.blit(col, (x, (h * 2 - nh) // 2))
+    return pygame.transform.smoothscale(out, (w, h))
+
+
+def reflection(image, strength=60):
+    """The image upside down, fading out, for a reflection under it."""
+    w, h = image.get_size()
+    flipped = pygame.transform.flip(image, False, True).copy()
+    fade = pygame.Surface((1, 2), pygame.SRCALPHA)
+    fade.set_at((0, 0), (255, 255, 255, strength))
+    fade.set_at((0, 1), (255, 255, 255, 0))
+    flipped.blit(pygame.transform.smoothscale(fade, (w, h)), (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+    return flipped
 
 
 def prepare(game):
@@ -112,6 +234,7 @@ def prepare(game):
         game.backgrounds = None      # None: not loaded.
         game.raw_backgrounds = None
         game.tiles = {}
+        game.palette = None          # (vivid, deep) of its art, for the Aurora light.
     return game
 
 
@@ -154,8 +277,6 @@ class ArtLoader:
             game.icon_loaded = True
         if not backgrounds or game.backgrounds is not None or game.raw_backgrounds is not None:
             return
-        if self.shade is None:
-            self.shade = readability_shade(*self.size)
         result = []
         for name in ("pic0.png", "pic1.png"):
             try:
@@ -174,8 +295,13 @@ class ArtLoader:
             veil = pygame.Surface(self.size, pygame.SRCALPHA)
             veil.fill((0, 0, 0, 110))
             result[0].blit(veil, (0, 0))
+        game.palette = surface_palette(result[0])
+        if self.shade is None:
+            self.shade = aurora_shade(*self.size)
+        light = aurora_light(self.size[0], self.size[1], game.palette[0])
         for background in result:
             background.blit(self.shade, (0, 0))
+            background.blit(light, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
         game.raw_backgrounds = result
 
     def finish(self, game, keep):
@@ -767,6 +893,161 @@ def draw_row_value_rtl(c, row, on, lx, y, room, fg_soft):
         c.text(text, 16, lx, y + 12, fg_soft if on else row.color or (SOFT if row.kind != "info" else WHITE))
 
 
+# Settings rows as floating glass cards (Settings design "floating cards").
+
+CARD_GAP = 10
+
+
+def card_height(row):
+    if row.kind == "header":
+        return 34
+    if row.kind == "info" and row.value is None:
+        return 46
+    return 56 if row.kind == "action" else 60
+
+
+def draw_card_rows(c, rows, selected, x, y, width, bottom, focused, top_index, accent, home):
+    """Rows as glass cards; the chosen one has a border from light gold to `accent`."""
+    rtl = i18n.rtl()
+    for i in range(top_index, len(rows)):
+        row = rows[i]
+        height = card_height(row)
+        if y + height > bottom:
+            break
+        on = focused and i == selected
+        if row.kind == "header":
+            if rtl:
+                c.text(row.label, 13, x + width, y + 14, CHAMPAGNE, True, "topright")
+            else:
+                c.text(i18n.upper(row.label), 13, x, y + 14, CHAMPAGNE, True)
+        elif row.kind == "info" and row.value is None:
+            lines = c.t.wrap(row.label, 15, width)[:2]
+            for n, line in enumerate(lines):
+                c.text(line, 15, x + width - 2 if rtl else x + 2, y + (14 if len(lines) == 1 else 4 + n * 20),
+                       row.color or ART_SOFT, False, "topright" if rtl else "topleft")
+        elif row.kind == "action":
+            label_w = max(220, c.t.width(row.label, 18, True) + 64)
+            bx = x + width - label_w if rtl else x
+            if on:
+                home.play_button(c, bx, y + 6, row.label, accent, True, label_w)
+            else:
+                c.rect((255, 255, 255, 26 if row.ok else 12), bx, y + 6, label_w, 44, 22)
+                c.rect((255, 255, 255, 70), bx, y + 6, label_w, 44, 22, 1)
+                c.text(row.label, 18, bx + label_w / 2, y + 28, ART_TEXT if row.ok else ART_SOFT, True, "center")
+            if row.value:
+                value = c.t.fit(str(row.value), 15, width - label_w - 30)
+                if rtl:
+                    c.text(value, 15, bx - 16, y + 19, row.color or ART_SOFT, False, "topright")
+                else:
+                    c.text(value, 15, x + label_w + 16, y + 19, row.color or ART_SOFT)
+        else:
+            card_h = height - 2
+            c.rect((255, 255, 255, 30 if on else 13), x - 18, y, width + 36, card_h, 18)
+            if on:
+                border = gradient_border(px(width + 36), px(card_h), px(18), CHAMPAGNE, accent, max(1, px(1.5)))
+                c.s.blit(border, (px(x - 18), px(y)))
+            dy = (card_h - 44) / 2
+            draw_card_content(c, row, on, x, y + dy, width, accent, rtl, home)
+        y += height + CARD_GAP
+    return y
+
+
+def draw_card_content(c, row, on, x, y, width, accent, rtl, home):
+    label_color = ART_TEXT if row.kind != "info" else ART_SOFT
+    label = c.t.fit(row.label, 17, width * 0.55)
+    if rtl:
+        label_w = c.text(label, 17, x + width - 2, y + 11, label_color, on, "topright")
+    else:
+        label_w = c.text(label, 17, x + 2, y + 11, label_color, on)
+    room = width - label_w - 30
+    if row.kind == "choice" and row.label == "Accent color":
+        current = home.settings["accent"]
+        keys = list(ui.ACCENTS)
+        for n, key in enumerate(keys):
+            cx = (x + 20 + n * 30) if rtl else (x + width - 20 - (len(keys) - 1 - n) * 30)
+            c.circle(ui.ACCENTS[key][1], cx, y + 22, 10)
+            if key == current:
+                c.circle(ART_TEXT, cx, y + 22, 14, 2)
+        return
+    if rtl:
+        draw_row_value_rtl(c, row, on, x + 2, y, room, ART_SOFT)
+        return
+    rx = x + width - 2
+    if row.kind == "toggle":
+        on_value = bool(row.value)
+        c.rect(accent if on_value else (255, 255, 255, 50), rx - 50, y + 10, 50, 24, 12)
+        c.circle((255, 255, 255), rx - 12 if on_value else rx - 38, y + 22, 9)
+    elif row.kind == "slider":
+        value = row.value if row.value is not None else 0
+        bar_w = max(60, min(220, room - 70))
+        c.rect((255, 255, 255, 50), rx - bar_w - 56, y + 19, bar_w, 6, 3)
+        c.rect(accent, rx - bar_w - 56, y + 19, max(1, bar_w * value / 100), 6, 3)
+        c.circle((255, 255, 255), rx - bar_w - 56 + bar_w * value / 100, y + 22, 9)
+        c.text(f"{value}%", 16, rx, y + 12, ART_SOFT, False, "topright")
+    elif row.kind == "choice":
+        text = c.t.fit(str(row.value), 16, room - 40)
+        c.text(text, 16, rx - 20, y + 12, ART_TEXT if on else ART_SOFT, on, "topright")
+        if on:
+            tw = c.t.width(text, 16, True)
+            c.text("‹", 20, rx - 32 - tw, y + 8, CHAMPAGNE, True, "topright")
+            c.text("›", 20, rx, y + 8, CHAMPAGNE, True, "topright")
+    elif row.picture is not None:
+        c.blit(row.picture, rx, y + 22, "midright")
+    elif row.value is not None:
+        text = c.t.fit(str(row.value), 16, room)
+        c.text(text, 16, rx, y + 12, row.color or (ART_SOFT if row.kind != "info" else ART_TEXT), False, "topright")
+
+
+def category_icon(c, name, x, y, color, r=11):
+    """A small drawn icon for a Settings category."""
+    if name == "Profile":
+        c.circle(color, x, y - r * 0.35, r * 0.42, 2)
+        c.arc(color, x - r * 0.8, y + r * 0.15, r * 1.6, r * 1.4, 0.1, 3.04, 2)
+    elif name == "Appearance":
+        c.circle(color, x, y, r, 2)
+        for dx, dy in ((-0.4, -0.3), (0.35, -0.35), (0.0, 0.42)):
+            c.circle(color, x + dx * r, y + dy * r, r * 0.17)
+    elif name == "Network":
+        ui.draw_wifi(c, x, y + r * 0.6, color, 3)
+    elif name == "Games from PC":
+        c.rect(color, x - r, y - r * 0.75, r * 2, r * 1.35, 3, 2)
+        c.line(color, x - r * 0.45, y + r * 0.95, x + r * 0.45, y + r * 0.95, 2)
+    elif name == "Sound":
+        c.polygon(color, [(x - r, y - r * 0.35), (x - r * 0.45, y - r * 0.35), (x + r * 0.1, y - r * 0.85),
+                          (x + r * 0.1, y + r * 0.85), (x - r * 0.45, y + r * 0.35), (x - r, y + r * 0.35)])
+        c.arc(color, x - r * 0.2, y - r * 0.6, r * 1.2, r * 1.2, -1.0, 1.0, 2)
+    elif name == "Controllers":
+        ui.draw_pad(c, x, y, color)
+    elif name == "Storage":
+        c.rect(color, x - r, y - r * 0.8, r * 2, r * 1.6, 4, 2)
+        c.line(color, x - r, y, x + r, y, 2)
+        c.circle(color, x + r * 0.55, y + r * 0.42, 2)
+    elif name == "Games":
+        for dx in (-1, 1):
+            for dy in (-1, 1):
+                c.rect(color, x + dx * r * 0.5 - r * 0.38, y + dy * r * 0.5 - r * 0.38, r * 0.76, r * 0.76, 2, 2)
+    elif name == "Saves":
+        c.rect(color, x - r * 0.85, y - r * 0.85, r * 1.7, r * 1.7, 3, 2)
+        c.rect(color, x - r * 0.4, y - r * 0.85, r * 0.8, r * 0.6, 1, 2)
+    elif name == "Power":
+        ui.draw_power(c, x, y, r * 0.85, color, 2)
+    elif name == "Date and time":
+        c.circle(color, x, y, r, 2)
+        c.line(color, x, y, x, y - r * 0.6, 2)
+        c.line(color, x, y, x + r * 0.45, y + r * 0.2, 2)
+    elif name == "System":
+        c.rect(color, x - r * 0.65, y - r * 0.65, r * 1.3, r * 1.3, 3, 2)
+        for k in (-0.35, 0.35):
+            c.line(color, x + k * r, y - r, x + k * r, y - r * 0.65, 2)
+            c.line(color, x + k * r, y + r * 0.65, x + k * r, y + r, 2)
+    elif name == "Advanced":
+        ui.draw_gear(c, x, y, color, r * 0.8)
+    else:   # About
+        c.circle(color, x, y, r, 2)
+        c.circle(color, x, y - r * 0.4, 1.6)
+        c.line(color, x, y - r * 0.1, x, y + r * 0.5, 2)
+
+
 def move_selection(rows, selected, step):
     """The next selectable row from `selected` in the direction of `step`, or `selected`."""
     i = selected
@@ -788,6 +1069,19 @@ class RowList(Modal):
     def __init__(self, home):
         super().__init__(home)
         self.row = 0
+        self.top = 0
+
+    def scroll(self, rows, y, bottom):
+        """The first row to draw from `y`, so the chosen row fits above `bottom` (rows that do not fit
+        are reached by scrolling). On the last choice, the notes after it show too."""
+        last = self.row
+        if not any(r.selectable for r in rows[self.row + 1:]):
+            last = len(rows) - 1
+        top = min(self.top, self.row)
+        while top < self.row and y + sum(rows[i].height() + 4 for i in range(top, last + 1)) > bottom:
+            top += 1
+        self.top = top
+        return top
 
     def rows(self):
         return []
@@ -1607,57 +1901,120 @@ class SettingsScreen(RowList):
             return
         self.act_rows(action)
 
+    SUBTITLES = {
+        "Profile": "Your name, avatar and profiles", "Appearance": "Make the home screen yours",
+        "Network": "Wi-Fi and network cable", "Games from PC": "A shared folder on your PC",
+        "Sound": "The TV and headphones", "Controllers": "Light bar, vibration and pairing",
+        "Storage": "USB drive and PS4 drive", "Games": "Settings for all games",
+        "Saves": "Back up and restore game saves", "Power": "Restart and turn off",
+        "Date and time": "Clock and time zone", "System": "Language, temperature, logs",
+        "Advanced": "Password and SSH", "About": "Versions and credits",
+    }
+    RAIL_STEP = 70
+    ROWS_X = 167
+
+    def make_backdrop(self, size):
+        """The game's art (or the home background), heavily blurred and darkened, with its light."""
+        h = self.home
+        source = h.bg_current if h.settings["background"] == "art" else h.static_bg
+        vivid = h.palette()[0]
+        surface = pygame.Surface(size).convert()
+        if source is not None:
+            art = pygame.transform.smoothscale(source, size)
+            surface.blit(soft_blur(soft_blur(art, 12), 6), (0, 0))
+        else:
+            surface.fill(ui.mix(vivid, (8, 6, 14), 0.88))
+        veil = pygame.Surface(size, pygame.SRCALPHA)
+        veil.fill((6, 5, 12, 175))
+        surface.blit(veil, (0, 0))
+        light = glow_sprite(int(size[1] * 0.45), vivid)
+        surface.blit(light, light.get_rect(center=(int(size[0] * 0.8), int(size[1] * 0.25))),
+                     special_flags=pygame.BLEND_RGB_ADD)
+        self.backdrop_key = (size, id(source), vivid)
+        return surface
+
     def draw(self, c):
-        if self.backdrop is None or self.backdrop.get_size() != c.s.get_size():
-            w, ht = c.s.get_size()
-            self.backdrop = pygame.Surface((w, ht))
-            top, bottom = ui.mix(ui.BACKDROP, PANEL, 0.6), ui.BACKDROP
-            for y in range(ht):
-                pygame.draw.line(self.backdrop, ui.mix(top, bottom, y / ht), (0, y), (w, y))
-            pygame.draw.rect(self.backdrop, ui.mix(ui.BACKDROP, PANEL, 0.35), pygame.Rect(0, 0, px(392), ht))
-            pygame.draw.line(self.backdrop, PANEL_LINE, (px(392), 0), (px(392), ht), max(1, px(1)))
+        """Drawn again only when something on it changes; otherwise the kept picture is shown."""
+        h = self.home
+        rows = self.rows()
+        key = None
+        if self.appear >= 1.0:
+            key = (self.category, self.focus, self.row, self.top, c.s.get_size(),
+                   tuple((r.kind, r.label, str(r.value), id(r.picture)) for r in rows),
+                   tuple(sorted(h.settings.data.items())), id(h.bg_current), id(h.static_bg))
+        frame = getattr(self, "frame", None)
+        if key is None or key != getattr(self, "frame_key", None) or frame is None \
+                or frame.get_size() != c.s.get_size():
+            if frame is None or frame.get_size() != c.s.get_size():
+                self.frame = pygame.Surface(c.s.get_size()).convert()
+            self.draw_page(ui.Canvas(self.frame, c.t))
+            self.frame_key = key
+        c.s.blit(self.frame, (0, 0))
+
+    def draw_page(self, c):
+        h = self.home
+        size = c.s.get_size()
+        vivid = h.palette()[0]
+        source = h.bg_current if h.settings["background"] == "art" else h.static_bg
+        if self.backdrop is None or getattr(self, "backdrop_key", None) != (size, id(source), vivid):
+            self.backdrop = self.make_backdrop(size)
         c.s.blit(self.backdrop, (0, 0))
         a = ease_out(self.appear)
         rtl = i18n.rtl()
-        if rtl:
-            c.text("Settings", 30, 346, 36 - (1 - a) * 10, WHITE, True, "topright")
-        else:
-            c.text("Settings", 30, 64, 36 - (1 - a) * 10, WHITE, True)
-        y = 88
-        for i, name in enumerate(self.CATEGORIES):
+        # The rail: a round icon for each category, scrolled to keep the chosen one in view.
+        visible = int((ui.H - 120) // self.RAIL_STEP)
+        first = min(max(0, self.category - visible // 2), max(0, len(self.CATEGORIES) - visible))
+        rail_x = ui.W - 66 if rtl else 66
+        for slot, i in enumerate(range(first, min(len(self.CATEGORIES), first + visible))):
+            name = self.CATEGORIES[i]
             on = i == self.category
             focused = on and self.focus == "categories"
+            y = 64 + slot * self.RAIL_STEP
             if on:
-                c.rect(WHITE if focused else ROW_ON, 48, y, 316, 38, 12)
-            color = INK if focused else WHITE if on else SOFT
-            if rtl:
-                c.text(name, 18, 346, y + 8, color, on, "topright")
+                light = glow_sprite(px(46), vivid)
+                c.s.blit(light, light.get_rect(center=(px(rail_x), px(y))), special_flags=pygame.BLEND_RGB_ADD)
+                c.circle(ART_TEXT if focused else (255, 255, 255, 60), rail_x, y, 22)
             else:
-                c.text(name, 18, 66, y + 8, color, on)
-            y += self.category_step
-        x, width = 440, ui.W - 440 - 64
+                c.circle((255, 255, 255, 90), rail_x, y, 22, 1)
+            category_icon(c, name, rail_x, y, (24, 18, 30) if focused else ART_TEXT, 9)
+            c.text(c.t.fit(name, 11, 104), 11, rail_x, y + 27, ART_TEXT if on else ART_SOFT, on, "midtop")
+        x = self.ROWS_X
+        name = self.CATEGORIES[self.category]
+        preview = name == "Appearance"
+        width = 573 if preview else ui.W - x - 70
         if rtl:
-            c.text(self.CATEGORIES[self.category], 26, x + width, 44, WHITE, True, "topright")
+            x = ui.W - self.ROWS_X - width
+            c.text(name, 32, x + width, 26 - (1 - a) * 10, ART_TEXT, True, "topright")
+            c.text(self.SUBTITLES.get(name, ""), 15, x + width, 74, ART_SOFT, False, "topright")
         else:
-            c.text(self.CATEGORIES[self.category], 26, x, 44, WHITE, True)
+            c.text(name, 32, x, 26 - (1 - a) * 10, ART_TEXT, True)
+            c.text(self.SUBTITLES.get(name, ""), 15, x + 2, 74, ART_SOFT)
         rows = self.rows()
         if self.focus == "rows":
             self.current(rows)
             if self.row < self.top:
                 self.top = self.row
-            while self.top < self.row and self.row_bottom(rows, self.top, self.row) > ui.H - 80:
+            while self.top < self.row and self.row_bottom(rows, self.top, self.row) > ui.H - 64:
                 self.top += 1
         else:
             self.top = 0
-        draw_rows(c, rows, self.row, x, 100, width, ui.H - 70, self.focus == "rows", self.top)
+        draw_card_rows(c, rows, self.row, x, 112, width, ui.H - 64, self.focus == "rows", self.top, vivid, h)
         if self.top > 0:
-            c.text("▲", 14, x if rtl else x + width, 82, DIM, False, "topleft" if rtl else "topright")
+            c.text("▲", 14, x + width, 96, ART_SOFT, False, "topright")
+        if preview:
+            px_ = 1240 - 453 if not rtl else 40
+            c.text(i18n.upper("Preview"), 12, px_, 98, CHAMPAGNE, True)
+            picture = h.preview(px(453), px(255))
+            c.blit(picture, px_, 118)
+            border = gradient_border(px(453), px(255), px(16), CHAMPAGNE, vivid, max(1, px(1.5)))
+            c.s.blit(border, (px(px_), px(118)))
+            c.text("Changes show here as you make them.", 14, px_, 384, ART_SOFT)
 
     @staticmethod
     def row_bottom(rows, top, index):
-        y = 100
+        y = 112
         for i in range(top, index + 1):
-            y += rows[i].height() + 4
+            y += card_height(rows[i]) + CARD_GAP
         return y
 
     def hints(self):
@@ -1673,6 +2030,16 @@ class SettingsScreen(RowList):
 def pad_status(pad):
     battery = "" if pad["battery"] is None else f"  ·  {pad['battery']}%" + (" charging" if pad["charging"] else "")
     return pad["connection"] + battery
+
+
+def disconnect_pad(h, mac):
+    """Like the PS4's quick menu: the controller turns off; its PS button connects it again."""
+    def work():
+        ok = system.disconnect_controller(mac)
+        h.poll.forget("controllers")
+        h.toast("Controller disconnected. Press PS to connect it again." if ok else "Could not disconnect it.")
+
+    threading.Thread(target=work, daemon=True).start()
 
 
 def change_volume(h, step):
@@ -1912,9 +2279,17 @@ class LogViewer(Modal):
             self.top = max(0, min(max(0, len(self.wrapped) - self.LINES), self.top + step))
         elif action == SQUARE:
             h.push(Busy(h, "Copying logs to the USB drive…", system.copy_logs_to_usb))
+        elif action == TRIANGLE:
+            h.push(Dialog(h, "Delete the game logs?", [("Delete", self.delete), ("Cancel", None)]))
         elif action == BACK:
             h.sounds.play("back")
             self.close()
+
+    def delete(self):
+        ok = system.clear_logs()
+        self.home.toast("Logs deleted." if ok else "Could not delete the logs.")
+        self.lines = system.read_log(600) or ["The game log is empty: no game has run yet."]
+        self.wrapped = None
 
     def draw(self, c):
         c.s.fill((10, 9, 24))
@@ -1931,7 +2306,8 @@ class LogViewer(Modal):
             y += 22
 
     def hints(self):
-        return [("l1r1", "Page"), ("square", "Copy logs to USB"), ("circle", "Back")]
+        return [("l1r1", "Page"), ("square", "Copy logs to USB"), ("triangle", "Delete logs"),
+                ("circle", "Back")]
 
 
 # --------------------------------------------------------------------------------------------
@@ -1994,7 +2370,8 @@ class GameMenu(RowList):
         c.text(self.game.source_name, 15, tx, y + 4, SOFT, False, anchor)
         rows = self.rows()
         self.current(rows)
-        draw_rows(c, rows, self.row, x, y + 40, self.WIDTH - 80, ui.H - 60, True)
+        draw_rows(c, rows, self.row, x, y + 40, self.WIDTH - 80, ui.H - 60, True,
+                  self.scroll(rows, y + 40, ui.H - 60))
 
     def hints(self):
         return [("cross", "Select"), ("circle", "Back")]
@@ -2033,6 +2410,11 @@ class QuickMenu(RowList):
             rows.append(Row("info", "No controller found."))
         for pad in pads:
             rows.append(Row("info", pad["name"], pad_status(pad)))
+        for pad in pads:
+            if pad["connection"] == "Bluetooth":
+                mac = pad["mac"]
+                label = pad["name"] + ("  ·  " + mac[-5:] if len(pads) > 1 else "")
+                rows.append(Row("action", "Disconnect controller", label, ok=lambda m=mac: disconnect_pad(h, m)))
         rows.append(Row("header", "Power"))
         closing = " The game is closed first." if self.in_game else ""
         rows.append(Row("button", "Restart the PS4", ok=lambda: h.push(Dialog(
@@ -2080,7 +2462,7 @@ class QuickMenu(RowList):
             top = 124
         rows = self.rows()
         self.current(rows)
-        draw_rows(c, rows, self.row, x, top, self.WIDTH - 80, ui.H - 60, True)
+        draw_rows(c, rows, self.row, x, top, self.WIDTH - 80, ui.H - 60, True, self.scroll(rows, top, ui.H - 60))
 
     def hints(self):
         return [("cross", "Select"), ("ps", "Resume" if self.in_game else "Close"), ("circle", "Back")]
@@ -2641,41 +3023,40 @@ class MediaViewer(Modal):
 
 
 def picture_palette(path):
-    """Two colors of a picture: its most vivid one (for glows) and a deep one (its darker average)."""
-    import colorsys
+    """Two colors of a picture file (see surface_palette), or None."""
     try:
-        small = pygame.transform.smoothscale(pygame.image.load(path), (24, 14))
+        return surface_palette(pygame.image.load(path))
     except (pygame.error, OSError):
         return None
-    pixels = [small.get_at((x, y))[:3] for y in range(14) for x in range(24)]
-    avg = tuple(sum(p[i] for p in pixels) // len(pixels) for i in range(3))
-
-    def vividness(p):
-        h, s, v = colorsys.rgb_to_hsv(*(c / 255 for c in p))
-        return s * v
-
-    vivid = max(pixels, key=vividness)
-    if vividness(vivid) < 0.15:                 # A grey picture: keep its own light grey.
-        vivid = ui.mix(avg, (255, 255, 255), 0.4)
-    deep = ui.mix(avg, (0, 0, 0), 0.6)
-    return tuple(int(c) for c in vivid), tuple(int(c) for c in deep)
 
 
 class ShareView(Modal):
-    """A QR code for a phone: it opens the screenshot in the phone's browser, to save or share."""
+    """A QR code for a phone: it opens the screenshot in the phone's browser, to save or share.
+    The Glass card design: the screenshot blurred behind, and on a glass card the picture, the code
+    on a white tile and three steps. The still screen is made once; only the soft light around
+    the code breathes."""
+    covers = True
+    CARD = (140, 113, 1000, 493)          # Units.
+    PICTURE = (180, 160, 507, 285)
+    CODE = (927, 280)                     # The code's center.
+    CODE_SIDE = 220
 
     def __init__(self, home, path):
         super().__init__(home)
         self.path = path
         self.qr = None
         self.error = None
+        self.frame = None
+        self.url = None
+        palette = picture_palette(path)
+        self.vivid = palette[0] if palette else ACCENT
         try:
             import segno
         except ImportError:
             self.error = "Sharing needs the python3-segno package."
             return
         self.server = system.ShareServer(path, i18n.translate("Screenshot"), i18n.translate("Download"),
-                                         ACCENT, picture_palette(path))
+                                         ACCENT, palette)
         self.url = self.server.start()
         if self.url is None:
             self.error = "Connect the PS4 to a network first."
@@ -2688,8 +3069,8 @@ class ShareView(Modal):
         for y, row in enumerate(matrix):
             for x, dark in enumerate(row):
                 if dark:
-                    surface.set_at((x + quiet, y + quiet), (0, 0, 0))
-        side = px(320)
+                    surface.set_at((x + quiet, y + quiet), (10, 10, 16))
+        side = px(self.CODE_SIDE)
         self.qr = pygame.transform.scale(surface, (side - side % (n + 2 * quiet) or side, ) * 2)
 
     def close(self):
@@ -2702,24 +3083,119 @@ class ShareView(Modal):
             self.home.sounds.play("back")
             self.close()
 
-    def draw(self, c):
-        a = ease_out(self.appear)
-        c.dim(190 * a)
-        w, ht = 760, 540
-        x, y = ui.W / 2 - w / 2, ui.H / 2 - ht / 2 + (1 - a) * 20
-        c.rect(DIALOG, x, y, w, ht, 20)
-        c.text("Share", 26, ui.W / 2, y + 28, WHITE, True, "midtop")
+    @staticmethod
+    def rect_px(x, y, w, h):
+        return pygame.Rect(px(x), px(y), px(x + w) - px(x), px(y + h) - px(y))
+
+    @staticmethod
+    def cut(surface, radius):
+        """`surface` with rounded corners."""
+        out = surface.convert_alpha()
+        out.blit(ui.round_mask(*out.get_size(), radius), (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+        return out
+
+    def glass(self, frame, rect, radius):
+        piece = soft_blur(frame.subsurface(rect).copy(), 8)
+        frame.blit(self.cut(piece, radius), rect.topleft)
+        tint = pygame.Surface(rect.size, pygame.SRCALPHA)
+        tint.fill((255, 255, 255, 0))
+        ui.draw_round(tint, (255, 255, 255, 20), tint.get_rect(), radius, 0, True)
+        frame.blit(tint, rect.topleft)
+        frame.blit(gradient_border(rect.w, rect.h, radius, self.vivid, CHAMPAGNE, max(1, px(1.4))), rect.topleft)
+
+    def compose(self, size, text):
+        frame = pygame.Surface(size).convert()
+        c = ui.Canvas(frame, text)
+        vivid = self.vivid
+        try:
+            picture = pygame.image.load(self.path).convert()
+        except (pygame.error, OSError):
+            picture = None
+        # Behind: the screenshot, blurred and darkened, with the Aurora's ribbons of light.
+        if picture is not None:
+            scale = max(size[0] / picture.get_width(), size[1] / picture.get_height())
+            big = pygame.transform.smoothscale(picture, (int(picture.get_width() * scale) + 1,
+                                                         int(picture.get_height() * scale) + 1))
+            frame.blit(soft_blur(big, 14), big.get_rect(center=frame.get_rect().center))
+        else:
+            frame.fill(ui.mix(vivid, (6, 5, 14), 0.85))
+        c.dim(165, (6, 5, 14))
+        frame.blit(aurora_light(size[0], size[1], vivid), (0, 0), special_flags=pygame.BLEND_RGB_ADD)
+        card = self.rect_px(*self.CARD)
+        self.glass(frame, card, px(27))
+        x, y, w, h = self.CARD
         if self.error:
-            for n, line in enumerate(c.t.wrap(self.error, 18, w - 80)):
-                c.text(line, 18, ui.W / 2, y + 120 + n * 26, SOFT, False, "midtop")
-            return
-        c.blit(self.qr, ui.W / 2, y + 80, "midtop")
-        qr_h = self.qr.get_height() / ui.S
-        lines = c.t.wrap("Scan with your phone's camera to open the screenshot there, then save or share it. "
-                         "The phone must be on the same network as the PS4.", 16, w - 80)
-        for n, line in enumerate(lines[:3]):
-            c.text(line, 16, ui.W / 2, y + 96 + qr_h + n * 22, SOFT, False, "midtop")
-        c.text(self.url, 13, ui.W / 2, y + ht - 34, DIM, False, "midtop")
+            c.text("Share", 26, ui.W / 2, y + 60, WHITE, True, "midtop")
+            for n, line in enumerate(c.t.wrap(self.error, 18, w - 160)):
+                c.text(line, 18, ui.W / 2, y + 130 + n * 28, SOFT, False, "midtop")
+            return frame
+        # The picture, its game and when it was taken.
+        pr = self.rect_px(*self.PICTURE)
+        if picture is not None:
+            scale = max(pr.w / picture.get_width(), pr.h / picture.get_height())
+            shot = pygame.transform.smoothscale(picture, (max(pr.w, int(picture.get_width() * scale)),
+                                                          max(pr.h, int(picture.get_height() * scale))))
+            shot = shot.subsurface(pygame.Rect((shot.get_width() - pr.w) // 2, (shot.get_height() - pr.h) // 2,
+                                               pr.w, pr.h))
+            frame.blit(self.cut(shot, px(15)), pr.topleft)
+        frame.blit(gradient_border(pr.w, pr.h, px(15), vivid, CHAMPAGNE, max(1, px(1.4))), pr.topleft)
+        px_, py_, pw, ph = self.PICTURE
+        name = os.path.basename(os.path.dirname(self.path))
+        when = os.path.splitext(os.path.basename(self.path))[0]
+        parts = when.split(" ")
+        if len(parts) == 2 and parts[1].count("-") == 2:
+            when = parts[0] + "  " + parts[1].replace("-", ":")[:5]
+        c.text(c.t.fit(name, 20, pw, True), 20, px_, py_ + ph + 22, WHITE, True)
+        c.text("Screenshot" + i18n.SEPARATOR + i18n.Final(when), 15, px_, py_ + ph + 52, SOFT)
+        if picture is not None:
+            size_text = f"{picture.get_width()} × {picture.get_height()}  ·  PNG"
+            c.text(i18n.Final(size_text), 15, px_, py_ + ph + 74, DIM)
+        # The code on a white tile.
+        cx, cy = self.CODE
+        side = self.qr.get_width() / ui.S
+        pad = 17
+        tile = self.rect_px(cx - side / 2 - pad, cy - side / 2 - pad, side + 2 * pad, side + 2 * pad)
+        ui.draw_round(frame, (255, 255, 255), tile, px(17))
+        frame.blit(self.qr, self.qr.get_rect(center=tile.center))
+        self.tile = tile
+        # How to.
+        top = cy + side / 2 + pad + 30
+        c.text("Share to your phone", 23, cx, top, WHITE, True, "midtop")
+        ink = (14, 12, 20) if sum(vivid) > 300 else WHITE
+        sx = cx - 140
+        for n, line in enumerate(("Open your phone's camera", "Point it at the code", "Save or share the picture")):
+            yy = top + 46 + n * 35
+            c.circle(vivid, sx + 12, yy + 12, 12)
+            c.text(str(n + 1), 13, sx + 12, yy + 12, ink, True, "center")
+            c.text(line, 16, sx + 35, yy + 12, WHITE, False, "midleft")
+        # The address, for typing it in.
+        width = c.t.width(self.url, 13) + 30
+        c.rect((255, 255, 255, 18), ui.W / 2 - width / 2, y + h + 18, width, 27, 13)
+        c.rect((255, 255, 255, 40), ui.W / 2 - width / 2, y + h + 18, width, 27, 13, 1)
+        c.text(i18n.Final(self.url), 13, ui.W / 2, y + h + 31, SOFT, False, "center")
+        c.text("Your phone must be on the same network as the PS4.", 13, ui.W / 2, y + h + 56, DIM, False, "midtop")
+        return frame
+
+    def draw(self, c):
+        size = c.s.get_size()
+        if self.frame is None or self.frame.get_size() != size:
+            self.frame = self.compose(size, c.t)
+        a = ease_out(self.appear)
+        if a < 1.0:
+            c.s.fill((0, 0, 0))
+            self.frame.set_alpha(int(255 * a))
+            c.s.blit(self.frame, (0, 0))
+            self.frame.set_alpha(None)
+        else:
+            c.s.blit(self.frame, (0, 0))
+        if self.error is None and self.home.settings["animations"] != "off":
+            # The light around the code breathes (8 cached strengths).
+            k = (math.sin(self.home.t * 2.2) + 1) / 2
+            k = round((0.35 + 0.65 * k) * a * 7) / 7
+            if k > 0:
+                radius = int(self.tile.w * 0.78)
+                sprite = glow_sprite(radius, tuple(int(ch * k) for ch in self.vivid))
+                c.s.blit(sprite, sprite.get_rect(center=self.tile.center), special_flags=pygame.BLEND_RGB_ADD)
 
     def hints(self):
         return [("circle", "Close")]
@@ -2792,6 +3268,7 @@ class Home:
         self.bg_switch_at = 0.0
         self.bg_index = 0
         self.static_bg = None     # The background when it is not the game's art (cached).
+        self.static_palette = None
         self.particles = []
         self.make_particles()
         self.next_scan = 0.0
@@ -3116,7 +3593,8 @@ class Home:
         self.bg_mix = min(1.0, self.bg_mix + dt / (0.7 if motion == "full" else 0.3))
 
         step = self.tile_small + TILE_GAP
-        target = max(0, self.selected - 2) * step
+        before = max(0, int((TILES_RIGHT - TILES_X - self.tile_big - TILE_GAP) // step))
+        target = max(0, self.selected - before) * step
         rate = 1000 if motion == "off" else 12
         self.row_offset = ease(self.row_offset, target, rate, dt)
         for i in range(len(self.tile_sizes)):
@@ -3225,7 +3703,6 @@ class Home:
                     picture, (int(picture.get_width() * scale) + 1, int(picture.get_height() * scale) + 1))
                 surface = pygame.Surface((w, h))
                 surface.blit(picture, picture.get_rect(center=(w // 2, h // 2)))
-                surface.blit(readability_shade(w, h), (0, 0))
             except (pygame.error, OSError):
                 surface = None
         if surface is None and choice in ("gradient", "picture"):
@@ -3241,7 +3718,9 @@ class Home:
         if surface is None:
             surface = pygame.Surface((w, h))
             surface.fill(ui.mix(ACCENT, (8, 8, 16), 0.82))
-        self.static_bg = surface.convert()
+        vivid = surface_palette(surface)[0] if choice == "picture" else ACCENT
+        self.static_palette = (vivid, ui.mix(vivid, (0, 0, 0), 0.7))
+        self.static_bg = aurora_background(surface, vivid).convert()
 
     def draw_background(self, c, orbs=True):
         s = self.settings
@@ -3252,12 +3731,9 @@ class Home:
             c.s.blit(self.static_bg, (0, 0))
         else:
             c.s.fill(ui.mix(ACCENT, (6, 6, 14), 0.86))
-            drift_x = drift_y = 0.0
-            if s["animations"] == "full":
-                drift_x = px(max(0.0, BG_W - ui.W)) * (0.5 + 0.5 * math.sin(self.t * 0.045))
-                drift_y = px(BG_H - ui.H) * (0.5 + 0.5 * math.sin(self.t * 0.031 + 1.0))
-            else:
-                drift_x, drift_y = px(max(0.0, BG_W - ui.W)) / 2, px(BG_H - ui.H) / 2
+            # Centred: the background no longer drifts, so a still home screen is drawn once and
+            # kept (see draw_home).
+            drift_x, drift_y = px(max(0.0, BG_W - ui.W)) / 2, px(BG_H - ui.H) / 2
             if self.bg_previous is not None and self.bg_mix < 1.0:
                 c.s.blit(self.bg_previous, (-drift_x, -drift_y))
             if self.bg_current is not None:
@@ -3271,10 +3747,17 @@ class Home:
                 c.dim(255 * self.bg_mix, ui.mix(ACCENT, (6, 6, 14), 0.86))
         if s["dim"]:
             c.dim(255 * s["dim"] / 100, (0, 0, 0))
-        if orbs and s["orbs"]:
+        if orbs:
+            self.draw_orbs(c)
+
+    def draw_orbs(self, c, avoid=None):
+        s = self.settings
+        if s["orbs"]:
             color = s["orb_color"]
             pulse = s["animations"] != "off"
             for x, y, _, size, phase in self.particles:
+                if avoid is not None and avoid.collidepoint(x, y):
+                    continue
                 glow = (math.sin(self.t * 1.3 + phase) + 1) / 2 if pulse else 0.5
                 if color == "accent":
                     rgb = ui.mix(ACCENT, (255, 255, 255), 0.2 + 0.4 * glow)
@@ -3283,19 +3766,71 @@ class Home:
                 else:
                     g = int(110 + 90 * (glow * 2 - 1))
                     rgb = (g, g, min(255, g + 40))
-                c.circle(rgb, x, y, size)
+                c.circle(rgb, x, y, size, fast=True)
+
+    def home_key(self):
+        """What the home screen shows, or None while something moves (then it is drawn every
+        frame). A still home screen is drawn once and kept; only the orbs and the breathing glow
+        of the Play button are drawn each frame (the PS4's CPU is slow)."""
+        if self.bg_mix < 1.0 or self.info_alpha < 1.0:
+            return None
+        step = self.tile_small + TILE_GAP
+        before = max(0, int((TILES_RIGHT - TILES_X - self.tile_big - TILE_GAP) // step))
+        if abs(self.row_offset - max(0, self.selected - before) * step) > 0.3:
+            return None
+        for i, size in enumerate(self.tile_sizes):
+            want = self.tile_small
+            if i == self.selected:
+                want = self.tile_big if self.focus == "tiles" else self.tile_small + 18
+            if abs(size - want) > 0.3:
+                return None
+        s = self.settings
+        with self.network.lock:
+            net = (self.network.state, self.network.ssid, self.network.ethernet)
+        pads = tuple((p["mac"], p["battery"], p["charging"], p["connection"])
+                     for p in self.poll.get("controllers", system.controllers, 2.0, []))
+        game = self.current_game()
+        media = (len(self.media.paths), self.media.index, self.media.top_row, len(self.media.thumbs)) \
+            if self.tab == "media" else None
+        return (self.tab, self.focus, self.selected, bool(self.modals), self.game_signature, len(self.games),
+                id(self.bg_current), id(self.static_bg), id(self.entries), self.running_path,
+                clock_text(s["clock_24h"], s["clock_seconds"]), time.strftime("%d") if s["clock_date"] else "",
+                net, pads, self.input.pad_count(), tuple(sorted(s.data.items())),
+                sum(1 for g in self.games if g.icon is not None),
+                self.trophy_summary(game) if game is not None else None,
+                tuple(self.poll.get("ip", system.ip_addresses, 10.0, [])) if s["show_ip"] else None, media)
 
     def draw_home(self, c):
-        self.draw_background(c)
         if self.quick:
+            self.draw_background(c)
             c.dim(80)
             return
-        self.draw_top_bar(c)
-        if self.tab == "media":
-            self.media.draw(c)
-            return
-        self.draw_tiles(c)
-        self.draw_info(c)
+        key = self.home_key()
+        size = c.s.get_size()
+        frame = getattr(self, "frame", None)
+        if key is None or key != getattr(self, "frame_key", None) or frame is None or frame.get_size() != size:
+            if frame is None or frame.get_size() != size:
+                self.frame = pygame.Surface(size).convert()
+            canvas = ui.Canvas(self.frame, c.t)
+            self.ring = None
+            self.draw_background(canvas, orbs=False)
+            self.draw_top_bar(canvas)
+            if self.tab == "media":
+                self.media.draw(canvas)
+            else:
+                self.draw_tiles(canvas)
+                self.draw_info(canvas)
+            self.frame_key = key
+        c.s.blit(self.frame, (0, 0))
+        avoid = pygame.Rect(CARD_X - 10, 0, ui.W, ui.H) if self.tab == "games" else None
+        self.draw_orbs(c, avoid)
+        if getattr(self, "ring", None) is not None and not self.modals:
+            x, y, width, vivid = self.ring
+            ring = (math.sin(self.t * 2.6) + 1) / 2
+            grow = 14 * ring
+            # The glow's alpha in steps of 8, so the see-through outlines are reused.
+            c.rect(vivid + (int(150 * (1 - ring)) // 8 * 8,), x - grow / 2, y - grow / 2, width + grow,
+                   44 + grow, 28, 2)
 
     def draw_top_bar(self, c):
         s = self.settings
@@ -3361,118 +3896,230 @@ class Home:
         if shape == "circle":
             c.circle(color, x + size / 2, y + size / 2, size / 2 + grow, width)
         else:
-            radius = (14 if shape == "rounded" else 3) + (grow and 4)
+            radius = (20 if shape == "rounded" else 4) + (grow and 5)
             c.rect(color, x - grow, y - grow, size + 2 * grow, size + 2 * grow, radius, width)
 
+    def palette(self):
+        """(vivid, deep): the colors of the Aurora light now on screen."""
+        if self.settings["background"] != "art" and not self.quick:
+            if self.static_bg is None:
+                self.make_static_background()
+            return self.static_palette
+        game = self.quick_game if self.quick else self.current_game()
+        if game is not None and getattr(game, "palette", None):
+            return game.palette
+        return ACCENT, ui.mix(ACCENT, (0, 0, 0), 0.7)
+
+    def tile_picture(self, game, size, shape):
+        """The picture of a game's tile at `size` units (None while its icon loads)."""
+        if game.icon is None:
+            return None
+        if shape == "rounded":
+            size_px = max(8, px(size) - px(size) % 4)
+            key = (size_px, "aurora")
+            tile = game.tiles.get(key)
+            if tile is None:
+                tile = ui.rounded_image(game.icon, size_px, px(20))
+                game.tiles[key] = tile
+            return tile
+        return tile_image(game, px(size), shape)
+
     def draw_tiles(self, c):
-        x = ROW_X - self.row_offset
+        """Aurora tiles: the chosen one larger with light behind it, a border in the light's colors
+        and a reflection; the others turned slightly away."""
+        vivid = self.palette()[0]
         shape = self.settings["tile_shape"]
-        pulse_on = self.settings["animations"] == "full"
+        full = self.settings["animations"] == "full"
+        big, small = self.tile_big, self.tile_small
+        old_clip = c.s.get_clip()
+        c.s.set_clip(pygame.Rect(px(TILES_X - 40), 0, px(TILES_RIGHT - TILES_X + 40), c.s.get_height()))
+        x = TILES_X - self.row_offset
         for i in range(self.items()):
-            size = self.tile_sizes[i] if i < len(self.tile_sizes) else self.tile_small
-            if x + size > -20 and x < ui.W + 20:
-                selected = i == self.selected and self.focus == "tiles" and not self.modals
-                if i < len(self.games):
-                    game = self.games[i]
-                    if game.icon is not None:
-                        c.blit(tile_image(game, px(size), shape), x, ROW_Y)
-                    elif shape == "circle":
-                        self.tile_shape(c, game.color, x, ROW_Y, size)
-                        lines = c.t.wrap(game.title, 14, size * 0.68)[:3]
-                        top = ROW_Y + size / 2 - len(lines) * 9
-                        for n, line in enumerate(lines):
-                            c.text(line, 14, x + size / 2, top + n * 18 + 9, (255, 255, 255), False, "center")
-                    else:
-                        self.tile_shape(c, game.color, x, ROW_Y, size)
-                        for n, line in enumerate(c.t.wrap(game.title, 14, size - 24)[:3]):
-                            c.text(line, 14, x + 12, ROW_Y + 12 + n * 18, (255, 255, 255))
-                    entry = self.entries.get(game.path, {})
-                    if entry.get("hidden"):
-                        self.tile_shape(c, (0, 0, 0, 150), x, ROW_Y, size)
-                        c.text("Hidden", 13, x + size / 2, ROW_Y + size / 2, (255, 255, 255), True, "center")
-                    if self.is_running(game):
-                        label = "RUNNING"
-                        width = c.t.width(label, 11, True) + 16
-                        c.rect(ACCENT, x + size / 2 - width / 2, ROW_Y + size - 30, width, 20, 10)
-                        c.text(label, 11, x + size / 2, ROW_Y + size - 20, (255, 255, 255), True, "center")
-                    elif self.settings["source_labels"]:
-                        self.draw_badge(c, game.source, x, ROW_Y + size, size if shape == "circle" else None)
-                    if entry.get("favorite"):
-                        c.circle((14, 12, 34), x + size - 16, ROW_Y + 16, 13)
-                        ui.draw_star(c, x + size - 16, ROW_Y + 16, 10, GOLD)
+            size = self.tile_sizes[i] if i < len(self.tile_sizes) else small
+            y = TILES_Y + (big - size) / 2
+            if x + size < TILES_X - 60 or x > TILES_RIGHT + 20:
+                x += size + (TILE_GAP + 11 if i == self.selected else TILE_GAP)
+                continue
+            focused = i == self.selected and self.focus == "tiles" and not self.modals
+            settled = abs(size - big) < 0.6
+            if focused:
+                light = glow_sprite(px(big * 0.95), vivid)
+                c.s.blit(light, light.get_rect(center=(px(x + size / 2), px(y + size / 2))),
+                         special_flags=pygame.BLEND_RGB_ADD)
+            game = self.games[i] if i < len(self.games) else None
+            picture = self.tile_picture(game, size, shape) if game is not None else None
+            if picture is not None:
+                if not focused and abs(size - small) < 0.6 and full:
+                    key = (picture.get_width(), shape, "tilted")
+                    turned = game.tiles.get(key)
+                    if turned is None:
+                        turned = tilted(picture, 0.12)
+                        turned.set_alpha(215)
+                        game.tiles[key] = turned
+                    c.s.blit(turned, (px(x), px(y)))
                 else:
-                    self.tile_shape(c, (44, 44, 52), x, ROW_Y, size)
-                    ui.draw_power(c, x + size / 2, ROW_Y + size / 2, size / 5, (255, 255, 255),
-                                  3 if size < 130 else 4)
-                if selected:
-                    thick = 3.5 + (1.5 * math.sin(self.t * 4) if pulse_on else 0)
-                    self.tile_shape(c, ART_TEXT, x, ROW_Y, size, max(2, int(thick)), 5)
-            x += size + TILE_GAP
+                    c.blit(picture, x, y)
+                    if focused and settled:
+                        key = (picture.get_width(), shape, "reflection")
+                        mirror = game.tiles.get(key)
+                        if mirror is None:
+                            mirror = reflection(picture, 55)
+                            game.tiles[key] = mirror
+                        c.blit(mirror, x, y + size + 6)
+            elif game is not None:
+                self.tile_shape(c, game.color, x, y, size)
+                for n, line in enumerate(c.t.wrap(game.title, 14, size - 24)[:3]):
+                    c.text(line, 14, x + 12, y + 12 + n * 18, (255, 255, 255))
+            else:
+                self.tile_shape(c, (40, 38, 48), x, y, size)
+                ui.draw_power(c, x + size / 2, y + size / 2, size / 5, (255, 255, 255), 3 if size < 130 else 4)
+            if game is not None:
+                entry = self.entries.get(game.path, {})
+                if entry.get("hidden"):
+                    self.tile_shape(c, (0, 0, 0, 150), x, y, size)
+                    c.text("Hidden", 13, x + size / 2, y + size / 2, (255, 255, 255), True, "center")
+                if self.is_running(game):
+                    label = "RUNNING"
+                    width = c.t.width(label, 11, True) + 16
+                    c.rect(vivid, x + size / 2 - width / 2, y + size - 30, width, 20, 10)
+                    c.text(label, 11, x + size / 2, y + size - 20, (20, 16, 10), True, "center")
+                elif self.settings["source_labels"]:
+                    self.draw_badge(c, game.source, x, y + size, size if shape == "circle" else None)
+                if entry.get("favorite"):
+                    ui.draw_star(c, x + size - 16, y + 16, 10, GOLD)
+            if focused:
+                if settled and shape != "circle":
+                    radius = (20 if shape == "rounded" else 4) + 5
+                    border = gradient_border(px(size + 10), px(size + 10), px(radius), CHAMPAGNE, vivid,
+                                             max(2, px(2.5)))
+                    c.s.blit(border, (px(x - 5), px(y - 5)))
+                else:
+                    self.tile_shape(c, CHAMPAGNE, x, y, size, 2.5, 5)
+            x += size + (TILE_GAP + 11 if i == self.selected else TILE_GAP)
+        c.s.set_clip(old_clip)
 
     def draw_badge(self, c, source, x, bottom, centered_in=None):
         width = c.t.width(source, 12, True) + 14
         if centered_in:
             x = x + centered_in / 2 - width / 2 - 6       # Circle tiles: at the bottom middle.
-        c.rect((14, 12, 34), x + 5, bottom - 27, width + 2, 22, 11)
         c.rect(SOURCE_COLORS.get(source, (64, 64, 76)), x + 6, bottom - 26, width, 20, 10)
         c.text(source, 12, x + 6 + width / 2, bottom - 16, (255, 255, 255), True, "center")
 
+    def preview(self, w, h):
+        """The home screen, small (for the Appearance preview); drawn again only when something it
+        shows changes."""
+        key = (w, h, tuple(sorted(self.settings.data.items())), id(self.bg_current), id(self.static_bg),
+               self.selected, len(self.games))
+        if getattr(self, "preview_key", None) != key:
+            full = pygame.Surface(self.screen.get_size()).convert()
+            modals, self.modals = self.modals, []
+            try:
+                self.draw_home(ui.Canvas(full, self.text))
+            finally:
+                self.modals = modals
+            small = pygame.transform.smoothscale(full, (w, h)).convert_alpha()
+            small.blit(ui.round_mask(w, h, px(16)), (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+            self.preview_surface, self.preview_key = small, key
+        return self.preview_surface
+
+    def draw_glass(self, c, x, y, w, h, radius, tint=22):
+        """Frosted glass: what is behind, blurred, with a light tint."""
+        rect = pygame.Rect(px(x), px(y), px(w), px(h)).clip(c.s.get_rect())
+        if rect.width < 4 or rect.height < 4:
+            return
+        # The blur is made again 8 times a second at most (the background drifts slowly).
+        cache = getattr(self, "glass_cache", None)
+        key = (tuple(rect), id(c.s), id(self.bg_current), id(self.static_bg))
+        if cache is None or cache[0] != key or self.t - cache[1] > 0.125:
+            piece = soft_blur(c.s.subsurface(rect).copy(), 10).convert_alpha()
+            piece.blit(ui.round_mask(*rect.size, px(radius)), (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+            self.glass_cache = cache = (key, self.t, piece)
+        c.s.blit(cache[2], rect.topleft)
+        c.rect((255, 255, 255, tint), x, y, w, h, radius)
+
+    def trophy_summary(self, game):
+        """(earned, total) for a game with trophies, else None (read in the background)."""
+        if not os.path.isdir(os.path.join(game.path, "sce_sys", "trophy2")):
+            return None
+
+        def read():
+            _, items = system.trophies(game.path, game.title_id, self.settings["console_language"],
+                                       self.profiles.current_id)
+            return (sum(1 for t in items if t["earned"]), len(items)) if items else None
+
+        return self.poll.get(("trophies", game.key, self.profiles.current_id), read, 120.0)
+
+    def play_button(self, c, x, y, label, vivid, focused, width=None):
+        """The Aurora play button: a pill from light gold to the picture's color."""
+        width = width or max(160, c.t.width(label, 20, True) + 70)
+        if focused and self.settings["animations"] == "full" and c.s is getattr(self, "frame", None):
+            self.ring = (x, y, width, vivid)      # Breathing glow, drawn each frame by draw_home.
+        key = ("button", px(width), vivid)
+        pill = GLOWS.get(key)
+        if pill is None:
+            pill = h_gradient(px(width), px(44), CHAMPAGNE, vivid)
+            pill.blit(ui.round_mask(*pill.get_size(), px(22)), (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+            GLOWS[key] = pill
+        c.blit(pill, x, y)
+        c.text(label, 20, x + width / 2, y + 22, (24, 16, 8), True, "center")
+
     def draw_info(self, c):
+        """Aurora: the selected game in a glass card on the right, with a border in the light's
+        colors."""
+        vivid = self.palette()[0]
         a = self.info_alpha
-        y = self.info_y + (1 - a) * 14
+        grow = self.settings["text_size"] / 100
         game = self.current_game()
-        layer = None
-        target = c
-        if a < 1.0:
-            # Fading in: draw into a transparent layer, then put it on with its alpha.
-            layer = pygame.Surface(c.s.get_size(), pygame.SRCALPHA)
-            target = ui.Canvas(layer, c.t)
+        focused = self.focus == "tiles" and not self.modals
+        lines, sub, stats, button, notes = [], "", [], None, []
         if not self.games and self.on_power():
-            title, sub, button = "No games yet", "", None
+            lines = c.t.wrap(i18n.translate("No games yet"), 30, CARD_W - 60, True)[:2]
+            notes = ["Put PS5 game folders in one of these places:",
+                     "  •  the PS5 folder of a USB drive",
+                     f"  •  {system.PS4_GAMES_SHOWN} on the PS4, with GoldHEN FTP",
+                     "  •  a shared folder on a PC (Settings, at the top)",
+                     "They show up here by themselves."]
         elif self.on_power():
-            title, sub, button = "Power", "Turn off or restart the PS4", "Power"
+            lines, sub, button = [i18n.translate("Power")], "Turn off or restart the PS4", "Power"
         else:
-            title, sub = game.title, game.subtitle()
+            lines = c.t.wrap(game.title, 30, CARD_W - 60, True)[:2]
+            sub = game.subtitle()
+            entry = self.entries.get(game.path, {})
+            seconds = entry.get("play_seconds", 0)
+            stats.append(("Played", system.play_time_text(seconds) if seconds >= 60 else "not played yet"))
+            trophies = self.trophy_summary(game)
+            if trophies:
+                stats.append(("Trophies", f"{trophies[0]} / {trophies[1]}"))
+            stats.append(("From", game.source))
             button = "Resume" if self.is_running(game) else "Play"
-            seconds = self.entries.get(game.path, {}).get("play_seconds", 0)
-            if seconds >= 60:
-                sub = "  ·  ".join(p for p in (sub, "Played " + system.play_time_text(seconds)) if p)
-        ty = y
-        grow = self.settings["text_size"] / 100      # Lines are further apart with larger text.
-        for line in target.t.wrap(title, 44, 640, True)[:2]:
-            target.text(line, 44, ROW_X, ty, ART_TEXT, True, shadow=True)
-            ty += 54 * grow
-        if sub or game is not None:
-            sx = ROW_X + 2
-            if sub:
-                sx += target.text(sub, 17, sx, ty + 6, ART_SOFT, shadow=True) + 16
-            if game is not None and self.settings["source_labels"]:
-                name = target.t.fit(game.source_name, 15, 420, True)
-                width = target.t.width(name, 15, True) + 26
-                target.rect(SOURCE_COLORS.get(game.source, (64, 64, 76)), sx, ty + 4, width, 26, 13)
-                target.text(name, 15, sx + width / 2, ty + 17, (255, 255, 255), True, "center")
-            ty += 34 * grow
-        if not self.games and self.on_power():
-            for line in ("Put PS5 game folders in one of these places:",
-                         "  •  the PS5 folder of a USB drive",
-                         f"  •  {system.PS4_GAMES_SHOWN} on the PS4, with GoldHEN FTP",
-                         "  •  a shared folder on a PC (Settings, at the top)",
-                         "They show up here by themselves."):
-                target.text(line, 17, ROW_X + 2, ty + 6, ART_SOFT, shadow=True)
-                ty += 28
+        height = 24 + 22 + len(lines) * 36 * grow + (24 * grow if sub else 0) + (16 + 38 * grow if stats else 0) \
+            + (len(notes) * 20 * grow + 8) + (20 + 44 if button else 0) + 24
+        x, w = CARD_X, CARD_W
+        y = CARD_Y + CARD_H - height + (1 - a) * 12
+        self.draw_glass(c, x, y, w, height, 24)
+        border = gradient_border(px(w), px(height), px(24), CHAMPAGNE, vivid, max(1, px(1.5)))
+        c.s.blit(border, (px(x), px(y)))
+        tx, ty = x + 30, y + 24
+        c.text(i18n.upper("Selected"), 12, tx, ty, CHAMPAGNE, True)
+        ty += 22
+        for line in lines:
+            c.text(line, 30, tx, ty, ART_TEXT, True)
+            ty += 36 * grow
+        if sub:
+            c.text(c.t.fit(sub, 15, w - 60), 15, tx + 2, ty + 2, ART_SOFT)
+            ty += 24 * grow
+        for line in notes:
+            c.text(c.t.fit(line, 13, w - 60), 13, tx + 2, ty + 4, ART_SOFT)
+            ty += 20 * grow
+        if stats:
+            ty += 16
+            column = (w - 60) / len(stats)
+            for n, (label, value) in enumerate(stats):
+                c.text(label, 12, tx + n * column, ty, ART_SOFT)
+                c.text(c.t.fit(value, 16, column - 10, True), 16, tx + n * column, ty + 16 * grow, ART_TEXT, True)
+            ty += 38 * grow
         if button:
-            by = ty + 24
-            width = max(170, target.t.width(button, 20, True) + 70)
-            if self.focus == "tiles" and not self.modals and self.settings["animations"] == "full":
-                ring = (math.sin(self.t * 2.6) + 1) / 2
-                grow = 16 * ring
-                target.rect((255, 255, 255, int(120 * (1 - ring))), ROW_X - grow / 2, by - grow / 2,
-                            width + grow, 48 + grow, 30, 2)
-            target.rect((255, 255, 255), ROW_X, by, width, 48, 24)
-            target.text(button, 20, ROW_X + width / 2, by + 24, (20, 18, 30), True, "center")
-        if layer is not None:
-            layer.set_alpha(int(255 * a))
-            c.s.blit(layer, (0, 0))
+            self.play_button(c, tx, ty + 20, button, vivid, focused)
 
     def home_hints(self):
         if self.quick:

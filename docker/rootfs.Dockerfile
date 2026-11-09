@@ -70,7 +70,7 @@ RUN sed -i 's/^#AutoEnable=.*/AutoEnable=true/' /etc/bluetooth/main.conf \
 RUN rm -f /etc/ssh/ssh_host_* \
  && : > /etc/machine-id && rm -f /var/lib/dbus/machine-id \
  && systemctl enable ps5-hostkeys.service NetworkManager.service systemd-timesyncd.service \
-        bluetooth.service ps5-pad-pair.service ps5-ps4-drive.service ps5-swap.service \
+        bluetooth.service ps5-pad-pair.service ps5-bt-watchdog.service ps5-ps4-drive.service ps5-swap.service ps5-clear-logs.timer \
  && systemctl disable ssh.service \
  && systemctl set-default multi-user.target \
  && date -u +%Y-%m-%d > /etc/ps5-on-ps4-release
