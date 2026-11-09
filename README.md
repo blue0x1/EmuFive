@@ -6,7 +6,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--2.0-blue" alt="License: GPL-2.0"></a>
 </p>
 
-EmuFive runs PS5 games on a jailbroken PlayStation 4. It is based on the [KytyPS5](https://github.com/KytyPS5/KytyPS5) PS5 emulator, built for the PS4's CPU, with Linux and the PS4's own GPU through Vulkan.
+A PS5 emulator for the PS4.
 
 Created by **[Chokri Hammedi (blue0x1)](https://github.com/blue0x1)**. Built on [PS4 Multiboot](https://github.com/blue0x1/ps4-multiboot).
 
