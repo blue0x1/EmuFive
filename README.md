@@ -1,4 +1,4 @@
-<h1 align="center">EmuFive</h1>
+<h1 align="center"><img src="assets/emufive-logo.png" alt="EmuFive" width="480"></h1>
 
 <p align="center">
   <img src="https://img.shields.io/badge/platform-PS4-003791?logo=playstation&logoColor=white" alt="Platform: PS4">

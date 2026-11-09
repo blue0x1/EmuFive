@@ -38,7 +38,7 @@ docker export "$cid" -o "$BUILD/rootfs.tar"
 rm -rf "$BUILD/meta"
 mkdir -p "$BUILD/meta/etc/ps4-distro"
 echo "$NAME" > "$BUILD/meta/etc/ps4-distro/name"
-python3 "$ROOT/tools/logo-to-rgba.py" "$ROOT/assets/logo.png" "$BUILD/meta/etc/ps4-distro/logo.rgba"
+python3 "$ROOT/tools/logo-to-rgba.py" "$ROOT/assets/emufive-logo.png" "$BUILD/meta/etc/ps4-distro/logo.rgba"
 
 log "Compressing"
 docker run --rm -v "$BUILD:/build" -v "$OUT:/out" \
