@@ -1,0 +1,22 @@
+#!/usr/bin/env python3
+# Copyright (C) 2026 Chokri Hammedi (blue0x1) <https://github.com/blue0x1>
+# The EmuFive screen behind every window (lib/ps5/backdrop.py), used by ps5-session:
+#   ps5-backdrop render        draws the screens (at the start, and after a language change)
+#   ps5-backdrop show NAME     shows one: plain, poweroff or reboot
+import os
+import sys
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "lib"))
+os.environ.setdefault("PYGAME_HIDE_SUPPORT_PROMPT", "1")
+from ps5 import backdrop  # noqa: E402
+
+if __name__ == "__main__":
+    what = sys.argv[1] if len(sys.argv) > 1 else "show"
+    if what == "render":
+        ok = backdrop.render()
+        backdrop.show("plain")
+    elif what == "show":
+        ok = backdrop.show(sys.argv[2] if len(sys.argv) > 2 else "plain")
+    else:
+        sys.exit("usage: ps5-backdrop render | show plain|poweroff|reboot")
+    sys.exit(0 if ok else 1)

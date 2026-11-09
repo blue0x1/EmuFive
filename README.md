@@ -6,7 +6,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--2.0-blue" alt="License: GPL-2.0"></a>
 </p>
 
-The [KytyPS5](https://github.com/KytyPS5/KytyPS5) PS5 emulator on a jailbroken PlayStation 4: Linux, the PS4's own GPU through Vulkan, and an emulator build made for the PS4's CPU.
+EmuFive runs PS5 games on a jailbroken PlayStation 4. It is based on the [KytyPS5](https://github.com/KytyPS5/KytyPS5) PS5 emulator, built for the PS4's CPU, with Linux and the PS4's own GPU through Vulkan.
 
 Created by **[Chokri Hammedi (blue0x1)](https://github.com/blue0x1)**. Built on [PS4 Multiboot](https://github.com/blue0x1/ps4-multiboot).
 
@@ -60,9 +60,37 @@ scripts/build-rootfs.sh    # out/ps5-ps4-rootfs.tar.xz
 
 ## Installing
 
-1. Copy `ps5-ps4-rootfs.tar.xz` to `/user/home/` on the PS4 (GoldHEN FTP).
-2. Start PS4 Multiboot and install **EmuFive** from the menu.
-3. Put your games in one of the places below. A game is a folder with `eboot.bin` (and `sce_sys`), or a ZArchive (`.zar`) dump.
+EmuFive installs through [PS4 Multiboot](https://github.com/blue0x1/ps4-multiboot), like any other Linux system.
+
+You need:
+
+- A jailbroken PS4 with **GoldHEN** (for its FTP server and payload loader).
+- A PC on the same network with an FTP client (for example FileZilla).
+- About 28 GB free on the PS4 (a 16 GB disk, and 10 GB always left free for the PS4), or a USB drive of 8 GB or more.
+- A DualShock 4 (on a USB cable, or paired over Bluetooth later).
+
+Steps:
+
+1. From the [PS4 Multiboot releases](https://github.com/blue0x1/ps4-multiboot/releases), download `bzImage`, `initramfs.cpio.gz`, `bootargs.txt` and `linux-2048mb.bin`. (`ps4-mesa.tar.xz` is not needed: EmuFive has PS4 Mesa built in.)
+2. From the [EmuFive releases](https://github.com/blue0x1/EmuFive/releases), download `ps5-ps4-rootfs.tar.xz` (or build it, see [Building](#building)). Keep its name: PS4 Multiboot finds systems by the `-ps4-rootfs` in it.
+3. Turn on GoldHEN's FTP server and copy the files to the PS4 (port 2121):
+
+   | File | Folder on the PS4 |
+   |---|---|
+   | `bzImage`, `initramfs.cpio.gz`, `bootargs.txt` | `/data/linux/boot/` |
+   | `ps5-ps4-rootfs.tar.xz` | `/user/home/` |
+   | `linux-2048mb.bin` | `/data/payloads/` |
+
+4. Run `linux-2048mb.bin` from GoldHEN's payload menu.
+
+   > **Be patient:** after the payload starts, the TV can show **"No signal" or a black screen for 1 to 2 minutes** while Linux starts. This is normal.
+
+5. In the PS4 Multiboot menu, pick **EmuFive**, then **Install to PS4** or **Install to USB drive**. It takes a few minutes.
+6. Put your games in one of the places below. A game is a folder with `eboot.bin` (and `sce_sys`), or a ZArchive (`.zar`) dump.
+
+After that, run the payload to start EmuFive: with only EmuFive installed it starts straight away, with other systems too the PS4 Multiboot menu appears first. Turn off or restart from the home screen to go back to the PS4 system. To install EmuFive again, delete `/user/home/ps5-ps4.img` over FTP and run the payload.
+
+Updates come from the EmuFive releases: Settings, System, Software update (no reinstall needed).
 
 The system starts in the home screen and needs no keyboard:
 
@@ -112,9 +140,13 @@ This project contains no PS5 system software and no games. Use only games you ow
 | `tools/` | Logo converter, controller test ROM, `extract-code.py` (the code of a PS5 SELF/ELF) |
 | `tools/jaguar-test/` | Checks patch `0004`'s replacements against the real instructions |
 
+## Special thanks
+
+- [KytyPS5](https://github.com/KytyPS5/KytyPS5), the PS5 emulator EmuFive is based on (GPL-2.0)
+- [Kyty](https://github.com/InoriRus/Kyty) by InoriRus, the emulator KytyPS5 is based on
+
 ## Credits
 
-- [KytyPS5](https://github.com/KytyPS5/KytyPS5), the PS5 emulator (GPL-2.0)
 - [Mesa](https://mesa3d.org), and the PS4 GPU patches by fail0verflow, DionKill and striker91n
 - The PS4 Linux kernel developers ([sony-jaguar-devs/ps4-linux](https://github.com/sony-jaguar-devs/ps4-linux))
 

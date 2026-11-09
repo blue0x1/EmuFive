@@ -38,11 +38,13 @@ message() {  # seconds text
 }
 
 poweroff() {
+    "$BIN/ps5-backdrop" show poweroff
     sudo -n /usr/bin/systemctl poweroff
     exit 0
 }
 
 reboot() {
+    "$BIN/ps5-backdrop" show reboot
     sudo -n "$BIN/ps5-admin" reboot
     exit 0
 }
@@ -70,6 +72,10 @@ run_game() {  # path
 }
 
 xset s off -dpms 2>/dev/null
+# The EmuFive screen behind every window, seen while a game closes, the home screen starts
+# again or the PS4 turns off (instead of black): a dark color now, the picture once drawn.
+xsetroot -solid "#0c0a1c" 2>/dev/null
+"$BIN/ps5-backdrop" render > "$HOME/.ps5-backdrop.log" 2>&1 &
 # Kiosk window manager: every window full screen, no title bars.
 matchbox-window-manager -use_titlebar no -use_cursor no &
 # The PS button and screenshots.
@@ -120,8 +126,10 @@ while :; do
         reboot
         ;;
     RELOAD)
-        # A live update asked the home screen to start again (SIGUSR1).
+        # A live update asked the home screen to start again (SIGUSR1), or a setting did (the
+        # menu language: the screen behind the windows is drawn again in it).
         failures=0
+        "$BIN/ps5-backdrop" render > "$HOME/.ps5-backdrop.log" 2>&1 &
         ;;
     *)
         # The home screen itself failed: say so, and try again; turn off after 3 times.

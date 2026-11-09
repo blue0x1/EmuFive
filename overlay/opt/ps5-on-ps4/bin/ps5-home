@@ -38,7 +38,7 @@ import time
 import urllib.request
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "lib"))
-from ps5 import about, i18n, store, system, ui  # noqa: E402
+from ps5 import about, i18n, store, system, ui, update  # noqa: E402
 
 # The Appearance settings decide the colors, so they are applied before the colors are imported
 # (the home screen starts again when they change).
@@ -61,6 +61,8 @@ TILES_X, TILES_RIGHT, TILES_Y = 73, 767, 373             # Aurora: where the til
 ROW_X, ROW_Y = 64, 112
 REOPEN = os.path.expanduser("~/.cache/ps5-on-ps4/reopen")    # Settings page to show after a restart.
 PROFILE_CHOSEN = os.path.join(system.RUNTIME, "ps5-profile-chosen")   # "Who's playing?" was shown.
+UPDATE_TOLD = os.path.join(system.RUNTIME, "emufive-update-told")     # The update the home screen told about.
+UPDATE_CHECK_AFTER = 20.0      # Seconds after the home screen starts (the network is up by then).
 AVATAR_CACHE = os.path.expanduser("~/.cache/ps5-on-ps4/avatars")
 DICEBEAR_STYLES = ["adventurer", "avataaars", "big-smile", "bottts", "croodles", "fun-emoji", "lorelei",
                    "micah", "miniavs", "notionists", "open-peeps", "personas", "pixel-art", "thumbs"]
@@ -509,6 +511,112 @@ class Busy(Modal):
 
     def hints(self):
         return [(None, "Please wait")]
+
+
+class UpdateProgress(Modal):
+    """An EmuFive update or roll back (bin/ps5-update, started by ps5-admin as root): its progress,
+    then what comes next: the home screen starts again, or the PS4 restarts (Now or Later)."""
+
+    BUSY = ("checking", "downloading", "installing", "testing", "restoring")
+
+    def __init__(self, home, action, category):
+        super().__init__(home)
+        self.action = action          # update or rollback
+        self.category = category
+        self.started = time.time()
+        self.status = {}
+        self.next_read = 0.0
+        self.launch = None
+
+        def run():
+            ok, message = system.update_admin(action)
+            self.launch = (ok, message)
+
+        threading.Thread(target=run, daemon=True).start()
+
+    def act(self, action):
+        pass                          # It cannot be stopped halfway.
+
+    def update(self, dt):
+        super().update(dt)
+        if self.closed:
+            return
+        h = self.home
+        if self.launch is not None and not self.launch[0]:
+            self.finish_with(Dialog(h, self.launch[1] or "The update did not start."))
+            return
+        if h.t < self.next_read:
+            return
+        self.next_read = h.t + 0.3
+        status = update.status()
+        if status.get("time", 0) < self.started - 1:
+            if time.time() - self.started > 20:
+                self.finish_with(Dialog(h, "The update did not start."))
+            return
+        self.status = status
+        state = status.get("state")
+        if state == "failed":
+            h.sounds.play("error")
+            message = status.get("message") or "The update could not be installed."
+            if self.action == "update":
+                message += " Nothing was changed."
+            self.finish_with(Dialog(h, message))
+        elif state == "done":
+            h.sounds.play("select")
+            version = status.get("version", "")
+            if status.get("latest"):
+                self.finish_with(Dialog(h, "EmuFive is up to date."))
+                h.poll.forget("update_check")
+                return
+            text = (f"Rolled back to EmuFive {version}." if self.action == "rollback"
+                    else f"EmuFive {version} is installed.")
+            reload = lambda: h.request_reload(self.category)      # noqa: E731
+            if status.get("restart"):
+                self.finish_with(Dialog(h, text + " Restart the PS4 now to finish?",
+                                        [("Restart now", lambda: h.finish("REBOOT")), ("Later", reload)]))
+            else:
+                self.finish_with(Dialog(h, text, [("OK", reload)]))
+
+    def finish_with(self, dialog):
+        self.close()
+        self.home.push(dialog)
+
+    def draw(self, c):
+        c.dim(170 * ease_out(self.appear))
+        st = self.status
+        state, version = st.get("state", "checking"), st.get("version", "")
+        if self.action == "rollback":
+            text = f"Rolling back to EmuFive {version}…" if version else "Rolling back…"
+        elif state == "downloading":
+            text = f"Downloading EmuFive {version}…"
+        elif state == "installing":
+            text = f"Installing EmuFive {version}…"
+        elif state == "testing":
+            text = "Testing the new version…"
+        elif state == "restoring":
+            text = "Putting the old files back…"
+        else:
+            text = "Checking for updates…"
+        box_w, box_h = 620, 190
+        x, y = ui.W / 2 - box_w / 2, ui.H / 2 - box_h / 2
+        c.rect(DIALOG, x, y, box_w, box_h, 20)
+        c.text(text, 21, ui.W / 2, y + 40, WHITE, True, "midtop")
+        if st.get("count", 1) > 1:
+            c.text(f"Update {st.get('index', 1)} of {st.get('count')}", 16, ui.W / 2, y + 76, SOFT, False, "midtop")
+        bar_x, bar_y, bar_w = x + 60, y + 118, box_w - 120
+        c.rect(KEY, bar_x, bar_y, bar_w, 12, 6)
+        if state == "downloading":
+            part = max(0.0, min(1.0, st.get("percent", 0) / 100))
+            if part > 0:
+                c.rect(ACCENT, bar_x, bar_y, max(12, bar_w * part), 12, 6)
+            c.text(f"{st.get('percent', 0)}%", 15, ui.W / 2, bar_y + 24, SOFT, False, "midtop")
+        else:
+            # Moving: a short light that runs along the bar.
+            run = (self.home.t * 0.6) % 1.0
+            c.rect(ACCENT, bar_x + (bar_w - 120) * run, bar_y, 120, 12, 6)
+
+    def hints(self):
+        return [(None, "Please wait. Do not turn off the PS4.")]
 
 
 class KeyboardDialog(Modal):
@@ -1070,6 +1178,8 @@ class RowList(Modal):
         super().__init__(home)
         self.row = 0
         self.top = 0
+        self.chosen = None       # (row, label) last seen: the selection follows its row when rows
+                                 # above it come or go (a status that changes).
 
     def scroll(self, rows, y, bottom):
         """The first row to draw from `y`, so the chosen row fits above `bottom` (rows that do not fit
@@ -1087,8 +1197,14 @@ class RowList(Modal):
         return []
 
     def current(self, rows):
+        if self.chosen and self.chosen[0] == self.row and (
+                self.row >= len(rows) or rows[self.row].label != self.chosen[1]):
+            same = [i for i, r in enumerate(rows) if r.selectable and r.label == self.chosen[1]]
+            if same:
+                self.row = min(same, key=lambda i: abs(i - self.row))
         if self.row >= len(rows) or not rows[self.row].selectable:
             self.row = first_selectable(rows)
+        self.chosen = (self.row, rows[self.row].label) if rows else None
         return rows[self.row] if rows else None
 
     def act_rows(self, action):
@@ -1136,6 +1252,7 @@ class SettingsScreen(RowList):
         self.focus = focus
         self.top = 0
         self.backdrop = None
+        self.update_checking = False
 
     # Rows of each category ------------------------------------------------------------------
 
@@ -1773,6 +1890,7 @@ class SettingsScreen(RowList):
         info = h.poll.get("sysinfo", system.system_info, 5.0, [])
         rows = [self.setting_choice("Menu language", "menu_language", list(i18n.LANGUAGES.items()), reload=True)]
         rows += [Row("info", label, value) for label, value in info]
+        rows += self.rows_software_update()
         sensors = h.poll.get("sensors", system.sensors, 2.0, {})
         rows.append(Row("header", "Temperature and load"))
         if "console" in sensors:
@@ -1793,6 +1911,84 @@ class SettingsScreen(RowList):
         rows.append(Row("action", "Copy logs to USB", ok=lambda: h.push(Busy(
             h, "Copying logs to the USB drive…", system.copy_logs_to_usb))))
         return rows
+
+    def rows_software_update(self):
+        """EmuFive updates (lib/ps5/update.py): the status, Update, Check now, Roll back."""
+        h = self.home
+        rows = [Row("header", "Software update")]
+        status = h.poll.get("update_status", update.status, 1.0, {})
+        busy = status.get("state") in UpdateProgress.BUSY and time.time() - status.get("time", 0) < 600
+        if busy:
+            rows.append(Row("action", "An update is running", ok=lambda: h.push(UpdateProgress(h, "watch", self.category))))
+            return rows
+        if status.get("state") == "done" and status.get("restart") and not status.get("latest"):
+            rows.append(Row("action", "Restart the PS4 to finish the update", ok=lambda: h.push(Dialog(
+                h, "Restart the PS4 now?", [("Restart", lambda: h.finish("REBOOT")), ("Cancel", None)]))))
+        check = h.poll.get("update_check", update.check, 6 * 3600, None)
+        if self.update_checking or check is None:
+            rows.append(Row("info", "Status", "Checking…"))
+        elif check["error"]:
+            rows.append(Row("info", "Status", "Could not check (offline?)"))
+        elif check["newest"]:
+            rows.append(Row("info", "Status", f"Update available: {check['newest']}", color=GOOD))
+            rows.append(Row("action", f"Update to EmuFive {check['newest']}", ok=lambda: self.start_update(check)))
+        elif check.get("unpacked"):
+            rows.append(Row("info", "Status", f"{check['unpacked']} is out"))
+        else:
+            rows.append(Row("info", "Status", "Up to date"))
+        if check and check.get("unpacked"):
+            rows.append(Row("info", f"EmuFive {check['unpacked']} is out, but its release has no update files yet "
+                                    f"(emufive-{check['unpacked']}.tar and its .sha256), so it cannot be installed."))
+        rows.append(Row("action", "Check for updates", ok=self.check_updates))
+        back = h.poll.get("update_backup", update.backup_info, 5.0, None)
+        if back:
+            rows.append(Row("action", f"Roll back to EmuFive {back['from']}", ok=lambda: h.push(Dialog(
+                h, f"Put back EmuFive {back['from']}? The home screen starts again.",
+                [("Roll back", lambda: self.run_update("rollback")), ("Cancel", None)]))))
+        rows.append(Row("info", "Updates come from github.com/" + update.REPO + ". Your games, saves and "
+                        "settings are kept."))
+        return rows
+
+    def check_updates(self):
+        """Checks again; the page keeps the last result (and the selection) until the new one."""
+        h = self.home
+        if self.update_checking:
+            return
+        self.update_checking = True
+
+        def run():
+            result = update.check()
+            h.poll.put("update_check", result)
+            self.update_checking = False
+            if result["error"]:
+                h.toast("Could not check (offline?)")
+            elif result["newest"]:
+                h.toast(f"Update available: {result['newest']}")
+            elif result.get("unpacked"):
+                h.toast(f"{result['unpacked']} is out")
+            else:
+                h.toast("EmuFive is up to date.")
+
+        threading.Thread(target=run, daemon=True).start()
+
+    def start_update(self, check):
+        h = self.home
+        if h.running_path:
+            h.push(Dialog(h, "Close the paused game first, then update."))
+            return
+        count = check.get("count", 1)
+        if count > 1:
+            text = (f"Update EmuFive {check['installed']} to {check['newest']}? {count} updates are installed "
+                    "in turn. The home screen starts again when it is done.")
+        else:
+            text = f"Update EmuFive {check['installed']} to {check['newest']}? The home screen starts again when it is done."
+        h.push(Dialog(h, text,
+                      [("Update", lambda: self.run_update("update")), ("Cancel", None)]))
+
+    def run_update(self, action):
+        h = self.home
+        h.poll.forget("update_backup")
+        h.push(UpdateProgress(h, action, self.category))
 
     def reset_all(self):
         h = self.home
@@ -1882,6 +2078,7 @@ class SettingsScreen(RowList):
                 if new != self.category:
                     self.category = new
                     self.row = 0
+                    self.chosen = None
                     self.top = 0
                     h.sounds.play("move")
             elif action in (RIGHT, OK):
@@ -3247,6 +3444,7 @@ class Home:
         self.toast_text = None
         self.toast_until = 0.0
         self.idle_warned = False
+        self.update_checked = False
 
         self.all_games = []
         self.games = []
@@ -3317,6 +3515,28 @@ class Home:
         if self.result is None:
             self.result = result
             self.fade_out = 1.0 if self.settings["animations"] == "off" else 0.0
+
+    def tell_update(self):
+        """A note when a new EmuFive version is out, once for each version (until the PS4 restarts)."""
+        check = update.check()
+        if check["error"]:
+            return
+        self.poll.put("update_check", check)
+        newest = check["newest"]
+        if not newest:
+            return
+        try:
+            with open(UPDATE_TOLD) as f:
+                if f.read().strip() == newest:
+                    return
+        except OSError:
+            pass
+        self.toast(f"EmuFive {newest} is available in Settings, System.", 8.0)
+        try:
+            with open(UPDATE_TOLD, "w") as f:
+                f.write(newest + "\n")
+        except OSError:
+            pass
 
     def request_reload(self, category):
         """Starts the home screen again (for settings it reads only at the start), on this page."""
@@ -3563,6 +3783,9 @@ class Home:
             if motion == "off":
                 modal.appear = 1.0
         self.modals = [m for m in self.modals if not m.closed]
+        if not self.quick and not self.update_checked and self.t > UPDATE_CHECK_AFTER:
+            self.update_checked = True
+            threading.Thread(target=self.tell_update, daemon=True).start()
         if self.quick and not self.modals and self.result is None:
             self.finish("RESUME")
         if self.games_changed and not self.quick:

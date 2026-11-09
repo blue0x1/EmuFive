@@ -4894,5 +4894,446 @@
 "de": "Die Protokolle konnten nicht gelöscht werden.",
 "it": "Impossibile eliminare i log.",
 "pt": "Não foi possível apagar os registros."
+},
+"Powering off...": {
+"ar": "جارٍ إيقاف التشغيل...",
+"fr": "Extinction...",
+"tr": "Kapatılıyor...",
+"es": "Apagando...",
+"de": "Wird ausgeschaltet...",
+"it": "Spegnimento...",
+"pt": "Desligando..."
+},
+"Restarting...": {
+"ar": "جارٍ إعادة التشغيل...",
+"fr": "Redémarrage...",
+"tr": "Yeniden başlatılıyor...",
+"es": "Reiniciando...",
+"de": "Neustart...",
+"it": "Riavvio...",
+"pt": "Reiniciando..."
+},
+"Software update": {
+"ar": "تحديث البرنامج",
+"fr": "Mise à jour du logiciel",
+"tr": "Yazılım güncellemesi",
+"es": "Actualización de software",
+"de": "Softwareaktualisierung",
+"it": "Aggiornamento software",
+"pt": "Atualização de software"
+},
+"Checking…": {
+"ar": "جارٍ التحقق…",
+"fr": "Vérification…",
+"tr": "Denetleniyor…",
+"es": "Comprobando…",
+"de": "Wird geprüft…",
+"it": "Verifica…",
+"pt": "Verificando…"
+},
+"Could not check (offline?)": {
+"ar": "تعذّر التحقق (غير متصل؟)",
+"fr": "Vérification impossible (hors ligne ?)",
+"tr": "Denetlenemedi (çevrimdışı mı?)",
+"es": "No se pudo comprobar (¿sin conexión?)",
+"de": "Prüfung nicht möglich (offline?)",
+"it": "Impossibile verificare (offline?)",
+"pt": "Não foi possível verificar (offline?)"
+},
+"Update available: {a}": {
+"ar": "يتوفر تحديث: {a}",
+"fr": "Mise à jour disponible : {a}",
+"tr": "Güncelleme var: {a}",
+"es": "Actualización disponible: {a}",
+"de": "Update verfügbar: {a}",
+"it": "Aggiornamento disponibile: {a}",
+"pt": "Atualização disponível: {a}"
+},
+"Update to EmuFive {a}": {
+"ar": "التحديث إلى EmuFive {a}",
+"fr": "Mettre à jour vers EmuFive {a}",
+"tr": "EmuFive {a} sürümüne güncelle",
+"es": "Actualizar a EmuFive {a}",
+"de": "Auf EmuFive {a} aktualisieren",
+"it": "Aggiorna a EmuFive {a}",
+"pt": "Atualizar para EmuFive {a}"
+},
+"Check for updates": {
+"ar": "البحث عن تحديثات",
+"fr": "Rechercher des mises à jour",
+"tr": "Güncellemeleri denetle",
+"es": "Buscar actualizaciones",
+"de": "Nach Updates suchen",
+"it": "Cerca aggiornamenti",
+"pt": "Procurar atualizações"
+},
+"Roll back to EmuFive {a}": {
+"ar": "الرجوع إلى EmuFive {a}",
+"fr": "Revenir à EmuFive {a}",
+"tr": "EmuFive {a} sürümüne geri dön",
+"es": "Volver a EmuFive {a}",
+"de": "Zurück zu EmuFive {a}",
+"it": "Torna a EmuFive {a}",
+"pt": "Voltar para EmuFive {a}"
+},
+"Put back EmuFive {a}? The home screen starts again.": {
+"ar": "إرجاع EmuFive {a}؟ ستبدأ الشاشة الرئيسية من جديد.",
+"fr": "Remettre EmuFive {a} ? L'écran d'accueil redémarre.",
+"tr": "EmuFive {a} geri yüklensin mi? Ana ekran yeniden başlar.",
+"es": "¿Volver a EmuFive {a}? La pantalla de inicio se reinicia.",
+"de": "EmuFive {a} wiederherstellen? Der Startbildschirm startet neu.",
+"it": "Ripristinare EmuFive {a}? La schermata iniziale si riavvia.",
+"pt": "Voltar para EmuFive {a}? A tela inicial reinicia."
+},
+"Roll back": {
+"ar": "رجوع",
+"fr": "Revenir",
+"tr": "Geri dön",
+"es": "Volver",
+"de": "Zurücksetzen",
+"it": "Ripristina",
+"pt": "Voltar"
+},
+"Updates come from {a}. Your games, saves and settings are kept.": {
+"ar": "تأتي التحديثات من {a}. تبقى ألعابك وحفظاتك وإعداداتك كما هي.",
+"fr": "Les mises à jour viennent de {a}. Vos jeux, sauvegardes et réglages sont conservés.",
+"tr": "Güncellemeler {a} adresinden gelir. Oyunların, kayıtların ve ayarların korunur.",
+"es": "Las actualizaciones vienen de {a}. Tus juegos, partidas guardadas y ajustes se conservan.",
+"de": "Updates kommen von {a}. Deine Spiele, Spielstände und Einstellungen bleiben erhalten.",
+"it": "Gli aggiornamenti arrivano da {a}. Giochi, salvataggi e impostazioni vengono mantenuti.",
+"pt": "As atualizações vêm de {a}. Seus jogos, saves e configurações são mantidos."
+},
+"Up to date": {
+"ar": "محدّث",
+"fr": "À jour",
+"tr": "Güncel",
+"es": "Actualizado",
+"de": "Aktuell",
+"it": "Aggiornato",
+"pt": "Atualizado"
+},
+"An update is running": {
+"ar": "يجري تحديث الآن",
+"fr": "Une mise à jour est en cours",
+"tr": "Bir güncelleme yapılıyor",
+"es": "Hay una actualización en curso",
+"de": "Ein Update läuft",
+"it": "Aggiornamento in corso",
+"pt": "Uma atualização está em andamento"
+},
+"Restart the PS4 to finish the update": {
+"ar": "أعد تشغيل PS4 لإكمال التحديث",
+"fr": "Redémarrez la PS4 pour terminer la mise à jour",
+"tr": "Güncellemeyi bitirmek için PS4'ü yeniden başlat",
+"es": "Reinicia la PS4 para terminar la actualización",
+"de": "PS4 neu starten, um das Update abzuschließen",
+"it": "Riavvia la PS4 per completare l'aggiornamento",
+"pt": "Reinicie o PS4 para concluir a atualização"
+},
+"Restart the PS4 now?": {
+"ar": "إعادة تشغيل PS4 الآن؟",
+"fr": "Redémarrer la PS4 maintenant ?",
+"tr": "PS4 şimdi yeniden başlatılsın mı?",
+"es": "¿Reiniciar la PS4 ahora?",
+"de": "PS4 jetzt neu starten?",
+"it": "Riavviare la PS4 ora?",
+"pt": "Reiniciar o PS4 agora?"
+},
+"Close the paused game first, then update.": {
+"ar": "أغلق اللعبة المتوقفة مؤقتًا أولًا، ثم حدّث.",
+"fr": "Fermez d'abord le jeu en pause, puis mettez à jour.",
+"tr": "Önce duraklatılan oyunu kapat, sonra güncelle.",
+"es": "Cierra primero el juego en pausa y luego actualiza.",
+"de": "Schließe zuerst das pausierte Spiel, dann aktualisiere.",
+"it": "Chiudi prima il gioco in pausa, poi aggiorna.",
+"pt": "Feche primeiro o jogo pausado e depois atualize."
+},
+"Update EmuFive {a} to {b}? {n} updates are installed in turn. The home screen starts again when it is done.": {
+"ar": "تحديث EmuFive من {a} إلى {b}؟ تُثبَّت {n} تحديثات بالترتيب. تبدأ الشاشة الرئيسية من جديد عند الانتهاء.",
+"fr": "Mettre à jour EmuFive de {a} vers {b} ? {n} mises à jour sont installées l'une après l'autre. L'écran d'accueil redémarre à la fin.",
+"tr": "EmuFive {a} sürümünden {b} sürümüne güncellensin mi? {n} güncelleme sırayla kurulur. Bitince ana ekran yeniden başlar.",
+"es": "¿Actualizar EmuFive de {a} a {b}? Se instalan {n} actualizaciones en orden. La pantalla de inicio se reinicia al terminar.",
+"de": "EmuFive von {a} auf {b} aktualisieren? {n} Updates werden nacheinander installiert. Danach startet der Startbildschirm neu.",
+"it": "Aggiornare EmuFive da {a} a {b}? Vengono installati {n} aggiornamenti in ordine. Al termine la schermata iniziale si riavvia.",
+"pt": "Atualizar EmuFive de {a} para {b}? {n} atualizações são instaladas em ordem. A tela inicial reinicia ao terminar."
+},
+"Update EmuFive {a} to {b}? The home screen starts again when it is done.": {
+"ar": "تحديث EmuFive من {a} إلى {b}؟ تبدأ الشاشة الرئيسية من جديد عند الانتهاء.",
+"fr": "Mettre à jour EmuFive de {a} vers {b} ? L'écran d'accueil redémarre à la fin.",
+"tr": "EmuFive {a} sürümünden {b} sürümüne güncellensin mi? Bitince ana ekran yeniden başlar.",
+"es": "¿Actualizar EmuFive de {a} a {b}? La pantalla de inicio se reinicia al terminar.",
+"de": "EmuFive von {a} auf {b} aktualisieren? Danach startet der Startbildschirm neu.",
+"it": "Aggiornare EmuFive da {a} a {b}? Al termine la schermata iniziale si riavvia.",
+"pt": "Atualizar EmuFive de {a} para {b}? A tela inicial reinicia ao terminar."
+},
+"Update": {
+"ar": "تحديث",
+"fr": "Mettre à jour",
+"tr": "Güncelle",
+"es": "Actualizar",
+"de": "Aktualisieren",
+"it": "Aggiorna",
+"pt": "Atualizar"
+},
+"The update did not start.": {
+"ar": "لم يبدأ التحديث.",
+"fr": "La mise à jour n'a pas démarré.",
+"tr": "Güncelleme başlamadı.",
+"es": "La actualización no se inició.",
+"de": "Das Update ist nicht gestartet.",
+"it": "L'aggiornamento non è partito.",
+"pt": "A atualização não começou."
+},
+"The update could not be installed.": {
+"ar": "تعذّر تثبيت التحديث.",
+"fr": "La mise à jour n'a pas pu être installée.",
+"tr": "Güncelleme kurulamadı.",
+"es": "No se pudo instalar la actualización.",
+"de": "Das Update konnte nicht installiert werden.",
+"it": "Impossibile installare l'aggiornamento.",
+"pt": "Não foi possível instalar a atualização."
+},
+"{a} Nothing was changed.": {
+"ar": "{a} لم يتغير شيء.",
+"fr": "{a} Rien n'a été modifié.",
+"tr": "{a} Hiçbir şey değişmedi.",
+"es": "{a} No se cambió nada.",
+"de": "{a} Es wurde nichts geändert.",
+"it": "{a} Non è stato modificato nulla.",
+"pt": "{a} Nada foi alterado."
+},
+"EmuFive is up to date.": {
+"ar": "EmuFive محدّث.",
+"fr": "EmuFive est à jour.",
+"tr": "EmuFive güncel.",
+"es": "EmuFive está actualizado.",
+"de": "EmuFive ist aktuell.",
+"it": "EmuFive è aggiornato.",
+"pt": "O EmuFive está atualizado."
+},
+"Rolled back to EmuFive {a}.": {
+"ar": "تم الرجوع إلى EmuFive {a}.",
+"fr": "Retour à EmuFive {a} effectué.",
+"tr": "EmuFive {a} sürümüne geri dönüldü.",
+"es": "Se volvió a EmuFive {a}.",
+"de": "Zurück auf EmuFive {a}.",
+"it": "Ripristinato EmuFive {a}.",
+"pt": "Voltou para EmuFive {a}."
+},
+"EmuFive {a} is installed.": {
+"ar": "تم تثبيت EmuFive {a}.",
+"fr": "EmuFive {a} est installé.",
+"tr": "EmuFive {a} kuruldu.",
+"es": "EmuFive {a} está instalado.",
+"de": "EmuFive {a} ist installiert.",
+"it": "EmuFive {a} è installato.",
+"pt": "EmuFive {a} está instalado."
+},
+"{a} Restart the PS4 now to finish?": {
+"ar": "{a} إعادة تشغيل PS4 الآن للإكمال؟",
+"fr": "{a} Redémarrer la PS4 maintenant pour terminer ?",
+"tr": "{a} Bitirmek için PS4 şimdi yeniden başlatılsın mı?",
+"es": "{a} ¿Reiniciar la PS4 ahora para terminar?",
+"de": "{a} PS4 jetzt neu starten, um abzuschließen?",
+"it": "{a} Riavviare la PS4 ora per completare?",
+"pt": "{a} Reiniciar o PS4 agora para concluir?"
+},
+"Restart now": {
+"ar": "إعادة التشغيل الآن",
+"fr": "Redémarrer",
+"tr": "Şimdi yeniden başlat",
+"es": "Reiniciar ahora",
+"de": "Jetzt neu starten",
+"it": "Riavvia ora",
+"pt": "Reiniciar agora"
+},
+"Later": {
+"ar": "لاحقًا",
+"fr": "Plus tard",
+"tr": "Sonra",
+"es": "Más tarde",
+"de": "Später",
+"it": "Più tardi",
+"pt": "Depois"
+},
+"Rolling back to EmuFive {a}…": {
+"ar": "جارٍ الرجوع إلى EmuFive {a}…",
+"fr": "Retour à EmuFive {a}…",
+"tr": "EmuFive {a} sürümüne geri dönülüyor…",
+"es": "Volviendo a EmuFive {a}…",
+"de": "Zurück auf EmuFive {a}…",
+"it": "Ripristino di EmuFive {a}…",
+"pt": "Voltando para EmuFive {a}…"
+},
+"Rolling back…": {
+"ar": "جارٍ الرجوع…",
+"fr": "Retour en arrière…",
+"tr": "Geri dönülüyor…",
+"es": "Volviendo…",
+"de": "Wird zurückgesetzt…",
+"it": "Ripristino…",
+"pt": "Voltando…"
+},
+"Downloading EmuFive {a}…": {
+"ar": "جارٍ تنزيل EmuFive {a}…",
+"fr": "Téléchargement d'EmuFive {a}…",
+"tr": "EmuFive {a} indiriliyor…",
+"es": "Descargando EmuFive {a}…",
+"de": "EmuFive {a} wird geladen…",
+"it": "Download di EmuFive {a}…",
+"pt": "Baixando EmuFive {a}…"
+},
+"Installing EmuFive {a}…": {
+"ar": "جارٍ تثبيت EmuFive {a}…",
+"fr": "Installation d'EmuFive {a}…",
+"tr": "EmuFive {a} kuruluyor…",
+"es": "Instalando EmuFive {a}…",
+"de": "EmuFive {a} wird installiert…",
+"it": "Installazione di EmuFive {a}…",
+"pt": "Instalando EmuFive {a}…"
+},
+"Testing the new version…": {
+"ar": "جارٍ اختبار الإصدار الجديد…",
+"fr": "Test de la nouvelle version…",
+"tr": "Yeni sürüm deneniyor…",
+"es": "Probando la nueva versión…",
+"de": "Neue Version wird getestet…",
+"it": "Verifica della nuova versione…",
+"pt": "Testando a nova versão…"
+},
+"Putting the old files back…": {
+"ar": "جارٍ إرجاع الملفات القديمة…",
+"fr": "Remise en place des anciens fichiers…",
+"tr": "Eski dosyalar geri yükleniyor…",
+"es": "Restaurando los archivos anteriores…",
+"de": "Alte Dateien werden wiederhergestellt…",
+"it": "Ripristino dei file precedenti…",
+"pt": "Restaurando os arquivos antigos…"
+},
+"Checking for updates…": {
+"ar": "جارٍ البحث عن تحديثات…",
+"fr": "Recherche de mises à jour…",
+"tr": "Güncellemeler denetleniyor…",
+"es": "Buscando actualizaciones…",
+"de": "Suche nach Updates…",
+"it": "Ricerca aggiornamenti…",
+"pt": "Procurando atualizações…"
+},
+"Update {n} of {m}": {
+"ar": "التحديث {n} من {m}",
+"fr": "Mise à jour {n} sur {m}",
+"tr": "Güncelleme {n}/{m}",
+"es": "Actualización {n} de {m}",
+"de": "Update {n} von {m}",
+"it": "Aggiornamento {n} di {m}",
+"pt": "Atualização {n} de {m}"
+},
+"Please wait. Do not turn off the PS4.": {
+"ar": "يرجى الانتظار. لا تطفئ PS4.",
+"fr": "Patientez. N'éteignez pas la PS4.",
+"tr": "Lütfen bekle. PS4'ü kapatma.",
+"es": "Espera. No apagues la PS4.",
+"de": "Bitte warten. PS4 nicht ausschalten.",
+"it": "Attendi. Non spegnere la PS4.",
+"pt": "Aguarde. Não desligue o PS4."
+},
+"EmuFive {a} is available in Settings, System.": {
+"ar": "يتوفر EmuFive {a} في الإعدادات، النظام.",
+"fr": "EmuFive {a} est disponible dans Réglages, Système.",
+"tr": "EmuFive {a} hazır: Ayarlar, Sistem.",
+"es": "EmuFive {a} está disponible en Ajustes, Sistema.",
+"de": "EmuFive {a} ist verfügbar unter Einstellungen, System.",
+"it": "EmuFive {a} è disponibile in Impostazioni, Sistema.",
+"pt": "EmuFive {a} está disponível em Configurações, Sistema."
+},
+"Could not reach the update server.": {
+"ar": "تعذّر الوصول إلى خادم التحديثات.",
+"fr": "Impossible de joindre le serveur de mises à jour.",
+"tr": "Güncelleme sunucusuna ulaşılamadı.",
+"es": "No se pudo conectar con el servidor de actualizaciones.",
+"de": "Der Update-Server ist nicht erreichbar.",
+"it": "Impossibile raggiungere il server degli aggiornamenti.",
+"pt": "Não foi possível acessar o servidor de atualizações."
+},
+"The download of {a} is damaged.": {
+"ar": "تنزيل {a} تالف.",
+"fr": "Le téléchargement de {a} est endommagé.",
+"tr": "{a} indirmesi bozuk.",
+"es": "La descarga de {a} está dañada.",
+"de": "Der Download von {a} ist beschädigt.",
+"it": "Il download di {a} è danneggiato.",
+"pt": "O download de {a} está corrompido."
+},
+"The new home screen did not start.": {
+"ar": "لم تبدأ الشاشة الرئيسية الجديدة.",
+"fr": "Le nouvel écran d'accueil n'a pas démarré.",
+"tr": "Yeni ana ekran başlamadı.",
+"es": "La nueva pantalla de inicio no se inició.",
+"de": "Der neue Startbildschirm ist nicht gestartet.",
+"it": "La nuova schermata iniziale non è partita.",
+"pt": "A nova tela inicial não iniciou."
+},
+"The update {a} could not finish.": {
+"ar": "تعذّر إكمال التحديث {a}.",
+"fr": "La mise à jour {a} n'a pas pu se terminer.",
+"tr": "{a} güncellemesi bitirilemedi.",
+"es": "La actualización {a} no pudo terminar.",
+"de": "Das Update {a} konnte nicht abgeschlossen werden.",
+"it": "Impossibile completare l'aggiornamento {a}.",
+"pt": "A atualização {a} não pôde ser concluída."
+},
+"There is no update to roll back.": {
+"ar": "لا يوجد تحديث للرجوع عنه.",
+"fr": "Aucune mise à jour à annuler.",
+"tr": "Geri alınacak bir güncelleme yok.",
+"es": "No hay ninguna actualización que deshacer.",
+"de": "Es gibt kein Update zum Zurücksetzen.",
+"it": "Nessun aggiornamento da annullare.",
+"pt": "Não há atualização para desfazer."
+},
+"The roll back did not finish.": {
+"ar": "لم يكتمل الرجوع.",
+"fr": "Le retour en arrière n'a pas abouti.",
+"tr": "Geri dönüş tamamlanmadı.",
+"es": "La vuelta atrás no terminó.",
+"de": "Das Zurücksetzen wurde nicht abgeschlossen.",
+"it": "Il ripristino non è stato completato.",
+"pt": "A volta não foi concluída."
+},
+"An update is already running.": {
+"ar": "يجري تحديث بالفعل.",
+"fr": "Une mise à jour est déjà en cours.",
+"tr": "Zaten bir güncelleme yapılıyor.",
+"es": "Ya hay una actualización en curso.",
+"de": "Es läuft bereits ein Update.",
+"it": "È già in corso un aggiornamento.",
+"pt": "Já há uma atualização em andamento."
+},
+"Could not start the update.": {
+"ar": "تعذّر بدء التحديث.",
+"fr": "Impossible de lancer la mise à jour.",
+"tr": "Güncelleme başlatılamadı.",
+"es": "No se pudo iniciar la actualización.",
+"de": "Das Update konnte nicht gestartet werden.",
+"it": "Impossibile avviare l'aggiornamento.",
+"pt": "Não foi possível iniciar a atualização."
+},
+"{a} is out": {
+"ar": "صدر {a}",
+"fr": "{a} est sorti",
+"tr": "{a} çıktı",
+"es": "Ya salió {a}",
+"de": "{a} ist erschienen",
+"it": "{a} è uscito",
+"pt": "{a} foi lançado"
+},
+"EmuFive {a} is out, but its release has no update files yet ({b} and its .sha256), so it cannot be installed.": {
+"ar": "صدر EmuFive {a}، لكن إصداره لا يحتوي بعد على ملفات التحديث ({b} وملف .sha256 الخاص به)، لذا لا يمكن تثبيته.",
+"fr": "EmuFive {a} est sorti, mais sa version n'a pas encore de fichiers de mise à jour ({b} et son .sha256) : impossible de l'installer.",
+"tr": "EmuFive {a} çıktı, ancak sürümünde henüz güncelleme dosyaları yok ({b} ve .sha256 dosyası), bu yüzden kurulamaz.",
+"es": "EmuFive {a} ya salió, pero su versión aún no tiene archivos de actualización ({b} y su .sha256), así que no se puede instalar.",
+"de": "EmuFive {a} ist erschienen, aber das Release hat noch keine Update-Dateien ({b} und die .sha256), daher kann es nicht installiert werden.",
+"it": "EmuFive {a} è uscito, ma la release non ha ancora i file di aggiornamento ({b} e il suo .sha256), quindi non si può installare.",
+"pt": "EmuFive {a} foi lançado, mas a versão ainda não tem os arquivos de atualização ({b} e o .sha256), então não pode ser instalado."
 }
 }

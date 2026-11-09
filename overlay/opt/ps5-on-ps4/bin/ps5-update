@@ -1,0 +1,365 @@
+#!/usr/bin/env python3
+# Copyright (C) 2026 Chokri Hammedi (blue0x1) <https://github.com/blue0x1>
+# Installs EmuFive updates (as root; ps5-admin starts it in the background):
+#   ps5-update install     every release newer than this one, in turn (lib/ps5/update.py)
+#   ps5-update rollback    puts back the files from before the last update
+#
+# The same steps as installing a pack by hand: each release is downloaded and its SHA-256
+# checked; the files it changes are backed up, the new ones put in, its post script run. Then
+# the home screen is test-started; when anything fails, the backup is put back and nothing is
+# changed. The backup is kept for Roll back. The progress is written to update.STATUS for the
+# home screen.
+import fcntl
+import hashlib
+import json
+import os
+import pwd
+import shutil
+import subprocess
+import sys
+import tarfile
+import tempfile
+import urllib.request
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "lib"))
+from ps5 import update as U  # noqa: E402
+
+R = U.ROOT                                          # "" on the PS4 (tests: another folder)
+TESTING = bool(R)
+WORK_DIR = R + "/var/cache/ps5-on-ps4-update"
+VERSION_REL = U.VERSION_FILE[len(R):].lstrip("/")   # etc/ps5-on-ps4-version
+KYTY_REL = "opt/kytyps5"
+PACK_PARTS = {"update.json", "files.tar", "kytyps5.tar.xz", "post.sh"}
+HOME_TEST = ("cd /tmp && SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy PYTHONDONTWRITEBYTECODE=1 "
+             "timeout 8 python3 /opt/ps5-on-ps4/bin/ps5-home --size 1920x1080 --dry-run-network")
+
+
+class Failed(Exception):
+    pass
+
+
+def log(text):
+    print("ps5-update: " + text, flush=True)
+
+
+def real(rel):
+    """A path from a pack (etc/x) on this system."""
+    return (R or "") + "/" + rel
+
+
+def safe_rel(path):
+    """A pack path, checked: relative, normal, no '..'."""
+    rel = os.path.normpath(path)
+    if not rel or rel.startswith("/") or rel == "." or ".." in rel.split("/"):
+        raise Failed(f"A bad path in the update: {path}")
+    return rel
+
+
+# Backup ------------------------------------------------------------------------------------
+
+class Backup:
+    """The files an update changes, as they were. info.json lists them; it is written last, so a
+    backup without it is incomplete (never rolled back to)."""
+
+    def __init__(self, path, from_version):
+        shutil.rmtree(path, ignore_errors=True)
+        os.makedirs(os.path.join(path, "files"), mode=0o755)
+        self.path = path
+        self.info = {"from": from_version, "to": None, "restart": False,
+                     "saved": [], "created": [], "kyty": False}
+
+    def save(self, rel):
+        if rel in self.info["saved"]:
+            return
+        target = real(rel)
+        if os.path.isdir(target) and not os.path.islink(target):
+            raise Failed(f"The update would replace a folder: /{rel}")
+        self.info["saved"].append(rel)
+        if os.path.lexists(target):
+            copy = os.path.join(self.path, "files", rel)
+            os.makedirs(os.path.dirname(copy), exist_ok=True)
+            shutil.copy2(target, copy, follow_symlinks=False)
+        else:
+            self.info["created"].append(rel)
+
+    def keep_kyty(self):
+        """Moves the emulator now in use into the backup (once per update)."""
+        current = real(KYTY_REL)
+        if self.info["kyty"]:
+            shutil.rmtree(current, ignore_errors=True)
+            return
+        self.info["kyty"] = True
+        if os.path.isdir(current):
+            os.rename(current, os.path.join(self.path, "kytyps5"))
+
+    def write(self):
+        tmp = os.path.join(self.path, "info.json.tmp")
+        with open(tmp, "w") as f:
+            json.dump(self.info, f, indent=1)
+        os.chmod(tmp, 0o644)
+        os.replace(tmp, os.path.join(self.path, "info.json"))
+
+
+def restore(path, info):
+    """Puts the backup in `path` back: changed files as they were, new files removed, the old
+    emulator back."""
+    for rel in reversed(info.get("saved", [])):
+        target = real(rel)
+        if rel in info.get("created", []):
+            if os.path.lexists(target) and not os.path.isdir(target):
+                os.remove(target)
+            continue
+        copy = os.path.join(path, "files", rel)
+        if os.path.lexists(copy):
+            os.makedirs(os.path.dirname(target), exist_ok=True)
+            if os.path.lexists(target) and not os.path.isdir(target):
+                os.remove(target)
+            shutil.copy2(copy, target, follow_symlinks=False)
+    if info.get("kyty") and os.path.isdir(os.path.join(path, "kytyps5")):
+        shutil.rmtree(real(KYTY_REL), ignore_errors=True)
+        os.rename(os.path.join(path, "kytyps5"), real(KYTY_REL))
+    after_files(info.get("saved", []))
+
+
+def after_files(rels):
+    """What the installed files need: their owner, sudoers modes, systemd reloaded."""
+    if TESTING:
+        return
+    try:
+        ps5 = pwd.getpwnam("ps5")
+    except KeyError:
+        ps5 = None
+    for rel in rels:
+        target = real(rel)
+        if not os.path.lexists(target):
+            continue
+        if ps5 and rel.startswith("home/ps5/"):
+            os.lchown(target, ps5.pw_uid, ps5.pw_gid)
+        if rel.startswith("etc/sudoers.d/") and not os.path.islink(target):
+            os.chmod(target, 0o440)
+    if any(rel.startswith("etc/sudoers.d/") for rel in rels):
+        if subprocess.run(["visudo", "-c"], capture_output=True).returncode != 0:
+            raise Failed("The sudo settings in the update are not valid.")
+    if any(rel.startswith("etc/systemd/") for rel in rels):
+        subprocess.run(["systemctl", "daemon-reload"], capture_output=True)
+
+
+# Steps -------------------------------------------------------------------------------------
+
+def download(url, dest, report):
+    request = urllib.request.Request(url, headers={"User-Agent": U.USER_AGENT})
+    with urllib.request.urlopen(request, timeout=30) as response, open(dest, "wb") as out:
+        total = int(response.headers.get("Content-Length") or 0)
+        done = 0
+        last = -1
+        while True:
+            chunk = response.read(256 * 1024)
+            if not chunk:
+                break
+            out.write(chunk)
+            done += len(chunk)
+            percent = int(done * 100 / total) if total else 0
+            if percent != last:
+                report(percent)
+                last = percent
+
+
+def sha256(path):
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for block in iter(lambda: f.read(1024 * 1024), b""):
+            h.update(block)
+    return h.hexdigest()
+
+
+def open_pack(pack, into):
+    """The release pack's parts, checked, in `into`."""
+    with tarfile.open(pack) as tar:
+        for member in tar.getmembers():
+            part = os.path.normpath(member.name)
+            if not member.isfile() or part not in PACK_PARTS:
+                raise Failed(f"An unexpected file in the update: {member.name}")
+            member.name = part
+            tar.extract(member, into, filter="data")
+
+
+def put_files(files_tar, backup):
+    """The pack's files in place (each one backed up first). Folders are never replaced, only
+    made when missing."""
+    rels = []
+    with tarfile.open(files_tar) as tar:
+        members = []
+        for member in tar.getmembers():
+            if member.isdir():
+                continue
+            if not (member.isfile() or member.issym()):
+                raise Failed(f"An unexpected file in the update: {member.name}")
+            member.name = safe_rel(member.name)
+            members.append(member)
+        for member in members:
+            backup.save(member.name)
+            target = real(member.name)
+            os.makedirs(os.path.dirname(target), exist_ok=True)
+            if os.path.lexists(target):
+                os.remove(target)
+            tar.extract(member, R or "/", filter="tar" if member.issym() else "data")
+            rels.append(member.name)
+    return rels
+
+
+def put_kyty(archive, work, backup):
+    unpacked = os.path.join(work, "kyty")
+    shutil.rmtree(unpacked, ignore_errors=True)
+    with tarfile.open(archive) as tar:
+        tar.extractall(unpacked, filter="data")
+    new = os.path.join(unpacked, "kytyps5")
+    if not os.path.isfile(os.path.join(new, "kyty_emulator")):
+        raise Failed("The emulator in the update is incomplete.")
+    staged = real(KYTY_REL + ".new")
+    shutil.rmtree(staged, ignore_errors=True)
+    shutil.move(new, staged)
+    backup.keep_kyty()
+    os.rename(staged, real(KYTY_REL))
+
+
+def home_test():
+    if TESTING or os.environ.get("EMUFIVE_SKIP_HOME_TEST"):
+        return
+    for cache in subprocess.run(["find", "/opt/ps5-on-ps4", "-name", "__pycache__", "-prune"],
+                                capture_output=True, text=True).stdout.split():
+        shutil.rmtree(cache, ignore_errors=True)
+    code = subprocess.run(["su", "ps5", "-c", HOME_TEST], capture_output=True).returncode
+    if code != 124:       # Still running after 8 seconds: it started.
+        raise Failed("The new home screen did not start.")
+
+
+def write_version(text):
+    path = U.VERSION_FILE
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path + ".tmp", "w") as f:
+        f.write(text + "\n")
+    os.chmod(path + ".tmp", 0o644)
+    os.replace(path + ".tmp", path)
+
+
+# Install and roll back ---------------------------------------------------------------------
+
+def install():
+    current = U.installed()
+    U.write_status(action="install", state="checking", version=current)
+    try:
+        newer = U.pending(current)
+    except Exception as error:
+        U.write_status(action="install", state="failed", version=current,
+                       message="Could not reach the update server.", detail=str(error))
+        return 1
+    if not newer:
+        U.write_status(action="install", state="done", version=current, latest=True, restart=False)
+        return 0
+    os.makedirs(WORK_DIR, mode=0o700, exist_ok=True)
+    os.makedirs(U.STATE_DIR, mode=0o755, exist_ok=True)
+    work = tempfile.mkdtemp(dir=WORK_DIR)
+    backup = Backup(U.BACKUP + ".new", current)
+    backup.save(VERSION_REL)
+    count = len(newer)
+    try:
+        for index, release in enumerate(newer, 1):
+            version = U.name(release["version"])
+            step = {"action": "install", "version": version, "index": index, "count": count}
+            log(f"downloading {version}")
+            pack = os.path.join(work, f"emufive-{version}.tar")
+            download(release["pack"], pack,
+                     lambda p: U.write_status(state="downloading", percent=p, **step))
+            expected = U.fetch(release["sha256"]).decode("utf-8", "replace").split()
+            if not expected or sha256(pack).lower() != expected[0].lower():
+                raise Failed(f"The download of {version} is damaged.")
+            U.write_status(state="installing", **step)
+            log(f"installing {version}")
+            parts = os.path.join(work, version)
+            open_pack(pack, parts)
+            try:
+                with open(os.path.join(parts, "update.json")) as f:
+                    meta = json.load(f)
+            except (OSError, ValueError):
+                raise Failed(f"The update {version} has no update.json.")
+            if U.parse(str(meta.get("version"))) != release["version"]:
+                raise Failed(f"The update {version} is for another version.")
+            changed = []
+            for path in meta.get("remove", []):
+                rel = safe_rel(path)
+                backup.save(rel)
+                if os.path.lexists(real(rel)) and not os.path.isdir(real(rel)):
+                    os.remove(real(rel))
+            if os.path.exists(os.path.join(parts, "files.tar")):
+                changed = put_files(os.path.join(parts, "files.tar"), backup)
+            after_files(changed)
+            if os.path.exists(os.path.join(parts, "kytyps5.tar.xz")):
+                put_kyty(os.path.join(parts, "kytyps5.tar.xz"), work, backup)
+            if os.path.exists(os.path.join(parts, "post.sh")):
+                env = dict(os.environ, EMUFIVE_VERSION=version)
+                if subprocess.run(["sh", "post.sh"], cwd=parts, env=env).returncode != 0:
+                    raise Failed(f"The update {version} could not finish.")
+            write_version(version)
+            backup.info["to"] = version
+            backup.info["restart"] = backup.info["restart"] or bool(meta.get("restart", True))
+        U.write_status(action="install", state="testing", version=backup.info["to"], index=count, count=count)
+        log("testing the home screen")
+        home_test()
+        backup.write()
+        shutil.rmtree(U.BACKUP, ignore_errors=True)
+        os.rename(backup.path, U.BACKUP)
+        log(f"installed {backup.info['to']}")
+        U.write_status(action="install", state="done", version=backup.info["to"], previous=current,
+                       restart=backup.info["restart"])
+        return 0
+    except Exception as error:
+        message = str(error) if isinstance(error, Failed) else "The update could not be installed."
+        log(f"failed: {error}; putting the old files back")
+        U.write_status(action="install", state="restoring", version=current)
+        try:
+            restore(backup.path, backup.info)
+        except Exception as again:
+            log(f"putting back failed too: {again}")
+        shutil.rmtree(backup.path, ignore_errors=True)
+        U.write_status(action="install", state="failed", version=current, message=message, detail=str(error))
+        return 1
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+
+def rollback():
+    info = U.backup_info()
+    if not info:
+        U.write_status(action="rollback", state="failed", message="There is no update to roll back.")
+        return 1
+    U.write_status(action="rollback", state="installing", version=info["from"])
+    try:
+        restore(U.BACKUP, info)
+        home_test()
+    except Exception as error:
+        log(f"roll back failed: {error}")
+        U.write_status(action="rollback", state="failed", version=U.installed(),
+                       message="The roll back did not finish.", detail=str(error))
+        return 1
+    shutil.rmtree(U.BACKUP, ignore_errors=True)
+    log(f"rolled back to {info['from']}")
+    U.write_status(action="rollback", state="done", version=info["from"], previous=info.get("to"),
+                   restart=bool(info.get("restart")))
+    return 0
+
+
+def main():
+    what = sys.argv[1] if len(sys.argv) > 1 else ""
+    if what not in ("install", "rollback"):
+        sys.exit("usage: ps5-update install | rollback")
+    os.makedirs(U.STATUS_DIR, mode=0o755, exist_ok=True)
+    with open(os.path.join(U.STATUS_DIR, "lock"), "w") as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError:
+            sys.exit("An update is already running.")
+        return install() if what == "install" else rollback()
+
+
+if __name__ == "__main__":
+    sys.exit(main())

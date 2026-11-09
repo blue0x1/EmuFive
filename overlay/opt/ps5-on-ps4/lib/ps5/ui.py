@@ -103,6 +103,10 @@ def init_display(size=None, windowed=False, overscan=0):
         screen = pygame.display.set_mode(size, flags, vsync=1)
     except pygame.error:
         screen = pygame.display.set_mode(size, flags)
+    # Dark at once (the color of the screen behind the windows, ps5-backdrop): a new window is
+    # white until its first frame, which comes only after the games and pictures are loaded.
+    screen.fill((12, 10, 28))
+    pygame.display.flip()
     real_w, real_h = screen.get_size()
     area = screen
     if overscan:

@@ -14,7 +14,7 @@ import subprocess
 import threading
 import time
 
-from . import store
+from . import store, update
 
 USB_MOUNT = "/media/ps5-usb"
 USB_GAMES = USB_MOUNT + "/PS5"
@@ -848,7 +848,7 @@ def system_info():
         model = "PS4"
     info.append(("Console", model + (f", {cores} CPU cores" if cores else "")))
     info.append(("KytyPS5", read_first("/opt/kytyps5/VERSION").replace("KytyPS5 ", "") or "unknown"))
-    info.append(("EmuFive", read_first("/etc/ps5-on-ps4-release") or "unknown"))
+    info.append(("EmuFive", update.installed()))
     info.append(("Linux", os.uname().release))
     addresses = ip_addresses()
     info.append(("IP address", ", ".join(a for _, a in addresses) or "not connected"))
@@ -1107,6 +1107,15 @@ def eject_usb():
 
 def reboot():
     return admin("reboot")
+
+
+def update_admin(action):
+    """Starts an EmuFive update or roll back (ps5-update in the background); "watch" starts
+    nothing (one is running already). Returns (ok, message)."""
+    if action == "watch":
+        return True, ""
+    code, out, err = admin(action)
+    return code == 0, (err or out).strip()
 
 
 def set_lightbar(rgb):

@@ -13,6 +13,8 @@
 #   ps5-admin disconnect MAC        disconnect a Bluetooth controller (it turns off; PS connects it again)
 #   ps5-admin default-password      "yes" while the ps5 password is still "ps5"
 #   ps5-admin lightbar R G B        the light bar color of the connected controllers (0-255 each)
+#   ps5-admin update                install the EmuFive updates (ps5-update, in the background)
+#   ps5-admin rollback              put back the files from before the last update (the same)
 set -u
 PATH=/usr/sbin:/usr/bin:/sbin:/bin
 export LC_ALL=C
@@ -90,12 +92,20 @@ lightbar)
     done
     [ $found = 1 ] || die "No controller light bar found."
     ;;
+update|rollback)
+    # In the background (its own service), so it goes on while the home screen starts again.
+    # The progress is in /run/emufive-update/status.json.
+    systemctl is-active --quiet emufive-update.service && die "An update is already running."
+    systemctl reset-failed emufive-update.service 2>/dev/null
+    systemd-run --quiet --unit=emufive-update --collect /opt/ps5-on-ps4/bin/ps5-update "$1" \
+        || die "Could not start the update."
+    ;;
 default-password)
     hash="$(getent shadow ps5 | cut -d: -f2)"
     [ -n "$hash" ] || die "No password entry for ps5."
     perl -e 'my ($h) = @ARGV; print crypt("ps5", $h) eq $h ? "yes\n" : "no\n"' "$hash"
     ;;
 *)
-    die "usage: ps5-admin ssh on|off | timezone ZONE | eject | reboot | pair | forget MAC | lightbar R G B | default-password"
+    die "usage: ps5-admin ssh on|off | timezone ZONE | eject | reboot | pair | forget MAC | lightbar R G B | update | rollback | default-password"
     ;;
 esac
