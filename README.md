@@ -10,7 +10,7 @@ A PS5 emulator for the PS4.
 
 Created by **[Chokri Hammedi (blue0x1)](https://github.com/blue0x1)**. Built on [PS4 Multiboot](https://github.com/blue0x1/ps4-multiboot).
 
-> **Status: experimental research.** On a PS4 Pro, a native PS5 homebrew app (Snes9x PS5, rebuilt for the PS4's CPU) runs in KytyPS5 and draws its screen. KytyPS5 now rewrites the PS5-only CPU instructions in game code (patch `0004`); whether and how fast a game runs on the PS4 is being tested. See [The CPU problem](#the-cpu-problem).
+> **Status: experimental research.** On a PS4 Pro, God of War Sons of Sparta runs at about 40 FPS and more. KytyPS5 rewrites the PS5-only CPU instructions in game code (patch `0004`). Other games are still being tested, and many are slow for now. See [The CPU problem](#the-cpu-problem).
 
 ## How it works
 
@@ -43,7 +43,8 @@ The Jaguar is still far slower than the PS5's CPU, and the replacements add to t
 | EmuFive system image, installs through PS4 Multiboot | Done, PS4 Pro |
 | A PS5 homebrew app without AVX2 runs and draws | Done: Snes9x PS5 2.11 rebuilt for btver2, PS4 Pro |
 | Controller, `/data` and USB storage, loading a game in that app | Done on a PC test build (same patches); PS4 next |
-| AVX2, BMI2 and FMA translation for game code | Done (`0004`), checked on a PC; first game test on the PS4 next |
+| AVX2, BMI2 and FMA translation for game code | Done (`0004`), checked on a PC |
+| A PS5 game runs on the PS4 | Done: God of War Sons of Sparta, about 40 FPS and more, PS4 Pro |
 | Home screen: pick a game with the controller; Wi-Fi; Settings | Done, checked on a PC |
 | Games from the USB drive, the PS4 drive or a PC share | Done, checked on a PC; PS4 next |
 
