@@ -6,9 +6,23 @@
 MNT=/media/ps5-usb
 action="$1" dev="$2"
 
+# Unmounts the drive even while files on it are still open. A drive pulled out
+# while a game had files open stayed mounted with nothing behind it, and the
+# next drive plugged in was not mounted. systemd-run does it outside udev, like
+# systemd-mount.
+let_go() {
+    systemd-umount "$MNT" 2>/dev/null && return 0
+    systemd-run --quiet --wait --collect umount -l "$MNT" 2>/dev/null
+}
+
 case "$action" in
 add)
-    grep -q " $MNT " /proc/mounts && exit 0
+    if grep -q " $MNT " /proc/mounts; then
+        src=$(awk -v m="$MNT" '$2 == m { print $1; exit }' /proc/mounts)
+        # A drive that is still there and can be read stays mounted.
+        [ -b "$src" ] && ls "$MNT" >/dev/null 2>&1 && exit 0
+        let_go
+    fi
     case "$ID_FS_TYPE" in
         exfat|vfat) opts="uid=1000,gid=1000,fmask=0022,dmask=0022" ;;
         ntfs)       opts="uid=1000,gid=1000,fmask=0022,dmask=0022"; type="-t ntfs3" ;;
@@ -19,7 +33,7 @@ add)
     systemd-mount --no-block --collect $type ${opts:+-o "$opts"} "$dev" "$MNT"
     ;;
 remove)
-    grep -q "^$dev $MNT " /proc/mounts && systemd-umount "$MNT"
+    grep -q "^$dev $MNT " /proc/mounts && let_go
     ;;
 esac
 exit 0
