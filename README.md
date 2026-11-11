@@ -132,6 +132,25 @@ Login: `ps5` / `ps5` on tty2 or SSH. The emulator's output is in `~/kytyps5.log`
 
 This project contains no PS5 system software and no games. Use only games you own and dumped yourself.
 
+## Changelog
+
+### 1.0.1 (2026-11-11)
+
+- Hollow Knight: Silksong (PPSA12544) runs on the PS4 Pro.
+- Fixed: the screen went black or to "No signal" while some games started, and stayed off until the PS4 restarted. KytyPS5 used conditional rendering, which hangs the PS4's GPU and cannot be reset. It is now left off on the PS4's GPUs, and KytyPS5 reads the image data back instead (patch `0006`).
+- Fixed: crackling sound and 30 to 50 FPS in games that run short AVX2 instructions in a loop, as Silksong's sound mixer does. Such an instruction had no room for a jump to its replacement and faulted every time it ran, about 200000 times a second. It now jumps through a relay, and so does one that crosses a cache line (patch `0007`).
+- The emulator's log names an instruction that still faults each time, once it has done so 100000 times.
+
+To update from 1.0.0: Settings, System, Software update. New installs use the `ps5-ps4-rootfs.tar.xz` of the 1.0.1 release.
+
+### 1.0.0 (2026-11-09)
+
+- Software update in Settings, System: it checks the EmuFive releases, installs each newer one in turn, and can roll back the last update.
+- The EmuFive screen shows behind every window: while a game closes, the home screen starts again, and the PS4 turns off or restarts.
+- No white flash when the home screen starts again.
+- Quiet boot and shutdown: no login text, service messages or cursor.
+- Settings lists keep the selected row when rows above it change.
+
 ## Project layout
 
 | Path | Contents |
