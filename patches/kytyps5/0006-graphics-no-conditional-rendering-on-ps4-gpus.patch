@@ -1,0 +1,55 @@
+From: Chokri Hammedi <52697989+blue0x1@users.noreply.github.com>
+Subject: [PATCH] graphics: no conditional rendering on the PS4's GPUs
+
+RADV lists VK_EXT_conditional_rendering on the PS4's GPUs (Liverpool and
+Gladius), but their command processor never finishes the SET_PREDICATION
+packet: the gfx ring times out, the GPU reset fails ("asic atom init
+failed") and the screen stays off until the PS4 restarts. KytyPS5 sends that
+packet the first time it clears a color target from its metadata on the GPU,
+which Hollow Knight: Silksong (PPSA12544) does while it starts.
+
+On these GPUs (AMD 0x9920 to 0x9924) the feature is now left off, so the
+color metadata is read back instead, as on a GPU without the extension.
+KYTY_CONDITIONAL_RENDERING=1 turns it on anyway, and =0 turns it off on any
+GPU.
+
+Found with RADV_DEBUG=hang on a PS4 Pro: the last trace point reached is the
+one before the first SET_PREDICATION. With this patch Silksong reaches its
+title screen there.
+---
+diff --git a/src/graphics/presentation/window/vulkanWindow.cpp b/src/graphics/presentation/window/vulkanWindow.cpp
+index 637385e..211f628 100644
+--- a/src/graphics/presentation/window/vulkanWindow.cpp
++++ b/src/graphics/presentation/window/vulkanWindow.cpp
+@@ -25,6 +25,7 @@
+ #include <algorithm>
+ #include <cmath>
+ #include <cstdio>
++#include <cstdlib>
+ #include <cstring>
+ #include <fmt/format.h>
+ #include <memory>
+@@ -507,7 +508,22 @@ static vk::Device VulkanCreateDevice(GraphicContext&          graphics,
+ 		graphics.device_clock_period_ps = static_cast<uint32_t>(
+ 		    std::lround(graphics.physical_device_properties.limits.timestampPeriod * 1000.0f));
+ 	}
+-	graphics.conditional_rendering_enabled = conditional_rendering.conditionalRendering;
++	// The PS4's GPUs (Liverpool 0x9920-0x9923, Gladius 0x9924) list conditional rendering,
++	// but their command processor never finishes SET_PREDICATION: the GPU hangs and cannot
++	// be reset. Color metadata is read back on them instead. KYTY_CONDITIONAL_RENDERING=1
++	// (or 0, on any GPU) overrides this.
++	bool conditional_rendering_usable = !(graphics.physical_device_properties.vendorID == 0x1002u &&
++	                                      graphics.physical_device_properties.deviceID >= 0x9920u &&
++	                                      graphics.physical_device_properties.deviceID <= 0x9924u);
++	if (const char* force = std::getenv("KYTY_CONDITIONAL_RENDERING");
++	    force != nullptr && *force != 0) {
++		conditional_rendering_usable = *force != '0';
++	}
++	if (conditional_rendering.conditionalRendering && !conditional_rendering_usable) {
++		Log::WriteToConsoleAndLog("Conditional rendering is not used on this GPU.\n");
++	}
++	graphics.conditional_rendering_enabled =
++	    conditional_rendering.conditionalRendering && conditional_rendering_usable;
+ 	LOGF("Vulkan maintenance8 support: %s\n",
+ 	     graphics.maintenance8_enabled ? "true" : "false");
+ 	LOGF("Vulkan depth feedback support: %s\n",
