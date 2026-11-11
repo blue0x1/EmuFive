@@ -22,4 +22,7 @@ if [ -z "$dev" ]; then
     exit 0
 fi
 mkdir -p "$MNT"
-exec mount -t ufs -o ro,ufstype=ufs2,nosuid,nodev "$dev" "$MNT"
+# On a PS4 drive install this system's image is mapped from the same drive
+# and holds it, so the kernel will not let mount open it directly ("Can't
+# open blockdev"). A read-only loop device over it can still read it.
+exec mount -t ufs -o loop,ro,ufstype=ufs2,nosuid,nodev "$dev" "$MNT"
