@@ -139,12 +139,11 @@ This project contains no PS5 system software and no games. Use only games you ow
 
 ## Changelog
 
-### 1.0.2 (2026-11-11)
+### 1.0.3 (2026-11-11)
 
-- New: **Internet**, a web browser on the home screen, used with the controller (see [Installing](#installing)). It is WebKitGTK, one page at a time, to stay light on memory.
-- Fixed: a USB drive pulled out while a game still had a file open was not mounted when it was plugged in again, so its games were not listed until the PS4 restarted.
+- Fixed: with EmuFive installed on the PS4 drive, the PS4 drive was not mounted, so games in `/user/home/PS5` did not show up ([#7](https://github.com/blue0x1/EmuFive/issues/7)).
 
-To update from 1.0.0 or 1.0.1: Settings, System, Software update. This update downloads the browser's packages from Debian, about 110 MB, so it takes a few minutes, and the PS4 restarts after it. New installs use the `ps5-ps4-rootfs.tar.xz` of the 1.0.2 release.
+To update: Settings, System, Software update. The PS4 drive's games show up right after it, no restart needed. From 1.0.0 or 1.0.1, the update installs 1.0.2 first (its browser packages are about 110 MB, and the PS4 restarts after it). New installs use the `ps5-ps4-rootfs.tar.xz` of the 1.0.2 release, then this update.
 
 ## Project layout
 

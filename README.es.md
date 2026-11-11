@@ -145,12 +145,11 @@ Este proyecto no contiene software de sistema de PS5 ni juegos. Usa solo juegos 
 
 ## Registro de cambios
 
-### 1.0.2 (2026-11-11)
+### 1.0.3 (2026-11-11)
 
-- Nuevo: **Internet**, un navegador web en la pantalla de inicio, que se usa con el mando (consulta [Instalación](#installing)). Es WebKitGTK, una página cada vez, para gastar poca memoria.
-- Corregido: una unidad USB retirada mientras un juego aún tenía un archivo abierto no se montaba al conectarla de nuevo, así que sus juegos no aparecían hasta reiniciar la PS4.
+- Corregido: con EmuFive instalado en el disco de la PS4, ese disco no se montaba, así que los juegos de `/user/home/PS5` no aparecían ([#7](https://github.com/blue0x1/EmuFive/issues/7)).
 
-Para actualizar desde la 1.0.0 o la 1.0.1: Ajustes, Sistema, Actualización de software. Esta actualización descarga los paquetes del navegador desde Debian, unos 110 MB, así que tarda unos minutos, y después la PS4 se reinicia. Las instalaciones nuevas usan el `ps5-ps4-rootfs.tar.xz` de la versión 1.0.2.
+Para actualizar: Ajustes, Sistema, Actualización de software. Los juegos del disco de la PS4 aparecen justo después, sin reiniciar. Desde la 1.0.0 o la 1.0.1, la actualización instala primero la 1.0.2 (sus paquetes del navegador ocupan unos 110 MB, y después la PS4 se reinicia). Las instalaciones nuevas usan el `ps5-ps4-rootfs.tar.xz` de la versión 1.0.2 y luego esta actualización.
 
 ## Estructura del proyecto
 

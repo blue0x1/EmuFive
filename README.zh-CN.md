@@ -145,12 +145,11 @@ EmuFive 和其他 Linux 系统一样，通过 [PS4 Multiboot](https://github.com
 
 ## 更新日志
 
-### 1.0.2 (2026-11-11)
+### 1.0.3 (2026-11-11)
 
-- 新增：**Internet**，主屏幕上的网页浏览器，用手柄操作（见 [安装](#installing)）。它是 WebKitGTK，一次只显示一个页面，以节省内存。
-- 修复：游戏仍在使用某个文件时拔出的 USB 硬盘，再次插入后不会被挂载，导致其中的游戏在 PS4 重启前都不会显示。
+- 修复：EmuFive 安装在 PS4 硬盘上时，PS4 硬盘没有被挂载，因此 `/user/home/PS5` 中的游戏不会显示（[#7](https://github.com/blue0x1/EmuFive/issues/7)）。
 
-从 1.0.0 或 1.0.1 更新：设置（Settings）、系统（System）、软件更新（Software update）。此更新会从 Debian 下载浏览器所需的软件包，约 110 MB，所以需要几分钟，更新完成后 PS4 会重启。全新安装请使用 1.0.2 发布版中的 `ps5-ps4-rootfs.tar.xz`。
+更新方法：设置（Settings）、系统（System）、软件更新（Software update）。更新后 PS4 硬盘中的游戏会立即显示，无需重启。从 1.0.0 或 1.0.1 更新时，会先安装 1.0.2（其浏览器软件包约 110 MB，之后 PS4 会重启）。新安装请使用 1.0.2 版本中的 `ps5-ps4-rootfs.tar.xz`，然后再安装此更新。
 
 ## 项目结构
 
