@@ -101,6 +101,7 @@ The system starts in the home screen and needs no keyboard:
 - The games show up as tiles, each labeled with where it is: **USB**, **PS4** or **PC**. Pick one and press Play; when it quits, the home screen comes back.
 - At the top: Wi-Fi (with an on-screen keyboard for the password) and Settings, and two tabs, **Games** and **Media** (L1 / R1). Media shows your screenshots; open one, and Square deletes it.
 - OPTIONS on a game: favorite, hide, its own settings, its trophies and how long you played it.
+- **Internet**, the tile after the games: a web browser used with the controller. The left stick (or the touchpad) moves the pointer and X clicks; the right stick scrolls; O or L1 goes back, R1 forward; L2 and R2 zoom. Triangle types an address or a search, and choosing a text box on a page opens the on-screen keyboard. OPTIONS opens the menu: bookmarks, start page, zoom, search engine (Google, DuckDuckGo or Bing), Mobile sites (lighter pages) and clearing the history and cookies. The PS button goes back to the home screen, and the same page opens next time. It is WebKitGTK showing one page at a time, about 450 MB of memory with a page of text and more with video sites; the home screen closes while it runs, and a paused game has to be closed first. Downloads, uploads, the camera, the microphone and the location are refused. Bookmarks are in `~/.config/ps5-on-ps4/browser.json`, cookies in `~/.local/share/ps5-browser`.
 - The PS button during a game pauses it and opens the quick menu: Resume, **Home** (the home screen, with the game still paused: PS or Resume goes back to it; starting another game asks first, then closes it), Close the game, volume, power.
 - Screenshots: PS + Square, or Share, also in a game. They go to `PS5-screenshots` on the USB drive (or `~/Screenshots` without one), with a small notice in the corner. To get one on your phone, open it in Media and press Triangle (Share): scan the QR code with the phone (on the same network) to open it there, then save or share it. The PS4 serves that one picture, at a random address, only while the code is on screen. QR codes come from `python3-segno`.
 - Settings, Appearance: accent color, theme (dark, midnight, light), background (the game's art, a gradient, a solid color or your own picture from the USB drive), background dim, floating orbs, animations, tile size and shape, text size and font, clock, what the top bar shows (the battery is the controller's), menu sounds, rumble, button hints, screen edges (overscan) and a screensaver.
@@ -134,6 +135,13 @@ This project contains no PS5 system software and no games. Use only games you ow
 
 ## Changelog
 
+### 1.0.2 (2026-11-11)
+
+- New: **Internet**, a web browser on the home screen, used with the controller (see [Installing](#installing)). It is WebKitGTK, one page at a time, to stay light on memory.
+- Fixed: a USB drive pulled out while a game still had a file open was not mounted when it was plugged in again, so its games were not listed until the PS4 restarted.
+
+To update from 1.0.0 or 1.0.1: Settings, System, Software update. This update downloads the browser's packages from Debian, about 110 MB, so it takes a few minutes, and the PS4 restarts after it. New installs use the `ps5-ps4-rootfs.tar.xz` of the 1.0.2 release.
+
 ### 1.0.1 (2026-11-11)
 
 - Hollow Knight: Silksong (PPSA12544) runs on the PS4 Pro.
@@ -158,6 +166,8 @@ To update from 1.0.0: Settings, System, Software update. New installs use the `p
 | `scripts/build-kyty.sh` | Builds KytyPS5 (upstream plus `patches/kytyps5/`) for the PS4's CPU |
 | `patches/kytyps5/` | This project's changes to KytyPS5 |
 | `scripts/build-rootfs.sh` | Builds the system image for PS4 Multiboot |
+| `scripts/make-release.sh` | Makes the update pack of a release (Settings, System, Software update installs it) |
+| `scripts/updates/` | Scripts an update runs on the PS4 after its files are in (`--post`) |
 | `docker/` | Build environments for both |
 | `overlay/` | Files added to the system: session, home screen, settings, USB and PS4 drive mounts, controller pairing |
 | `tools/` | Logo converter, controller test ROM, `extract-code.py` (the code of a PS5 SELF/ELF) |

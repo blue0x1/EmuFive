@@ -119,6 +119,11 @@ while :; do
             esac
         done
         ;;
+    BROWSER)
+        # Internet: the web browser; the home screen comes back when it closes (PS button).
+        failures=0
+        python3 "$BIN/ps5-browser" > "$HOME/.ps5-browser.log" 2>&1
+        ;;
     POWEROFF)
         poweroff
         ;;

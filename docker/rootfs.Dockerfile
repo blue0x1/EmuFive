@@ -13,6 +13,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 # Base system, network, X, audio, and the libraries KytyPS5 loads at run time
 # (X11, Vulkan, audio, input). The home screen: Python and pygame; smbnetfs
 # opens a PC's shared folder (the PS4 kernel has no SMB client, but has FUSE).
+# Internet, the web browser (ps5-browser): WebKitGTK, with GStreamer for video.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         systemd systemd-sysv dbus dbus-user-session udev kmod sudo locales less nano xz-utils \
         systemd-timesyncd network-manager wpasupplicant iproute2 iputils-ping openssh-server ca-certificates curl \
@@ -27,6 +28,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libxcb-keysyms1 libudev1 libdbus-1-3 libusb-1.0-0 \
         python3 python3-pygame python3-segno fonts-inter \
         smbnetfs fuse3 \
+        python3-gi python3-gi-cairo gir1.2-webkit2-4.1 gstreamer1.0-plugins-good gstreamer1.0-libav \
+        adwaita-icon-theme \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # KytyPS5 for the PS4's CPU (scripts/build-kyty.sh), in /opt/kytyps5.

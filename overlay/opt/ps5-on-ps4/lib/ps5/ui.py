@@ -652,6 +652,17 @@ def draw_power(c, x, y, radius, color, width=4):
     c.line(color, x, y - radius - 2, x, y - 2, width)
 
 
+def draw_globe(c, x, y, radius, color, width=4):
+    """The Internet tile: a globe with its meridians and parallels."""
+    c.circle(color, x, y, radius, width)
+    c.arc(color, x - radius * 0.45, y - radius, radius * 0.9, radius * 2, 0, math.pi * 2, max(1, width - 1))
+    c.line(color, x, y - radius, x, y + radius, max(1, width - 1))
+    c.line(color, x - radius, y, x + radius, y, max(1, width - 1))
+    for dy in (-0.5, 0.5):
+        half = radius * math.sqrt(1 - dy * dy) * 0.96
+        c.line(color, x - half, y + dy * radius, x + half, y + dy * radius, max(1, width - 1))
+
+
 BATTERY_HIGH, BATTERY_MID, BATTERY_LOW = (60, 205, 110), (240, 200, 60), (235, 70, 70)
 
 

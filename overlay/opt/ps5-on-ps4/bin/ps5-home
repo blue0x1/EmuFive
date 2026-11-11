@@ -12,6 +12,7 @@
 #
 # It prints what to do and exits, so the emulator gets all the memory:
 #   PLAY <game folder>     start this game
+#   BROWSER                open Internet, the web browser (ps5-browser)
 #   POWEROFF / REBOOT      turn the PS4 off / restart it
 #   RELOAD                 start the home screen again (after SIGUSR1, from a live update,
 #                          or a setting it reads only at the start)
@@ -3667,18 +3668,23 @@ class Home:
         self.entries = entries
         if current is None and self.running_path:
             current = self.running_path
-        self.selected = next((i for i, g in enumerate(self.games) if g.path == current), 0)
-        self.tile_sizes = [float(self.tile_small)] * (len(self.games) + 1)
+        # With no games, Power is chosen first, with the note on where to put them.
+        self.selected = next((i for i, g in enumerate(self.games) if g.path == current),
+                             0 if self.games else len(self.games) + 1)
+        self.tile_sizes = [float(self.tile_small)] * (len(self.games) + 2)
         self.select(self.selected, sound=False)
 
     def items(self):
-        return len(self.games) + 1  # The last tile is Power.
+        return len(self.games) + 2  # After the games: Internet, then Power.
+
+    def on_browser(self):
+        return self.selected == len(self.games)
 
     def on_power(self):
-        return self.selected >= len(self.games)
+        return self.selected > len(self.games)
 
     def current_game(self):
-        return None if self.on_power() or not self.games else self.games[self.selected]
+        return None if self.selected >= len(self.games) else self.games[self.selected]
 
     def select(self, index, sound=True):
         index = max(0, min(self.items() - 1, index))
@@ -3756,7 +3762,14 @@ class Home:
             self.sounds.play("select")
             self.push(GameMenu(self, self.current_game()))
         elif action == OK:
-            if self.on_power():
+            if self.on_browser():
+                self.sounds.play("select")
+                if self.running_path is not None:
+                    self.push(Dialog(self, "Close the paused game first (PS button, Close the game), so the "
+                                           "browser has the memory."))
+                else:
+                    self.finish("BROWSER")
+            elif self.on_power():
                 self.sounds.play("select")
                 closing = " The paused game is closed first." if self.running_path else ""
                 self.push(Dialog(self, "Turn off the PS4?" + closing,
@@ -4193,6 +4206,9 @@ class Home:
                 self.tile_shape(c, game.color, x, y, size)
                 for n, line in enumerate(c.t.wrap(game.title, 14, size - 24)[:3]):
                     c.text(line, 14, x + 12, y + 12 + n * 18, (255, 255, 255))
+            elif i == len(self.games):
+                self.tile_shape(c, (36, 52, 96), x, y, size)
+                ui.draw_globe(c, x + size / 2, y + size / 2, size / 4.2, (255, 255, 255), 3 if size < 130 else 4)
             else:
                 self.tile_shape(c, (40, 38, 48), x, y, size)
                 ui.draw_power(c, x + size / 2, y + size / 2, size / 5, (255, 255, 255), 3 if size < 130 else 4)
@@ -4302,6 +4318,8 @@ class Home:
                      f"  •  {system.PS4_GAMES_SHOWN} on the PS4, with GoldHEN FTP",
                      "  •  a shared folder on a PC (Settings, at the top)",
                      "They show up here by themselves."]
+        elif self.on_browser():
+            lines, sub, button = [i18n.translate("Internet")], "Browse the web with the controller", "Open"
         elif self.on_power():
             lines, sub, button = [i18n.translate("Power")], "Turn off or restart the PS4", "Power"
         else:
@@ -4356,7 +4374,9 @@ class Home:
             hints = [("cross", "View")] if self.media.paths else []
             return hints + [("l1r1", "Games"), back]
         game = self.current_game()
-        if self.on_power():
+        if self.on_browser():
+            hints = [("cross", "Open")]
+        elif self.on_power():
             hints = [("cross", "Select")]
         else:
             hints = [("cross", "Resume" if game is not None and self.is_running(game) else "Play")]

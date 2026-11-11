@@ -1,0 +1,1425 @@
+#!/usr/bin/env python3
+# Copyright (C) 2026 Chokri Hammedi (blue0x1) <https://github.com/blue0x1>
+# The EmuFive web browser (Internet on the home screen): WebKitGTK, the engine of Safari and GNOME
+# Web, full screen and used with the controller. One page at a time, so it stays light on memory.
+#
+#   Left stick      the pointer (the touchpad too)      X               click (hold to drag)
+#   Right stick     scroll                              D-pad           arrow keys
+#   O / L1          back                                R1              forward
+#   Triangle        type an address or search           Square          type in the chosen text box
+#   L2 / R2         zoom out / in                       R3              zoom back to normal
+#   OPTIONS         menu: bookmarks, start page, zoom, search engine, mobile sites, clear data
+#   PS              back to the home screen (the page opens again next time)
+#
+# A text box chosen with X opens the on-screen keyboard; what is typed goes in with a paste, so it
+# works on any site. Downloads, the camera, the microphone, the location and notifications are
+# refused. Cookies (sign-ins) and bookmarks are kept in ~/.local/share/ps5-browser and
+# ~/.config/ps5-on-ps4/browser.json.
+#
+#   ps5-browser [URL]
+import ctypes
+import ctypes.util
+import fcntl
+import html
+import json
+import os
+import re
+import signal
+import struct
+import sys
+import time
+import urllib.parse
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "lib"))
+from ps5 import i18n, store  # noqa: E402
+
+import gi  # noqa: E402
+gi.require_version("Gdk", "3.0")
+gi.require_version("Gtk", "3.0")
+gi.require_version("Pango", "1.0")
+gi.require_version("PangoCairo", "1.0")
+gi.require_version("WebKit2", "4.1")
+from gi.repository import Gdk, Gio, GLib, Gtk, Pango, PangoCairo, WebKit2  # noqa: E402
+import cairo  # noqa: E402
+
+T = i18n.translate
+STATE_FILE = os.path.join(store.CONFIG_DIR, "browser.json")
+DATA_DIR = os.path.expanduser("~/.local/share/ps5-browser")
+CACHE_DIR = os.path.expanduser("~/.cache/ps5-browser")
+START = "emufive://start"
+MEMORY_LIMIT_MB = 2048      # WebKit frees its caches as a page nears a third and a half of this.
+SEARCH = {"google": ("Google", "https://www.google.com/search?q="),
+          "duckduckgo": ("DuckDuckGo", "https://duckduckgo.com/?q="),
+          "bing": ("Bing", "https://www.bing.com/search?q=")}
+MOBILE_AGENT = ("Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 "
+                "(KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1")
+ZOOMS = [50, 67, 75, 80, 90, 100, 110, 125, 150, 175, 200, 250, 300]
+DEFAULT_STATE = {
+    "search": "google",
+    "zoom": 125,               # Percent. A TV is read from further away than a monitor.
+    "mobile": False,           # Ask sites for their phone version (lighter).
+    "last_url": "",
+    "bookmarks": [{"title": "YouTube", "url": "https://www.youtube.com/"},
+                  {"title": "Wikipedia", "url": "https://www.wikipedia.org/"},
+                  {"title": "Google", "url": "https://www.google.com/"},
+                  {"title": "EmuFive on GitHub", "url": "https://github.com/blue0x1/EmuFive"}],
+}
+
+# Colors of the dark theme (ps5.ui).
+WHITE, SOFT, DIM, INK = (255, 255, 255), (206, 203, 246), (150, 148, 180), (20, 18, 46)
+BACKDROP, DIALOG, KEY, KEY_ON = (14, 12, 34), (30, 28, 64), (44, 41, 86), (90, 84, 170)
+ACCENT, GOOD, BAD, ROW_ON = (124, 110, 255), (46, 200, 130), (255, 170, 170), (60, 56, 120)
+
+LEFT, RIGHT, UP, DOWN, OK, BACK, SQUARE, TRIANGLE, OPTIONS, GUIDE, PAGE_UP, PAGE_DOWN = range(12)
+
+
+def log(text):
+    print("ps5-browser: " + text, flush=True)
+
+
+# --------------------------------------------------------------------------------------------
+# Saved state.
+
+class State:
+    def __init__(self):
+        self.data = json.loads(json.dumps(DEFAULT_STATE))
+        saved = store.read_json(STATE_FILE)
+        for key, default in DEFAULT_STATE.items():
+            if isinstance(saved.get(key), type(default)):
+                self.data[key] = saved[key]
+        if self.data["search"] not in SEARCH:
+            self.data["search"] = "google"
+        self.data["bookmarks"] = [b for b in self.data["bookmarks"]
+                                  if isinstance(b, dict) and isinstance(b.get("url"), str)]
+
+    def __getitem__(self, key):
+        return self.data[key]
+
+    def set(self, **changes):
+        self.data.update(changes)
+        try:
+            store.write_private(STATE_FILE, json.dumps(self.data, indent=2) + "\n")
+        except OSError as error:
+            log(f"could not save: {error}")
+
+
+# --------------------------------------------------------------------------------------------
+# Pointer, clicks and keys: XTest, so the page gets real input wherever it listens.
+
+class XTest:
+    def __init__(self):
+        x11 = ctypes.CDLL(ctypes.util.find_library("X11") or "libX11.so.6")
+        xtst = ctypes.CDLL(ctypes.util.find_library("Xtst") or "libXtst.so.6")
+        x11.XOpenDisplay.restype = ctypes.c_void_p
+        x11.XOpenDisplay.argtypes = [ctypes.c_char_p]
+        x11.XStringToKeysym.restype = ctypes.c_ulong
+        x11.XStringToKeysym.argtypes = [ctypes.c_char_p]
+        x11.XKeysymToKeycode.restype = ctypes.c_ubyte
+        x11.XKeysymToKeycode.argtypes = [ctypes.c_void_p, ctypes.c_ulong]
+        x11.XFlush.argtypes = [ctypes.c_void_p]
+        xtst.XTestFakeMotionEvent.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.c_int,
+                                              ctypes.c_ulong]
+        xtst.XTestFakeButtonEvent.argtypes = [ctypes.c_void_p, ctypes.c_uint, ctypes.c_int, ctypes.c_ulong]
+        xtst.XTestFakeKeyEvent.argtypes = [ctypes.c_void_p, ctypes.c_uint, ctypes.c_int, ctypes.c_ulong]
+        self.x11, self.xtst = x11, xtst
+        self.dpy = x11.XOpenDisplay(None)
+        if not self.dpy:
+            raise RuntimeError("no X display")
+        self.codes = {}
+
+    def move(self, x, y):
+        self.xtst.XTestFakeMotionEvent(self.dpy, -1, int(x), int(y), 0)
+        self.x11.XFlush(self.dpy)
+
+    def button(self, number, down):
+        self.xtst.XTestFakeButtonEvent(self.dpy, number, 1 if down else 0, 0)
+        self.x11.XFlush(self.dpy)
+
+    def key(self, name, down):
+        code = self.codes.get(name)
+        if code is None:
+            code = self.codes[name] = self.x11.XKeysymToKeycode(self.dpy, self.x11.XStringToKeysym(name.encode()))
+        if code:
+            self.xtst.XTestFakeKeyEvent(self.dpy, code, 1 if down else 0, 0)
+            self.x11.XFlush(self.dpy)
+
+    def press(self, *names):
+        """A key combination: each key down in order, then up in reverse."""
+        for name in names:
+            self.key(name, True)
+        for name in reversed(names):
+            self.key(name, False)
+
+
+# --------------------------------------------------------------------------------------------
+# Controllers, read from their input devices (evdev).
+
+EV_KEY, EV_ABS = 0x01, 0x03
+BTN_LEFT, BTN_TOUCH = 0x110, 0x14a
+BTN_SOUTH, BTN_EAST, BTN_NORTH, BTN_WEST = 0x130, 0x131, 0x133, 0x134
+BTN_TL, BTN_TR, BTN_TL2, BTN_TR2 = 0x136, 0x137, 0x138, 0x139
+BTN_SELECT, BTN_START, BTN_MODE, BTN_THUMBL, BTN_THUMBR = 0x13a, 0x13b, 0x13c, 0x13d, 0x13e
+ABS_X, ABS_Y, ABS_RX, ABS_RY, ABS_HAT0X, ABS_HAT0Y = 0x00, 0x01, 0x03, 0x04, 0x10, 0x11
+EVENT = struct.Struct("llHHi")
+
+
+def eviocgabs(code):
+    return (2 << 30) | (24 << 16) | (ord("E") << 8) | (0x40 + code)
+
+
+def has_key(event_dir, code):
+    try:
+        with open(os.path.join(event_dir, "device", "capabilities", "key")) as f:
+            words = f.read().split()
+    except OSError:
+        return False
+    index = len(words) - 1 - code // 64
+    return 0 <= index < len(words) and bool(int(words[index], 16) >> (code % 64) & 1)
+
+
+class Device:
+    def __init__(self, path, kind):
+        self.path, self.kind = path, kind
+        self.fd = os.open(path, os.O_RDONLY | os.O_NONBLOCK)
+        self.ranges = {}
+        for code in (ABS_X, ABS_Y, ABS_RX, ABS_RY):
+            try:
+                info = struct.unpack("6i", fcntl.ioctl(self.fd, eviocgabs(code), b"\0" * 24))
+                self.ranges[code] = (info[1], info[2])
+            except OSError:
+                pass
+        self.watch = None
+
+    def axis(self, code, value):
+        """A stick axis from -1 to 1."""
+        low, high = self.ranges.get(code, (0, 255))
+        if high <= low:
+            return 0.0
+        return max(-1.0, min(1.0, (value - (low + high) / 2) / ((high - low) / 2)))
+
+    def close(self):
+        if self.watch is not None:
+            GLib.source_remove(self.watch)
+            self.watch = None
+        try:
+            os.close(self.fd)
+        except OSError:
+            pass
+
+
+def find_devices():
+    """{path: "pad" | "touch"} for the controllers and their touchpads."""
+    found = {}
+    for name in os.listdir("/sys/class/input"):
+        if not name.startswith("event"):
+            continue
+        event_dir = os.path.join("/sys/class/input", name)
+        try:
+            with open(os.path.join(event_dir, "device", "name")) as f:
+                device_name = f.read().strip()
+        except OSError:
+            continue
+        if not ("Controller" in device_name or "DualSense" in device_name):
+            continue
+        if device_name.endswith("Touchpad"):
+            found["/dev/input/" + name] = "touch"
+        elif has_key(event_dir, BTN_MODE):
+            found["/dev/input/" + name] = "pad"
+    return found
+
+
+# --------------------------------------------------------------------------------------------
+# Drawing: layouts in units of a 1280x720 screen, like the home screen.
+
+class Paint:
+    def __init__(self, cr, scale):
+        self.cr, self.S = cr, scale
+
+    def color(self, c, alpha=None):
+        a = alpha if alpha is not None else (c[3] / 255 if len(c) > 3 else 1.0)
+        self.cr.set_source_rgba(c[0] / 255, c[1] / 255, c[2] / 255, a)
+
+    def rect(self, c, x, y, w, h, r=0, width=0, alpha=None):
+        S, cr = self.S, self.cr
+        x, y, w, h, r = x * S, y * S, w * S, h * S, min(r * S, w * S / 2, h * S / 2)
+        cr.new_sub_path()
+        if r <= 0:
+            cr.rectangle(x, y, w, h)
+        else:
+            cr.arc(x + w - r, y + r, r, -1.5708, 0)
+            cr.arc(x + w - r, y + h - r, r, 0, 1.5708)
+            cr.arc(x + r, y + h - r, r, 1.5708, 3.1416)
+            cr.arc(x + r, y + r, r, 3.1416, 4.7124)
+            cr.close_path()
+        self.color(c, alpha)
+        if width:
+            cr.set_line_width(width * S)
+            cr.stroke()
+        else:
+            cr.fill()
+
+    def circle(self, c, x, y, r, width=0):
+        self.cr.new_sub_path()
+        self.cr.arc(x * self.S, y * self.S, r * self.S, 0, 6.2832)
+        self.color(c)
+        if width:
+            self.cr.set_line_width(width * self.S)
+            self.cr.stroke()
+        else:
+            self.cr.fill()
+
+    def line(self, c, x1, y1, x2, y2, width=1):
+        self.cr.move_to(x1 * self.S, y1 * self.S)
+        self.cr.line_to(x2 * self.S, y2 * self.S)
+        self.color(c)
+        self.cr.set_line_width(width * self.S)
+        self.cr.stroke()
+
+    def polygon(self, c, points, width=0):
+        self.cr.move_to(points[0][0] * self.S, points[0][1] * self.S)
+        for x, y in points[1:]:
+            self.cr.line_to(x * self.S, y * self.S)
+        self.cr.close_path()
+        self.color(c)
+        if width:
+            self.cr.set_line_width(width * self.S)
+            self.cr.stroke()
+        else:
+            self.cr.fill()
+
+    def layout(self, text, size, bold=False, width=None):
+        layout = PangoCairo.create_layout(self.cr)
+        font = Pango.FontDescription.from_string("Inter Bold" if bold else "Inter")
+        font.set_absolute_size(size * self.S * Pango.SCALE)
+        layout.set_font_description(font)
+        layout.set_text(text, -1)
+        if width:
+            layout.set_width(int(width * self.S * Pango.SCALE))
+            layout.set_ellipsize(Pango.EllipsizeMode.END)
+        return layout
+
+    def width(self, text, size, bold=False):
+        return self.layout(text, size, bold).get_pixel_size()[0] / self.S
+
+    def text(self, text, size, x, y, c=WHITE, bold=False, anchor="topleft", width=None, alpha=None):
+        """Draws `text` (translated); returns its width in units."""
+        layout = self.layout(T(text), size, bold, width)
+        w, h = layout.get_pixel_size()
+        px, py = x * self.S, y * self.S
+        if anchor in ("center", "midleft", "midright"):
+            py -= h / 2
+        if anchor == "center":
+            px -= w / 2
+        elif anchor in ("topright", "midright"):
+            px -= w
+        self.cr.move_to(px, py)
+        self.color(c, alpha)
+        PangoCairo.show_layout(self.cr, layout)
+        return w / self.S
+
+    def button(self, kind, x, y, size=11):
+        """The PlayStation button symbols, as the home screen draws them."""
+        self.circle((60, 58, 92), x, y, size)
+        s = size * 0.48
+        if kind == "cross":
+            self.line((150, 180, 255), x - s, y - s, x + s, y + s, 2)
+            self.line((150, 180, 255), x - s, y + s, x + s, y - s, 2)
+        elif kind == "circle":
+            self.circle((255, 120, 140), x, y, s + 1, 2)
+        elif kind == "square":
+            self.rect((240, 150, 220), x - s, y - s, s * 2, s * 2, 0, 2)
+        elif kind == "triangle":
+            self.polygon((120, 230, 200), [(x, y - s - 1), (x - s - 1, y + s), (x + s + 1, y + s)], 2)
+        elif kind == "options":
+            for dy in (-3, 0, 3):
+                self.line(WHITE, x - 5, y + dy, x + 5, y + dy, 1)
+        else:   # "ps", "L1", "R2"...: the button's name.
+            label = "PS" if kind == "ps" else kind
+            self.text(label, 9 if len(label) <= 2 else 7, x, y, WHITE, True, "center")
+
+    def hints(self, hints, x, y, color=SOFT):
+        for kind, label in hints:
+            self.button(kind, x + 11, y)
+            x += self.text(label, 15, x + 28, y, color, anchor="midleft") + 58
+        return x
+
+
+# --------------------------------------------------------------------------------------------
+# Layers over the page: the keyboard, the menu, lists, questions.
+
+KEY_ROWS = {
+    "lower": ["1234567890", "qwertyuiop", "asdfghjkl'", "zxcvbnm,.-"],
+    "upper": ["1234567890", "QWERTYUIOP", "ASDFGHJKL\"", "ZXCVBNM;:_"],
+    "symbols": ["!@#$%^&*()", "~`=+[]{}\\|", "<>/?'\";:,.", "-_€£¥§°±µ¿"],
+    "web": ["1234567890", "qwertyuiop", "asdfghjkl/", "zxcvbnm.:-"],
+}
+
+
+class Layer:
+    def __init__(self, browser):
+        self.b = browser
+
+    def act(self, action):
+        pass
+
+    def draw(self, p, w, h):
+        pass
+
+    def hints(self):
+        return [("circle", "Back")]
+
+    def close(self):
+        self.b.pop_layer(self)
+
+
+class KeyboardLayer(Layer):
+    """Text entry. on_done(text) is called with the text when Done (or OPTIONS) is chosen."""
+
+    def __init__(self, browser, title, text="", secret=False, done_label="Done", on_done=None, web=False):
+        super().__init__(browser)
+        self.title, self.text, self.secret, self.show = title, text, secret, False
+        self.done_label, self.on_done = done_label, on_done
+        self.base = "web" if web else "lower"
+        self.row, self.col, self.mode = 1, 0, self.base
+
+    def special(self):
+        return ["Shift", "#+=", "Space", "Delete", "Show" if self.secret else "Clear", self.done_label]
+
+    def rows(self):
+        return KEY_ROWS[self.mode] + [self.special()]
+
+    def type(self, chunk):
+        self.text = (self.text + chunk)[:4000]
+
+    def finish(self):
+        self.close()
+        if self.on_done:
+            self.on_done(self.text)
+
+    def act(self, action):
+        rows = self.rows()
+        if action == BACK:
+            self.close()
+        elif action in (UP, DOWN):
+            self.row = (self.row + (1 if action == DOWN else -1)) % len(rows)
+            self.col = min(self.col, len(rows[self.row]) - 1)
+        elif action in (LEFT, RIGHT):
+            self.col = (self.col + (1 if action == RIGHT else -1)) % len(rows[self.row])
+        elif action == SQUARE:
+            self.text = self.text[:-1]
+        elif action == TRIANGLE:
+            self.mode = "symbols" if self.mode != "symbols" else self.base
+        elif action == PAGE_UP:
+            self.type(" ")
+        elif action == PAGE_DOWN:
+            self.mode = self.base if self.mode == "upper" else "upper"
+        elif action == OPTIONS:
+            self.finish()
+        elif action == OK:
+            key = rows[self.row][self.col]
+            if self.row < len(rows) - 1:
+                self.type(key)
+                if self.mode == "upper":
+                    self.mode = self.base
+            elif key == "Shift":
+                self.mode = self.base if self.mode == "upper" else "upper"
+            elif key == "#+=":
+                self.mode = "symbols" if self.mode != "symbols" else self.base
+            elif key == "Space":
+                self.type(" ")
+            elif key == "Delete":
+                self.text = self.text[:-1]
+            elif key == "Show":
+                self.show = not self.show
+            elif key == "Clear":
+                self.text = ""
+            elif key == self.done_label:
+                self.finish()
+
+    def draw(self, p, w, h):
+        width = 640
+        x = w / 2 - width / 2 + 40
+        y = h - 470
+        inner = width - 80
+        p.rect(DIALOG, x - 40, y - 34, width, 430, 20)
+        p.text(self.title, 17, x, y, WHITE, width=inner)
+        field_y = y + 30
+        p.rect(BACKDROP, x - 4, field_y, inner + 8, 52, 10)
+        p.rect(ACCENT, x - 4, field_y, inner + 8, 52, 10, 2)
+        shown = self.text if self.show or not self.secret else "•" * max(0, len(self.text) - 1) + self.text[-1:]
+        # The end of the text, with the caret, when it is longer than the field.
+        layout = p.layout(shown or " ", 22)
+        tw = layout.get_pixel_size()[0] / p.S
+        room = inner - 24
+        p.cr.save()
+        p.cr.rectangle((x + 6) * p.S, field_y * p.S, (room + 8) * p.S, 52 * p.S)
+        p.cr.clip()
+        p.cr.move_to((x + 10 - max(0, tw - room)) * p.S, (field_y + 12) * p.S)
+        p.color(WHITE)
+        PangoCairo.show_layout(p.cr, layout)
+        p.cr.restore()
+        if int(time.monotonic() * 2) % 2 == 0:
+            cx = x + 10 + min(tw, room) + 2 if self.text else x + 10
+            p.line(WHITE, cx, field_y + 12, cx, field_y + 40, 2)
+        rows = self.rows()
+        ky = field_y + 76
+        for r, row in enumerate(rows):
+            if r < len(rows) - 1:
+                key_w = (inner - 9 * 6) / 10
+                for col, ch in enumerate(row):
+                    kx = x + col * (key_w + 6)
+                    on = r == self.row and col == self.col
+                    p.rect(WHITE if on else KEY, kx, ky, key_w, 46, 8)
+                    p.text(ch, 20, kx + key_w / 2, ky + 23, INK if on else WHITE, on, "center")
+                ky += 52
+            else:
+                ky += 6
+                gaps = 6 * (len(row) - 1)
+                shares = [0.15, 0.13, 0.19, 0.16, 0.14]
+                widths = [(inner - gaps) * share for share in shares]
+                widths.append(inner - gaps - sum(widths))
+                kx = x
+                for col, name in enumerate(row):
+                    on = r == self.row and col == self.col
+                    main = name == self.done_label
+                    active = (name == "Shift" and self.mode == "upper") or \
+                             (name == "#+=" and self.mode == "symbols") or (name == "Show" and self.show)
+                    color = WHITE if on else ACCENT if main else KEY_ON if active else KEY
+                    p.rect(color, kx, ky, widths[col], 46, 8)
+                    label = "Hide" if name == "Show" and self.show else name
+                    p.text(label, 15, kx + widths[col] / 2, ky + 23, INK if on else WHITE, main or on, "center")
+                    kx += widths[col] + 6
+
+    def hints(self):
+        return [("cross", "Type"), ("square", "Delete"), ("triangle", "Symbols"), ("L1", "Space"),
+                ("R1", "Shift"), ("options", self.done_label), ("circle", "Back")]
+
+
+class ListLayer(Layer):
+    """A panel of rows. Each row: dict(label, value=None, ok=None, step=None, sub=None)."""
+    title = ""
+    width = 470
+
+    def __init__(self, browser):
+        super().__init__(browser)
+        self.selected = 0
+        self.top = 0
+
+    def rows(self):
+        return []
+
+    def act(self, action):
+        rows = self.rows()
+        if action == BACK:
+            self.close()
+            return
+        if not rows:
+            return
+        self.selected = min(self.selected, len(rows) - 1)
+        row = rows[self.selected]
+        if action in (UP, DOWN):
+            self.selected = (self.selected + (1 if action == DOWN else -1)) % len(rows)
+        elif action in (LEFT, RIGHT) and row.get("step"):
+            row["step"](1 if action == RIGHT else -1)
+        elif action == OK and row.get("ok"):
+            row["ok"]()
+        elif action == OK and row.get("step"):
+            row["step"](1)
+        else:
+            self.other(action, row)
+
+    def other(self, action, row):
+        pass
+
+    def draw(self, p, w, h):
+        rows = self.rows()
+        x, width = w - self.width, self.width
+        p.rect(DIALOG, x, 0, width + 20, h, 0)
+        p.text(self.title, 24, x + 32, 40, WHITE, True, width=width - 64)
+        row_h, y0, bottom = 58, 96, h - 70
+        visible = max(1, int((bottom - y0) // row_h))
+        if self.selected < self.top:
+            self.top = self.selected
+        elif self.selected >= self.top + visible:
+            self.top = self.selected - visible + 1
+        if not rows:
+            p.text(self.empty(), 16, x + 32, y0 + 10, DIM, width=width - 64)
+        for i, row in enumerate(rows[self.top:self.top + visible]):
+            n = i + self.top
+            y = y0 + i * row_h
+            on = n == self.selected
+            if on:
+                p.rect(ROW_ON, x + 16, y, width - 32, row_h - 6, 12)
+                p.rect(ACCENT, x + 16, y, width - 32, row_h - 6, 12, 2)
+            value = row.get("value")
+            value_w = 0
+            if value:
+                value_w = p.text(("‹  " + value + "  ›") if row.get("step") else value, 15,
+                                 x + width - 34, y + (row_h - 6) / 2, SOFT, anchor="midright") + 16
+            if row.get("sub"):
+                p.text(row["label"], 17, x + 34, y + 7, WHITE, on, width=width - 68 - value_w)
+                p.text(row["sub"], 13, x + 34, y + 30, DIM, width=width - 68 - value_w)
+            else:
+                p.text(row["label"], 17, x + 34, y + (row_h - 6) / 2, WHITE, on, "midleft",
+                       width=width - 68 - value_w)
+
+    def empty(self):
+        return ""
+
+
+class MenuLayer(ListLayer):
+    title = "Internet"
+
+    def rows(self):
+        b = self.b
+        uri = b.current_uri()
+        page = uri and not uri.startswith("emufive:")
+        marked = page and any(m["url"] == uri for m in b.state["bookmarks"])
+        rows = [dict(label="Bookmarks", value=str(len(b.state["bookmarks"])),
+                     ok=lambda: b.push_layer(BookmarksLayer(b)))]
+        if page:
+            rows.append(dict(label="Remove from bookmarks" if marked else "Add to bookmarks",
+                             ok=lambda: (b.toggle_bookmark(), self.close())))
+        rows += [
+            dict(label="Start page", ok=lambda: (b.open_url(START), self.close())),
+            dict(label="Reload", ok=lambda: (b.view.reload(), self.close())),
+            dict(label="Zoom", value=f"{b.state['zoom']}%", step=b.step_zoom),
+            dict(label="Search with", value=SEARCH[b.state["search"]][0], step=b.step_search),
+            dict(label="Mobile sites", sub="Lighter pages, made for phones",
+                 value=T("On") if b.state["mobile"] else T("Off"), step=lambda n: b.toggle_mobile()),
+            dict(label="Clear history and cookies", sub="Signs you out of every site",
+                 ok=lambda: b.push_layer(Question(b, "Clear the history, cookies and saved site data? "
+                                                     "You are signed out of every site.",
+                                                  [("Clear", b.clear_data), ("Cancel", None)]))),
+            dict(label="Close the browser", sub="Back to the home screen", ok=b.quit),
+        ]
+        return rows
+
+    def hints(self):
+        return [("cross", "Select"), ("circle", "Back")]
+
+
+class BookmarksLayer(ListLayer):
+    title = "Bookmarks"
+
+    def rows(self):
+        rows = []
+        for mark in self.b.state["bookmarks"]:
+            rows.append(dict(label=mark.get("title") or mark["url"], sub=host_of(mark["url"]),
+                             ok=lambda m=mark: (self.b.open_url(m["url"]), self.b.clear_layers())))
+        return rows
+
+    def other(self, action, row):
+        if action == TRIANGLE:
+            marks = list(self.b.state["bookmarks"])
+            del marks[self.selected]
+            self.b.state.set(bookmarks=marks)
+            self.selected = max(0, min(self.selected, len(marks) - 1))
+
+    def empty(self):
+        return "No bookmarks yet. Add a page from the menu (OPTIONS)."
+
+    def hints(self):
+        return [("cross", "Open"), ("triangle", "Remove"), ("circle", "Back")]
+
+
+class Question(Layer):
+    """A message with buttons: [(label, action or None)]."""
+
+    def __init__(self, browser, message, buttons):
+        super().__init__(browser)
+        self.message, self.buttons, self.selected = message, buttons, len(buttons) - 1
+
+    def act(self, action):
+        if action == BACK:
+            self.close()
+        elif action in (LEFT, RIGHT):
+            self.selected = (self.selected + (1 if action == RIGHT else -1)) % len(self.buttons)
+        elif action == OK:
+            self.close()
+            if self.buttons[self.selected][1]:
+                self.buttons[self.selected][1]()
+
+    def draw(self, p, w, h):
+        width = 560
+        x, y = w / 2 - width / 2, h / 2 - 110
+        p.rect(DIALOG, x, y, width, 220, 20)
+        layout = p.layout(T(self.message), 18)
+        layout.set_width(int((width - 64) * p.S * Pango.SCALE))
+        layout.set_wrap(Pango.WrapMode.WORD_CHAR)
+        p.cr.move_to((x + 32) * p.S, (y + 32) * p.S)
+        p.color(WHITE)
+        PangoCairo.show_layout(p.cr, layout)
+        bx = x + 32
+        for i, (label, _) in enumerate(self.buttons):
+            bw = max(140, p.width(T(label), 17, True) + 48)
+            on = i == self.selected
+            p.rect(WHITE if on else KEY, bx, y + 150, bw, 44, 22)
+            p.text(label, 17, bx + bw / 2, y + 172, INK if on else WHITE, True, "center")
+            bx += bw + 14
+
+    def hints(self):
+        return [("cross", "Select"), ("circle", "Back")]
+
+
+def host_of(url):
+    try:
+        return urllib.parse.urlsplit(url).hostname or url
+    except ValueError:
+        return url
+
+
+def start_page(bookmarks, search_name):
+    """The start page: the bookmarks as tiles."""
+    tiles = []
+    for mark in bookmarks:
+        title = mark.get("title") or host_of(mark["url"])
+        hue = sum(map(ord, title)) * 47 % 360
+        tiles.append(f'<a class="tile" href="{html.escape(mark["url"], True)}">'
+                     f'<span class="dot" style="background:hsl({hue},55%,45%)">'
+                     f'{html.escape(title[:1].upper())}</span>'
+                     f'<span class="name">{html.escape(title)}</span>'
+                     f'<span class="host">{html.escape(host_of(mark["url"]))}</span></a>')
+    empty = "" if tiles else f'<p class="none">{html.escape(T("No bookmarks yet."))}</p>'
+    hint = T("Press Triangle to search with {a} or type an address. OPTIONS: bookmarks and settings."
+             ).replace("{a}", search_name)
+    rtl = ' dir="rtl"' if i18n.rtl() else ""
+    return f"""<!doctype html><html{rtl}><head><meta charset="utf-8"><title>{html.escape(T("Start page"))}</title>
+<style>
+html,body{{margin:0;min-height:100%;background:#0c0a1c;color:#fff;font-family:Inter,DejaVu Sans,sans-serif}}
+body{{background:radial-gradient(ellipse at 20% 0%,#2c2470 0%,#0c0a1c 60%);min-height:100vh}}
+main{{max-width:1100px;margin:0 auto;padding:72px 40px}}
+h1{{font-size:44px;margin:0 0 8px}}
+.hint{{color:#cecbf6;font-size:18px;margin:0 0 40px}}
+.grid{{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:18px}}
+.tile{{display:flex;flex-direction:column;gap:6px;padding:22px;border-radius:18px;background:rgba(255,255,255,.07);
+color:#fff;text-decoration:none;border:2px solid transparent}}
+.tile:hover{{background:rgba(124,110,255,.25);border-color:#7c6eff}}
+.dot{{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+font-weight:700;font-size:22px;margin-bottom:8px}}
+.name{{font-weight:700;font-size:19px}}.host{{color:#9694b4;font-size:14px}}
+.none{{color:#9694b4}}
+</style></head><body><main><h1>{html.escape(T("Internet"))}</h1><p class="hint">{html.escape(hint)}</p>
+<div class="grid">{''.join(tiles)}</div>{empty}</main></body></html>"""
+
+
+# JavaScript, run in its own world (the page's scripts cannot see or change it).
+SCROLL_JS = """(function(dx, dy, x, y) {
+  var el = document.elementFromPoint(x, y);
+  while (el && el !== document.body && el !== document.documentElement) {
+    var s = getComputedStyle(el);
+    if ((dy && /(auto|scroll|overlay)/.test(s.overflowY) && el.scrollHeight > el.clientHeight + 2) ||
+        (dx && /(auto|scroll|overlay)/.test(s.overflowX) && el.scrollWidth > el.clientWidth + 2)) {
+      var top = el.scrollTop, left = el.scrollLeft;
+      el.scrollBy({left: dx, top: dy, behavior: 'instant'});
+      if (el.scrollTop !== top || el.scrollLeft !== left) return;
+    }
+    el = el.parentElement;
+  }
+  window.scrollBy({left: dx, top: dy, behavior: 'instant'});
+})(%f, %f, %f, %f)"""
+
+FIELD_JS = """(function() {
+  var e = document.activeElement;
+  try { while (e && e.tagName === 'IFRAME' && e.contentDocument) e = e.contentDocument.activeElement; }
+  catch (x) { return JSON.stringify({kind: 'frame'}); }
+  while (e && e.shadowRoot && e.shadowRoot.activeElement) e = e.shadowRoot.activeElement;
+  if (!e) return '{}';
+  if (e.tagName === 'IFRAME') return JSON.stringify({kind: 'frame'});
+  var tag = e.tagName, type = (e.getAttribute('type') || '').toLowerCase();
+  var field = tag === 'INPUT' && ['', 'text', 'search', 'email', 'url', 'password', 'tel', 'number'].indexOf(type) >= 0;
+  if (!(field || tag === 'TEXTAREA' || e.isContentEditable) || e.readOnly || e.disabled) return '{}';
+  var label = e.getAttribute('aria-label') || e.getAttribute('placeholder') || e.getAttribute('title') || '';
+  var name = e.getAttribute('name') || '', hint = e.getAttribute('enterkeyhint') || '';
+  var form = e.form || (e.closest && e.closest('form'));
+  var search = type === 'search' || /^(q|query|search|search_query|s|p|k|keyword|keywords|term)$/i.test(name) ||
+    /search|go/i.test(hint) || !!(form && (form.getAttribute('role') === 'search' || /search/i.test(form.getAttribute('action') || '')));
+  return JSON.stringify({kind: tag === 'TEXTAREA' || e.isContentEditable ? 'area' : 'field', type: type,
+    label: label.slice(0, 80), value: String(e.isContentEditable ? e.innerText : (e.value || '')).slice(0, 4000),
+    secret: type === 'password', search: search, url: type === 'url' || type === 'email'});
+})()"""
+
+
+# --------------------------------------------------------------------------------------------
+
+class Browser:
+    BAR = 44                       # The top bar's height, in units.
+    STICK_DEAD = 0.14
+    REPEAT_DELAY, REPEAT_RATE = 0.35, 0.09
+    POINTER_HIDE = 6.0             # Seconds: the pointer hides when it has not moved for this long.
+
+    def __init__(self, url):
+        self.settings = store.Settings()
+        i18n.set_language(self.settings["menu_language"])
+        self.swap = self.settings["swap_buttons"]
+        self.state = State()
+        self.layers = []
+        self.toasts = []           # [(text, until)]
+        self.devices = {}
+        self.stick = {ABS_X: 0.0, ABS_Y: 0.0, ABS_RX: 0.0, ABS_RY: 0.0}
+        self.hat = [0, 0]
+        self.held = {}             # Direction -> next repeat (in the layers).
+        self.stick_dirs = set()
+        self.ps_down = self.ps_combo = False
+        self.touch = None          # Last touchpad point while touching.
+        self.scroll_left = [0.0, 0.0]
+        self.last_tick = time.monotonic()
+        self.last_crash = 0.0
+        self.fullscreen = False
+        self.hover = ""
+        self.quitting = False
+
+        monitor = Gdk.Display.get_default().get_primary_monitor() or Gdk.Display.get_default().get_monitor(0)
+        geometry = monitor.get_geometry()
+        self.screen_w, self.screen_h = geometry.width, geometry.height
+        self.S = self.screen_h / 720.0
+        self.units_w = self.screen_w / self.S
+        self.pointer = [self.screen_w / 2, self.screen_h / 2]
+        self.pointer_seen = time.monotonic()
+        self.pointer_shown = True
+        try:
+            self.xt = XTest()
+        except (OSError, RuntimeError) as error:
+            log(f"no XTest: {error}")
+            self.xt = None
+
+        gtk_settings = Gtk.Settings.get_default()
+        gtk_settings.set_property("gtk-application-prefer-dark-theme", True)
+        gtk_settings.set_property("gtk-cursor-theme-name", "Adwaita")
+        gtk_settings.set_property("gtk-cursor-theme-size", int(round(24 * self.S)))
+
+        self.make_web(url)
+        self.make_window()
+        GLib.timeout_add(16, self.tick)
+        GLib.timeout_add(2000, self.scan_devices)
+        self.scan_devices()
+        GLib.timeout_add(500, self.blink)
+
+    # Web view ----------------------------------------------------------------------------------
+
+    def make_web(self, url):
+        pressure = WebKit2.MemoryPressureSettings.new()
+        pressure.set_memory_limit(MEMORY_LIMIT_MB)
+        WebKit2.WebsiteDataManager.set_memory_pressure_settings(pressure)
+        os.makedirs(DATA_DIR, mode=0o700, exist_ok=True)
+        self.data = WebKit2.WebsiteDataManager(base_data_directory=DATA_DIR, base_cache_directory=CACHE_DIR)
+        cookies = self.data.get_cookie_manager()
+        cookies.set_persistent_storage(os.path.join(DATA_DIR, "cookies.sqlite"),
+                                       WebKit2.CookiePersistentStorage.SQLITE)
+        cookies.set_accept_policy(WebKit2.CookieAcceptPolicy.NO_THIRD_PARTY)
+        self.context = WebKit2.WebContext(website_data_manager=self.data, memory_pressure_settings=pressure)
+        self.context.set_cache_model(WebKit2.CacheModel.DOCUMENT_BROWSER)
+        self.context.register_uri_scheme("emufive", self.scheme)
+        self.context.connect("download-started", self.on_download)
+
+        view = self.view = WebKit2.WebView(web_context=self.context)
+        s = view.get_settings()
+        s.set_enable_page_cache(False)                   # The page before is not kept in memory.
+        s.set_enable_smooth_scrolling(True)
+        s.set_enable_developer_extras(False)
+        s.set_enable_webrtc(False)
+        s.set_enable_media_stream(False)
+        s.set_media_playback_requires_user_gesture(True) # No videos playing by themselves.
+        s.set_javascript_can_open_windows_automatically(False)
+        self.default_agent = s.get_user_agent()
+        self.apply_agent()
+        view.set_zoom_level(self.state["zoom"] / 100)
+        view.set_background_color(Gdk.RGBA(12 / 255, 10 / 255, 28 / 255, 1))
+        view.connect("create", self.on_create)
+        view.connect("permission-request", self.on_permission)
+        view.connect("run-file-chooser", lambda v, r: (self.toast("Uploading files is not possible here."), True)[1])
+        view.connect("context-menu", lambda *a: True)
+        view.connect("show-notification", lambda *a: True)
+        view.connect("enter-fullscreen", self.on_fullscreen, True)
+        view.connect("leave-fullscreen", self.on_fullscreen, False)
+        view.connect("web-process-terminated", self.on_crash)
+        view.connect("load-changed", self.on_load)
+        view.connect("mouse-target-changed", self.on_target)
+        for prop in ("title", "uri", "estimated-load-progress", "is-loading"):
+            view.connect("notify::" + prop, lambda *a: self.bar.queue_draw() if hasattr(self, "bar") else None)
+        self.open_url(url or self.state["last_url"] or START)
+
+    def scheme(self, request):
+        if request.get_path().strip("/") in ("start", ""):
+            data = start_page(self.state["bookmarks"], SEARCH[self.state["search"]][0]).encode("utf-8")
+        else:
+            data = b"<!doctype html><title>EmuFive</title>"
+        stream = Gio.MemoryInputStream.new_from_bytes(GLib.Bytes.new(data))
+        request.finish(stream, len(data), "text/html")
+
+    def current_uri(self):
+        return self.view.get_uri() or ""
+
+    def open_url(self, url):
+        self.view.load_uri(url)
+
+    def go(self, text):
+        """An address, or words to search for."""
+        text = text.strip()
+        if not text:
+            return
+        if re.match(r"^[a-zA-Z][a-zA-Z0-9+.-]*:", text) and not re.match(r"^[\w.-]+:\d+", text):
+            url = text
+        elif " " not in text and ("." in text or text.startswith("localhost") or re.match(r"^[\w.-]+:\d+", text)):
+            url = "https://" + text
+        else:
+            url = SEARCH[self.state["search"]][1] + urllib.parse.quote_plus(text)
+        self.open_url(url)
+
+    def apply_agent(self):
+        self.view.get_settings().set_user_agent(MOBILE_AGENT if self.state["mobile"] else self.default_agent)
+
+    def on_create(self, view, action):
+        """Pages that open a new window open in this one."""
+        uri = action.get_request().get_uri()
+        if uri:
+            GLib.idle_add(self.open_url, uri)
+        return None
+
+    def on_permission(self, view, request):
+        request.deny()
+        return True
+
+    def on_download(self, context, download):
+        download.cancel()
+        self.toast("Downloads are not possible in the browser.")
+
+    def on_fullscreen(self, view, entering):
+        self.fullscreen = entering
+        self.bar.set_visible(not entering)
+        return False
+
+    def on_crash(self, view, reason):
+        log(f"the page stopped ({reason})")
+        now = time.monotonic()
+        if now - self.last_crash > 15:
+            self.toast("The page used too much memory and was opened again." if
+                       reason == WebKit2.WebProcessTerminationReason.EXCEEDED_MEMORY_LIMIT else
+                       "The page stopped and was opened again.")
+            GLib.timeout_add(500, lambda: (self.view.reload(), False)[1])
+        else:
+            self.toast("The page stopped again. Try another page, or Mobile sites in the menu.")
+        self.last_crash = now
+
+    def on_load(self, view, event):
+        if event == WebKit2.LoadEvent.COMMITTED:
+            uri = self.current_uri()
+            # Pages without a background of their own are white, as everywhere.
+            dark = uri.startswith("emufive:")
+            self.view.set_background_color(Gdk.RGBA(12 / 255, 10 / 255, 28 / 255, 1) if dark else
+                                           Gdk.RGBA(1, 1, 1, 1))
+        self.bar.queue_draw()
+
+    def on_target(self, view, hit, modifiers):
+        hover = (hit.get_link_uri() or "") if hit.context_is_link() else ""
+        if bool(hover) != bool(self.hover):
+            self.redraw_pointer()     # The ring over links.
+        self.hover = hover
+        self.bar.queue_draw()
+
+    def js(self, script, done=None):
+        def finished(view, result):
+            try:
+                value = view.evaluate_javascript_finish(result)
+                text = value.to_string() if value is not None else ""
+            except GLib.Error as error:
+                log(f"script: {error.message}")
+                text = None
+            if done:
+                done(text)
+        self.view.evaluate_javascript(script, -1, "ps5", None, None, finished)
+
+    # Window ------------------------------------------------------------------------------------
+
+    def make_window(self):
+        css = Gtk.CssProvider()
+        css.load_from_data(b"window { background-color: #0c0a1c; }")
+        Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(), css,
+                                                 Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+        win = self.window = Gtk.Window(title="Internet")
+        win.set_decorated(False)
+        win.connect("delete-event", lambda *a: (self.quit(), True)[1])
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.bar = Gtk.DrawingArea()
+        self.bar.set_size_request(-1, int(self.BAR * self.S))
+        self.bar.connect("draw", self.draw_bar)
+        overlay = Gtk.Overlay()
+        overlay.add(self.view)
+        self.layer = Gtk.DrawingArea()
+        self.layer.connect("draw", self.draw_layer)
+        overlay.add_overlay(self.layer)
+        overlay.set_overlay_pass_through(self.layer, True)
+        self.layer.connect("realize", self.layer_takes_no_input)
+        box.pack_start(self.bar, False, False, 0)
+        box.pack_start(overlay, True, True, 0)
+        win.add(box)
+        win.fullscreen()
+        win.show_all()
+        self.view.grab_focus()
+        if self.xt:
+            self.xt.move(*self.pointer)
+
+    def layer_takes_no_input(self, widget):
+        """The layer's windows let every click and move through to the page (pass-through alone
+        does not, for a widget with a window of its own)."""
+        empty = cairo.Region()
+        top = self.window.get_window()
+        window = widget.get_window()
+        while window is not None and window != top:
+            window.input_shape_combine_region(empty, 0, 0)
+            window = window.get_parent()
+
+    def draw_bar(self, widget, cr):
+        p = Paint(cr, self.S)
+        w = widget.get_allocated_width() / self.S
+        p.rect(BACKDROP, 0, 0, w + 1, self.BAR + 1)
+        uri = self.current_uri()
+        title = self.view.get_title() or ""
+        if uri.startswith("emufive:"):
+            title, place = T("Start page"), ""
+        else:
+            place = self.hover or host_of(uri)
+        hints = [("cross", "Click"), ("circle", "Back"), ("triangle", "Address"), ("options", "Menu"),
+                 ("ps", "Home")]
+        hints_w = sum(p.width(T(label), 15) + 58 for _, label in hints)
+        right = w - 16 - hints_w
+        x = 22
+        if uri.startswith("https://"):
+            p.rect(GOOD, x, 18, 11, 9, 2)
+            p.cr.new_sub_path()
+            p.cr.arc((x + 5.5) * self.S, 18 * self.S, 3.5 * self.S, 3.1416, 0)
+            p.color(GOOD)
+            p.cr.set_line_width(1.6 * self.S)
+            p.cr.stroke()
+            x += 22
+        room = right - x - 24
+        tw = p.text(title or place, 17, x, self.BAR / 2, WHITE, True, "midleft", width=min(room, room * 0.62)) \
+            if (title or place) else 0
+        if place and title and room - tw > 60:
+            p.text(place, 14, x + tw + 14, self.BAR / 2, DIM, anchor="midleft", width=room - tw - 14)
+        p.hints(hints, right, self.BAR / 2)
+        if self.view.get_property("is-loading"):
+            progress = max(0.05, self.view.get_estimated_load_progress())
+            p.rect(ACCENT, 0, self.BAR - 3, w * progress, 3)
+
+    def draw_layer(self, widget, cr):
+        now = time.monotonic()
+        self.toasts = [(t, until) for t, until in self.toasts if until > now]
+        pointer = not self.layers and now - self.pointer_seen < self.POINTER_HIDE
+        if not self.layers and not self.toasts and not pointer:
+            return
+        p = Paint(cr, self.S)
+        w, h = widget.get_allocated_width() / self.S, widget.get_allocated_height() / self.S
+        if self.layers:
+            p.rect((6, 5, 16), 0, 0, w + 1, h + 1, alpha=0.6)
+            self.layers[-1].draw(p, w, h)
+            hints = self.layers[-1].hints()
+            if hints:
+                p.rect(BACKDROP, 0, h - 52, w + 1, 53, alpha=0.92)
+                p.hints(hints, 40, h - 26)
+        y = h - (90 if self.layers else 40)
+        for text, _ in reversed(self.toasts[-3:]):
+            tw = p.width(T(text), 16) + 44
+            p.rect((30, 28, 64, 240), w / 2 - tw / 2, y - 22, tw, 44, 22)
+            p.text(text, 16, w / 2, y, WHITE, anchor="center")
+            y -= 54
+        if pointer:
+            self.draw_pointer(cr)
+
+    def pointer_spot(self):
+        """Where the pointer's tip is in the page area, in pixels."""
+        top = self.bar.get_allocated_height() if self.bar.get_visible() else 0
+        return self.pointer[0], self.pointer[1] - top
+
+    def draw_pointer(self, cr):
+        """The pointer, drawn by the browser: the session hides the X cursor everywhere. An arrow
+        with a dark edge, and a ring in the accent color over a link."""
+        x, y = self.pointer_spot()
+        s = self.S * 1.15
+        if self.hover:
+            cr.new_sub_path()
+            cr.arc(x, y, 15 * s, 0, 6.2832)
+            cr.set_source_rgba(ACCENT[0] / 255, ACCENT[1] / 255, ACCENT[2] / 255, 0.35)
+            cr.fill_preserve()
+            cr.set_source_rgba(ACCENT[0] / 255, ACCENT[1] / 255, ACCENT[2] / 255, 0.95)
+            cr.set_line_width(2 * s)
+            cr.stroke()
+        points = [(0, 0), (0, 19), (4.6, 14.8), (8.2, 22.4), (11.2, 21), (7.7, 13.6), (13.6, 13.6)]
+        cr.move_to(x, y)
+        for px_, py_ in points[1:]:
+            cr.line_to(x + px_ * s, y + py_ * s)
+        cr.close_path()
+        cr.set_source_rgb(1, 1, 1)
+        cr.fill_preserve()
+        cr.set_source_rgb(INK[0] / 255, INK[1] / 255, INK[2] / 255)
+        cr.set_line_width(1.6 * s)
+        cr.set_line_join(1)   # Round.
+        cr.stroke()
+
+    def redraw_pointer(self, old=None):
+        """Draws the pointer again (`old`: where it was)."""
+        # The whole layer: WebKit does not draw the page again under a part of it alone.
+        self.layer.queue_draw()
+
+    def blink(self):
+        if self.layers and isinstance(self.layers[-1], KeyboardLayer) or self.toasts:
+            self.layer.queue_draw()
+        return True
+
+    def toast(self, text, seconds=3.5):
+        self.toasts.append((text, time.monotonic() + seconds))
+        self.layer.queue_draw()
+        GLib.timeout_add(int(seconds * 1000) + 50, lambda: (self.layer.queue_draw(), False)[1])
+
+    def push_layer(self, layer):
+        self.layers.append(layer)
+        self.held.clear()
+        self.layer.queue_draw()
+
+    def pop_layer(self, layer):
+        if layer in self.layers:
+            self.layers.remove(layer)
+        self.layer.queue_draw()
+
+    def clear_layers(self):
+        self.layers.clear()
+        self.layer.queue_draw()
+
+    # Menu actions ------------------------------------------------------------------------------
+
+    def step_zoom(self, step):
+        now = self.state["zoom"]
+        index = min(range(len(ZOOMS)), key=lambda i: abs(ZOOMS[i] - now))
+        index = max(0, min(len(ZOOMS) - 1, index + step))
+        self.set_zoom(ZOOMS[index])
+
+    def set_zoom(self, percent):
+        self.state.set(zoom=percent)
+        self.view.set_zoom_level(percent / 100)
+        self.layer.queue_draw()
+
+    def step_search(self, step):
+        keys = list(SEARCH)
+        self.state.set(search=keys[(keys.index(self.state["search"]) + step) % len(keys)])
+        self.layer.queue_draw()
+
+    def toggle_mobile(self):
+        self.state.set(mobile=not self.state["mobile"])
+        self.apply_agent()
+        if not self.current_uri().startswith("emufive:"):
+            self.view.reload()
+        self.layer.queue_draw()
+
+    def toggle_bookmark(self):
+        uri = self.current_uri()
+        marks = list(self.state["bookmarks"])
+        if any(m["url"] == uri for m in marks):
+            marks = [m for m in marks if m["url"] != uri]
+            self.toast("Removed from bookmarks.")
+        else:
+            marks.append({"title": (self.view.get_title() or host_of(uri))[:80], "url": uri})
+            self.toast("Added to bookmarks.")
+        self.state.set(bookmarks=marks)
+
+    def clear_data(self):
+        def done(manager, result):
+            try:
+                manager.clear_finish(result)
+                self.toast("History, cookies and site data cleared.")
+            except GLib.Error as error:
+                self.toast("Could not clear everything: " + error.message)
+        self.state.set(last_url="")
+        self.data.clear(WebKit2.WebsiteDataTypes.ALL, 0, None, done)
+        self.open_url(START)
+
+    def address(self):
+        uri = self.current_uri()
+        text = "" if uri.startswith("emufive:") else uri
+        self.push_layer(KeyboardLayer(self, T("Search with {a} or type an address").replace(
+            "{a}", SEARCH[self.state["search"]][0]), text, done_label="Go", on_done=self.go, web=True))
+
+    def type_in_field(self, quiet):
+        """Opens the keyboard for the text box the page has chosen (after a click with X)."""
+        def found(text):
+            try:
+                info = json.loads(text or "{}")
+            except ValueError:
+                info = {}
+            if info.get("kind") in ("field", "area"):
+                title = info.get("label") or ("Password" if info.get("secret") else "Text")
+                label = "Search" if info.get("search") and info.get("kind") == "field" else "Done"
+                self.push_layer(KeyboardLayer(self, title, info.get("value", ""), info.get("secret", False), label,
+                                              lambda t: self.put_text(t, label == "Search"),
+                                              web=info.get("url", False)))
+            elif info.get("kind") == "frame" and not quiet:
+                self.push_layer(KeyboardLayer(self, "Text", "", False, "Done", lambda t: self.put_text(t, False)))
+            elif not quiet:
+                self.toast("Choose a text box with X first.")
+        self.js(FIELD_JS, found)
+
+    def put_text(self, text, enter):
+        """Replaces the chosen text box's text with a paste, then Enter for a search box."""
+        if not self.xt:
+            return
+        self.view.grab_focus()
+        Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD).set_text(text, -1)
+
+        def paste():
+            self.xt.press("Control_L", "a")
+            if text:
+                self.xt.press("Control_L", "v")
+            else:
+                self.xt.press("BackSpace")
+            if enter:
+                GLib.timeout_add(150, lambda: (self.xt.press("Return"), False)[1])
+            return False
+        GLib.timeout_add(60, paste)
+
+    def quit(self):
+        if self.quitting:
+            return
+        self.quitting = True
+        uri = self.current_uri()
+        if uri.startswith("http"):
+            self.state.set(last_url=uri)
+        elif uri.startswith("emufive:"):
+            self.state.set(last_url="")
+        if self.xt:
+            for name in ("Up", "Down", "Left", "Right"):
+                self.xt.key(name, False)
+            self.xt.button(1, False)
+        Gtk.main_quit()
+
+    # Controllers -------------------------------------------------------------------------------
+
+    def scan_devices(self):
+        try:
+            found = find_devices()
+        except OSError:
+            found = {}
+        for path in list(self.devices):
+            if path not in found:
+                self.devices.pop(path).close()
+        for path, kind in found.items():
+            if path in self.devices:
+                continue
+            try:
+                device = Device(path, kind)
+            except OSError as error:
+                log(f"cannot read {path}: {error}")
+                continue
+            device.watch = GLib.io_add_watch(device.fd, GLib.PRIORITY_DEFAULT,
+                                             GLib.IO_IN | GLib.IO_HUP | GLib.IO_ERR, self.on_input, device)
+            self.devices[path] = device
+            log(f"controller {path} ({kind})")
+        return True
+
+    def on_input(self, fd, condition, device):
+        if condition & (GLib.IO_HUP | GLib.IO_ERR):
+            self.devices.pop(device.path, None)
+            device.watch = None
+            device.close()
+            return False
+        try:
+            data = os.read(fd, EVENT.size * 64)
+        except BlockingIOError:
+            return True
+        except OSError:
+            self.devices.pop(device.path, None)
+            device.watch = None
+            device.close()
+            return False
+        for i in range(0, len(data) - EVENT.size + 1, EVENT.size):
+            _, _, kind, code, value = EVENT.unpack_from(data, i)
+            if device.kind == "touch":
+                self.on_touch(kind, code, value, device)
+            elif kind == EV_KEY and value in (0, 1):
+                self.on_button(code, value == 1)
+            elif kind == EV_ABS:
+                if code in self.stick:
+                    self.stick[code] = device.axis(code, value)
+                elif code in (ABS_HAT0X, ABS_HAT0Y):
+                    self.on_hat(0 if code == ABS_HAT0X else 1, value)
+        return True
+
+    def on_touch(self, kind, code, value, device):
+        if kind == EV_KEY and code == BTN_LEFT and not self.layers:
+            if self.xt:
+                self.xt.button(1, value == 1)
+            if value == 0:
+                GLib.timeout_add(200, lambda: (self.type_in_field(True), False)[1])
+        elif kind == EV_KEY and code == BTN_TOUCH:
+            self.touch = None if value == 0 else [None, None]
+        elif kind == EV_ABS and code in (ABS_X, ABS_Y) and self.touch is not None and not self.layers:
+            i = 0 if code == ABS_X else 1
+            low, high = device.ranges.get(code, (0, 1920 if i == 0 else 940))
+            if self.touch[i] is not None:
+                # A swipe over the whole touchpad moves the pointer over most of the screen.
+                moved = (value - self.touch[i]) / max(1, high - low)
+                if i == 0:
+                    self.move_pointer(moved * self.screen_w * 1.3, 0)
+                else:
+                    self.move_pointer(0, moved * self.screen_h * 1.6)
+            self.touch[i] = value
+
+    def on_hat(self, axis, value):
+        before = self.hat[axis]
+        self.hat[axis] = value
+        names = ("Left", "Right") if axis == 0 else ("Up", "Down")
+        directions = (LEFT, RIGHT) if axis == 0 else (UP, DOWN)
+        if self.layers:
+            for d in directions:
+                self.held.pop(d, None)
+            if value:
+                d = directions[0 if value < 0 else 1]
+                self.layer_action(d)
+                self.held[d] = time.monotonic() + self.REPEAT_DELAY
+            return
+        if not self.xt:
+            return
+        if before:
+            self.xt.key(names[0 if before < 0 else 1], False)
+        if value:
+            self.xt.key(names[0 if value < 0 else 1], True)
+
+    def on_button(self, code, down):
+        if self.swap and code in (BTN_SOUTH, BTN_EAST):
+            code = BTN_EAST if code == BTN_SOUTH else BTN_SOUTH
+        if code == BTN_MODE:
+            if down:
+                self.ps_down, self.ps_combo = True, False
+            else:
+                if self.ps_down and not self.ps_combo:
+                    self.quit()
+                self.ps_down = False
+            return
+        if self.ps_down:
+            self.ps_combo = True      # PS + a button: a screenshot (ps5-guide), not for the browser.
+            return
+        if self.layers:
+            if down:
+                action = {BTN_SOUTH: OK, BTN_EAST: BACK, BTN_WEST: SQUARE, BTN_NORTH: TRIANGLE,
+                          BTN_START: OPTIONS, BTN_TL: PAGE_UP, BTN_TR: PAGE_DOWN}.get(code)
+                if action is not None:
+                    self.layer_action(action)
+            return
+        if code == BTN_SOUTH:
+            self.show_pointer()
+            if self.xt:
+                self.xt.move(*self.pointer)
+                self.xt.button(1, down)
+            if not down:
+                GLib.timeout_add(200, lambda: (self.type_in_field(True), False)[1])
+            return
+        if not down:
+            return
+        view = self.view
+        if code == BTN_EAST or code == BTN_TL:
+            if view.can_go_back():
+                view.go_back()
+            elif code == BTN_EAST:
+                self.toast("PS button: back to the home screen.")
+        elif code == BTN_TR:
+            if view.can_go_forward():
+                view.go_forward()
+        elif code == BTN_NORTH:
+            self.address()
+        elif code == BTN_WEST:
+            self.type_in_field(False)
+        elif code == BTN_START:
+            self.push_layer(MenuLayer(self))
+        elif code in (BTN_TL2, BTN_TR2):
+            self.step_zoom(-1 if code == BTN_TL2 else 1)
+            self.toast(T("Zoom") + f" {self.state['zoom']}%", 1.5)
+        elif code == BTN_THUMBR:
+            self.set_zoom(DEFAULT_STATE["zoom"])
+            self.toast(T("Zoom") + f" {self.state['zoom']}%", 1.5)
+
+    def layer_action(self, action):
+        if self.layers:
+            self.layers[-1].act(action)
+            self.layer.queue_draw()
+
+    def move_pointer(self, dx, dy):
+        old = self.pointer_spot()
+        self.pointer[0] = max(0, min(self.screen_w - 1, self.pointer[0] + dx))
+        self.pointer[1] = max(0, min(self.screen_h - 1, self.pointer[1] + dy))
+        if self.xt:
+            self.xt.move(*self.pointer)
+        self.show_pointer(old)
+
+    def show_pointer(self, old=None):
+        self.pointer_seen = time.monotonic()
+        self.pointer_shown = True
+        self.redraw_pointer(old)
+
+    def tick(self):
+        now = time.monotonic()
+        dt = min(0.05, now - self.last_tick)
+        self.last_tick = now
+        if self.pointer_shown and now - self.pointer_seen >= self.POINTER_HIDE:
+            self.pointer_shown = False
+            self.redraw_pointer()
+
+        def shaped(v):
+            m = abs(v)
+            if m < self.STICK_DEAD:
+                return 0.0
+            m = (m - self.STICK_DEAD) / (1 - self.STICK_DEAD)
+            return (m ** 2.2) * (1 if v > 0 else -1)
+
+        if self.layers:
+            # The left stick moves in the layers like the D-pad, with repeats.
+            dirs = set()
+            if self.stick[ABS_X] < -0.6:
+                dirs.add(LEFT)
+            elif self.stick[ABS_X] > 0.6:
+                dirs.add(RIGHT)
+            if self.stick[ABS_Y] < -0.6:
+                dirs.add(UP)
+            elif self.stick[ABS_Y] > 0.6:
+                dirs.add(DOWN)
+            for d in dirs - self.stick_dirs:
+                self.layer_action(d)
+                self.held[d] = now + self.REPEAT_DELAY
+            for d in self.stick_dirs - dirs:
+                if not (d in (LEFT, RIGHT) and self.hat[0]) and not (d in (UP, DOWN) and self.hat[1]):
+                    self.held.pop(d, None)
+            self.stick_dirs = dirs
+            for d, when in list(self.held.items()):
+                if now >= when:
+                    self.layer_action(d)
+                    self.held[d] = now + self.REPEAT_RATE
+            return True
+        self.stick_dirs = set()
+        # The pointer: a full push crosses the screen in about a second.
+        mx, my = shaped(self.stick[ABS_X]), shaped(self.stick[ABS_Y])
+        if mx or my:
+            speed = self.screen_w * 1.0
+            self.move_pointer(mx * speed * dt, my * speed * dt)
+        # Scrolling: up to about two screens a second.
+        sx, sy = shaped(self.stick[ABS_RX]), shaped(self.stick[ABS_RY])
+        if sx or sy:
+            zoom = self.view.get_zoom_level() or 1.0
+            self.scroll_left[0] += sx * self.screen_w * 1.4 * dt / zoom
+            self.scroll_left[1] += sy * self.screen_h * 2.2 * dt / zoom
+        if (abs(self.scroll_left[0]) >= 1 or abs(self.scroll_left[1]) >= 1) and int(now * 60) % 2 == 0:
+            dx, dy = self.scroll_left
+            self.scroll_left = [0.0, 0.0]
+            zoom = self.view.get_zoom_level() or 1.0
+            top = self.bar.get_allocated_height() if self.bar.get_visible() else 0
+            self.js(SCROLL_JS % (dx, dy, self.pointer[0] / zoom, max(0, self.pointer[1] - top) / zoom))
+        return True
+
+
+def main():
+    url = sys.argv[1] if len(sys.argv) > 1 else None
+    browser = Browser(url)
+    GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGTERM, lambda: (browser.quit(), False)[1])
+    GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGINT, lambda: (browser.quit(), False)[1])
+    Gtk.main()
+    log("closed")
+
+
+if __name__ == "__main__":
+    main()
