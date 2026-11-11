@@ -47,6 +47,7 @@ The Jaguar is still far slower than the PS5's CPU, and the replacements add to t
 | Controller, `/data` and USB storage, loading a game in that app | Done on a PC test build (same patches); PS4 next |
 | AVX2, BMI2 and FMA translation for game code | Done (`0004`), checked on a PC |
 | A PS5 game runs on the PS4 | Done: God of War Sons of Sparta, about 40 FPS and more, PS4 Pro |
+| Hollow Knight: Silksong runs on the PS4 | Done since 1.0.1 (patches `0006` and `0007`), PS4 Pro |
 | Home screen: pick a game with the controller; Wi-Fi; Settings | Done, checked on a PC |
 | Games from the USB drive, the PS4 drive or a PC share | Done, checked on a PC; PS4 next |
 
