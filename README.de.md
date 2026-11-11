@@ -149,7 +149,7 @@ Dieses Projekt enthält keine PS5-Systemsoftware und keine Spiele. Verwende nur 
 
 - Behoben: Mit EmuFive auf dem PS4-Laufwerk installiert wurde das PS4-Laufwerk nicht eingehängt, sodass Spiele in `/user/home/PS5` nicht erschienen ([#7](https://github.com/blue0x1/EmuFive/issues/7)).
 
-Aktualisieren: Einstellungen, System, Softwareaktualisierung. Die Spiele auf dem PS4-Laufwerk erscheinen direkt danach, ohne Neustart. Von 1.0.0 oder 1.0.1 aus installiert das Update zuerst 1.0.2 (deren Browser-Pakete sind etwa 110 MB groß, danach startet die PS4 neu). Neuinstallationen verwenden die `ps5-ps4-rootfs.tar.xz` der Version 1.0.2 und danach dieses Update.
+Aktualisieren: Einstellungen, System, Softwareaktualisierung. Die Spiele auf dem PS4-Laufwerk erscheinen direkt danach, ohne Neustart. Von 1.0.0 oder 1.0.1 aus installiert das Update zuerst 1.0.2 (deren Browser-Pakete sind etwa 110 MB groß, danach startet die PS4 neu). Neuinstallationen verwenden die `ps5-ps4-rootfs.tar.xz` der Version 1.0.3.
 
 ## Projektaufbau
 

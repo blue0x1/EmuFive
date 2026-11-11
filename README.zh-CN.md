@@ -149,7 +149,7 @@ EmuFive 和其他 Linux 系统一样，通过 [PS4 Multiboot](https://github.com
 
 - 修复：EmuFive 安装在 PS4 硬盘上时，PS4 硬盘没有被挂载，因此 `/user/home/PS5` 中的游戏不会显示（[#7](https://github.com/blue0x1/EmuFive/issues/7)）。
 
-更新方法：设置（Settings）、系统（System）、软件更新（Software update）。更新后 PS4 硬盘中的游戏会立即显示，无需重启。从 1.0.0 或 1.0.1 更新时，会先安装 1.0.2（其浏览器软件包约 110 MB，之后 PS4 会重启）。新安装请使用 1.0.2 版本中的 `ps5-ps4-rootfs.tar.xz`，然后再安装此更新。
+更新方法：设置（Settings）、系统（System）、软件更新（Software update）。更新后 PS4 硬盘中的游戏会立即显示，无需重启。从 1.0.0 或 1.0.1 更新时，会先安装 1.0.2（其浏览器软件包约 110 MB，之后 PS4 会重启）。新安装请使用 1.0.3 版本中的 `ps5-ps4-rootfs.tar.xz`。
 
 ## 项目结构
 

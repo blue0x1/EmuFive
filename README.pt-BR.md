@@ -149,7 +149,7 @@ Este projeto não contém software de sistema do PS5 nem jogos. Use apenas jogos
 
 - Corrigido: com o EmuFive instalado no disco do PS4, esse disco não era montado, então os jogos em `/user/home/PS5` não apareciam ([#7](https://github.com/blue0x1/EmuFive/issues/7)).
 
-Para atualizar: Configurações, Sistema, Atualização de software. Os jogos do disco do PS4 aparecem logo depois, sem reiniciar. A partir da 1.0.0 ou da 1.0.1, a atualização instala primeiro a 1.0.2 (os pacotes do navegador dela têm cerca de 110 MB, e depois o PS4 reinicia). Instalações novas usam o `ps5-ps4-rootfs.tar.xz` da versão 1.0.2 e depois esta atualização.
+Para atualizar: Configurações, Sistema, Atualização de software. Os jogos do disco do PS4 aparecem logo depois, sem reiniciar. A partir da 1.0.0 ou da 1.0.1, a atualização instala primeiro a 1.0.2 (os pacotes do navegador dela têm cerca de 110 MB, e depois o PS4 reinicia). Instalações novas usam o `ps5-ps4-rootfs.tar.xz` da versão 1.0.3.
 
 ## Estrutura do projeto
 
