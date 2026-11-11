@@ -1,0 +1,349 @@
+From: Chokri Hammedi <52697989+blue0x1@users.noreply.github.com>
+Subject: [PATCH] loader: short PS4 CPU sites jump through a relay
+
+An AVX2 instruction of four bytes that was not rewritten when its module
+loaded (its function has an indirect branch, so its neighbors cannot move)
+had no room for a five-byte jump and faulted every time it ran. In Hollow
+Knight: Silksong the FMOD mixer runs such instructions in its loops: about
+200000 faults a second, a whole core in the kernel, crackling sound and 30
+to 50 FPS.
+
+Such a site now gets the first four bytes of a jump. The fifth byte is the
+first byte of the next instruction, which stays as it is, since something
+may jump to it. That byte is the top of the displacement, so the jump lands
+in a 16 MB window the byte selects; a relay allocated in that window jumps
+on to the replacement. When the next instruction is a missing one too, it
+gets its jump first, so the byte no longer changes afterwards.
+
+A jump is also written when its bytes do not fit the 8 or 16 aligned bytes
+the old code needed: one store when they share a cache line. Across two
+lines it is written the way the Linux kernel patches its own code: an
+invalid one-byte opcode first (its fault is redirected to the replacement),
+then the rest, then the first byte, with membarrier(SYNC_CORE) in between.
+Silksong's two hottest sites end exactly at a cache line.
+
+A site that still cannot get a jump is reported once it has faulted 100000
+times.
+---
+diff --git a/src/loader/guestInstructionPatcher.cpp b/src/loader/guestInstructionPatcher.cpp
+--- a/src/loader/guestInstructionPatcher.cpp
++++ b/src/loader/guestInstructionPatcher.cpp
+@@ -6,6 +6,7 @@
+ #include "common/assert.h"
+ #include "common/logging/log.h"
+ #include "common/virtualMemory.h"
++#include "kernel/memory.h"
+ #include "loader/jaguarCompat.h"
+ 
+ #include <Zydis/Zydis.h>
+@@ -34,6 +35,11 @@
+ #else
+ #include <ucontext.h>
+ #endif
++#if defined(__linux__)
++#include <linux/membarrier.h>
++#include <sys/syscall.h>
++#include <unistd.h>
++#endif
+ 
+ using namespace Xbyak::util;
+ 
+@@ -69,6 +75,8 @@
+ 	u64                  fallback_size = 0;
+ 	Xbyak::CodeGenerator fallback_gen;
+ 	std::unordered_map<u64, const u8*> fallback_sites;
++	// How often each site that could not get a jump has faulted again.
++	std::unordered_map<u64, u64> fallback_repeats;
+ 	// KYTY_JAGUAR_COMPAT=trap: the original bytes of instructions overwritten with UD2.
+ 	std::unordered_map<u64, std::array<u8, ZYDIS_MAX_INSTRUCTION_LENGTH>> trap_originals;
+ 
+@@ -1746,33 +1754,129 @@
+ #endif
+ }
+ 
+-bool RedirectJaguarInstruction(void* native_context) {
+-	if (native_context == nullptr || !JaguarCompat::Enabled()) {
+-		return false;
++namespace {
++
++// Makes every thread of the process pass a serializing point, so that none goes on with bytes
++// of a site that it fetched before they changed.
++void SyncCores() {
++#if defined(__linux__)
++	static const bool registered =
++	    syscall(SYS_membarrier, MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED_SYNC_CORE, 0, 0) == 0;
++	if (registered) {
++		syscall(SYS_membarrier, MEMBARRIER_CMD_PRIVATE_EXPEDITED_SYNC_CORE, 0, 0);
+ 	}
+-	u64&  rip    = GuestRip(native_context);
+-	auto* module = GetContainingModule(reinterpret_cast<void*>(rip));
+-	if (module == nullptr || module->fallback_size == 0) {
++#endif
++}
++
++// Writes the `size` (4 or 5) bytes of a jump over guest code that other threads may be running.
++// Bytes that share a cache line go in with one store, which is atomic on x86. Across two lines
++// it is done as the Linux kernel patches its own code: the first byte becomes an invalid
++// one-byte opcode (the fault it raises is redirected to the replacement, as before), then the
++// rest is written, then the first byte, with all threads synchronized in between.
++bool WriteJumpAtomic(u64 site, const u8* bytes, size_t size) {
++	const u64 line_end = (site | 63u) + 1;
++	if (site + size <= line_end) {
++		const u64 window = std::min<u64>(site, line_end - sizeof(u64));
++		auto*     target = reinterpret_cast<u64*>(window);
++		for (int attempt = 0; attempt < 8; ++attempt) {
++			u64 expected = __atomic_load_n(target, __ATOMIC_ACQUIRE);
++			u64 desired  = expected;
++			std::memcpy(reinterpret_cast<u8*>(&desired) + (site - window), bytes, size);
++			if (__atomic_compare_exchange_n(target, &expected, desired, false, __ATOMIC_ACQ_REL,
++			                                __ATOMIC_ACQUIRE)) {
++				return true;
++			}
++		}
+ 		return false;
+ 	}
+-	static std::mutex fallback_mutex;
+-	static u64        hits = 0;
+-	std::lock_guard   lock {fallback_mutex};
+-	// Sites shorter than a jump keep faulting; report how often, so slow spots show in the log.
+-	if (++hits % 1000000 == 0) {
+-		std::printf("PS4 CPU compatibility: %" PRIu64 " run-time replacements so far\n", hits);
++#if defined(__linux__)
++	constexpr u8 InvalidOpcode = 0x06; // PUSH ES: #UD in 64-bit mode, whatever follows it.
++	auto*        head          = reinterpret_cast<u8*>(site);
++	__atomic_store_n(head, InvalidOpcode, __ATOMIC_RELEASE);
++	Common::VirtualMemory::FlushInstructionCache(site, 1);
++	SyncCores();
++	for (size_t index = 1; index < size; ++index) {
++		__atomic_store_n(head + index, bytes[index], __ATOMIC_RELEASE);
++	}
++	SyncCores();
++	__atomic_store_n(head, bytes[0], __ATOMIC_RELEASE);
++	SyncCores();
++	return true;
++#else
++	return false;
++#endif
++}
++
++// Relays for the jumps of sites shorter than a near jump. Such a site only gets the first four
++// bytes of a jump: the fifth is the first byte of the next instruction, which stays as it is
++// (something may jump to that instruction). That byte is the top of the jump's displacement,
++// so the jump can only land in a 16 MB window that the byte selects. A relay placed in that
++// window jumps on to the replacement.
++constexpr u64 RelayChunkSize = 0x4000;
++struct RelayChunk {
++	u64 base = 0;
++	u64 used = 0;
++};
++std::vector<RelayChunk> g_relay_chunks; // Used under the fallback mutex.
++
++// A relay whose address is in [low, high] that jumps to `destination`, or null.
++const u8* AllocateRelay(u64 low, u64 high, const u8* destination) {
++	const auto emit = [destination](RelayChunk& chunk) -> const u8* {
++		auto*     relay = reinterpret_cast<u8*>(chunk.base + chunk.used);
++		const s64 rel   = reinterpret_cast<s64>(destination) -
++		                  static_cast<s64>(chunk.base + chunk.used + NearJumpSize);
++		if (rel < INT32_MIN || rel > INT32_MAX) {
++			return nullptr;
++		}
++		const auto rel32 = static_cast<s32>(rel);
++		relay[0]         = 0xe9;
++		std::memcpy(relay + 1, &rel32, sizeof(rel32));
++		chunk.used += NearJumpSize;
++		Common::VirtualMemory::FlushInstructionCache(reinterpret_cast<u64>(relay), NearJumpSize);
++		return relay;
++	};
++	for (auto& chunk: g_relay_chunks) {
++		const u64 slot = chunk.base + chunk.used;
++		if (chunk.used + NearJumpSize <= RelayChunkSize && slot >= low && slot <= high) {
++			return emit(chunk);
++		}
+ 	}
+-	if (const auto known = module->fallback_sites.find(rip); known != module->fallback_sites.end()) {
+-		rip = reinterpret_cast<u64>(known->second);
+-		return true;
++	// A new chunk: the middle of the window first, so that sites near this one can share it.
++	for (const u64 offset: {0x800000u, 0x400000u, 0xc00000u, 0x200000u, 0xa00000u, 0x600000u,
++	                        0xe00000u, 0x100000u, 0xf00000u}) {
++		const u64 base = (low + offset + RelayChunkSize - 1) & ~(RelayChunkSize - 1);
++		if (base < low || base + RelayChunkSize - 1 > high) {
++			continue;
++		}
++		if (Libs::LibKernel::Memory::AllocateRuntimeMemory(
++		        base, RelayChunkSize, Common::VirtualMemory::Mode::ExecuteReadWrite,
++		        "PS4 CPU compatibility relays", true) != base) {
++			continue;
++		}
++		g_relay_chunks.push_back({.base = base});
++		return emit(g_relay_chunks.back());
++	}
++	return nullptr;
++}
++
++// Builds the replacement of the missing instruction at `site` and makes the site jump to it,
++// so that it faults only this once. Returns the replacement, or null when there is no missing
++// instruction (or no replacement for it) there.
++const u8* ReplaceJaguarSite(PatchModule* module, u64 site, int depth) {
++	if (const auto known = module->fallback_sites.find(site);
++	    known != module->fallback_sites.end()) {
++		return known->second;
++	}
++	if (site < reinterpret_cast<u64>(module->start) || site >= reinterpret_cast<u64>(module->end)) {
++		return nullptr;
+ 	}
+ 
+ 	ZydisDecodedInstruction                                  instruction {};
+ 	std::array<ZydisDecodedOperand, ZYDIS_MAX_OPERAND_COUNT> operands {};
+-	const void* bytes     = reinterpret_cast<const void*>(rip);
++	const void* bytes     = reinterpret_cast<const void*>(site);
+ 	u64         available = std::min<u64>(ZYDIS_MAX_INSTRUCTION_LENGTH,
+-	                                      reinterpret_cast<u64>(module->end) - rip);
+-	if (const auto original = module->trap_originals.find(rip);
++	                                      reinterpret_cast<u64>(module->end) - site);
++	if (const auto original = module->trap_originals.find(site);
+ 	    original != module->trap_originals.end()) {
+ 		bytes     = original->second.data();
+ 		available = original->second.size();
+@@ -1780,63 +1884,105 @@
+ 	if (!ZYAN_SUCCESS(ZydisDecoderDecodeFull(&GetDecoder(), bytes, available, &instruction,
+ 	                                         operands.data())) ||
+ 	    !JaguarCompat::IsMissing(instruction)) {
+-		return false;
++		return nullptr;
+ 	}
+ 
+ 	auto&        generator = module->fallback_gen;
+ 	const size_t begin     = generator.getSize();
+ 	Xbyak::ClearError();
+-	const bool generated = JaguarCompat::Generate(instruction, operands.data(), rip, generator,
++	const bool generated = JaguarCompat::Generate(instruction, operands.data(), site, generator,
+ 	                                              /*flags_live=*/true);
+ 	if (generated && Xbyak::GetError() == 0) {
+-		generator.jmp(reinterpret_cast<void*>(rip + instruction.length));
++		generator.jmp(reinterpret_cast<void*>(site + instruction.length));
+ 	}
+ 	if (!generated || Xbyak::GetError() != 0) {
+ 		generator.reset();
+ 		generator.setSize(begin);
+ 		std::printf("PS4 CPU compatibility: no replacement for %s at %p\n",
+-		            ZydisMnemonicGetString(instruction.mnemonic), reinterpret_cast<void*>(rip));
+-		return false;
++		            ZydisMnemonicGetString(instruction.mnemonic), reinterpret_cast<void*>(site));
++		return nullptr;
+ 	}
+ 	const u8* code = generator.getCode() + begin;
+ 	Common::VirtualMemory::FlushInstructionCache(reinterpret_cast<u64>(code),
+ 	                                             generator.getSize() - begin);
+-	module->fallback_sites.emplace(rip, code);
++	module->fallback_sites.emplace(site, code);
+ 
+-	// A site of 5 bytes or more gets a jump to its replacement, written with one atomic store
+-	// (other threads may be running this code), so it stops faulting.
+-	bool       jumps = false;
+-	const s64  rel   = reinterpret_cast<s64>(code) - static_cast<s64>(rip + NearJumpSize);
+-	if (instruction.length >= NearJumpSize && rel >= INT32_MIN && rel <= INT32_MAX) {
+-		std::array<u8, NearJumpSize> jump {0xe9};
+-		const auto                   rel32 = static_cast<s32>(rel);
+-		std::memcpy(jump.data() + 1, &rel32, sizeof(rel32));
+-		const u64 qword = rip & ~u64 {7};
+-		const u64 oword = rip & ~u64 {15};
+-		if (rip + NearJumpSize <= qword + 8) {
+-			auto*     target   = reinterpret_cast<u64*>(qword);
+-			const u64 expected = __atomic_load_n(target, __ATOMIC_ACQUIRE);
+-			u64       desired  = expected;
+-			std::memcpy(reinterpret_cast<u8*>(&desired) + (rip - qword), jump.data(), jump.size());
+-			u64 compare = expected;
+-			jumps = __atomic_compare_exchange_n(target, &compare, desired, false, __ATOMIC_ACQ_REL,
+-			                                    __ATOMIC_ACQUIRE);
+-		} else if (rip + NearJumpSize <= oword + 16) {
+-			auto*          target   = reinterpret_cast<unsigned __int128*>(oword);
+-			unsigned __int128 expected = 0;
+-			std::memcpy(&expected, target, sizeof(expected));
+-			unsigned __int128 desired = expected;
+-			std::memcpy(reinterpret_cast<u8*>(&desired) + (rip - oword), jump.data(), jump.size());
+-			jumps = __sync_bool_compare_and_swap(target, expected, desired);
+-		}
+-		if (jumps) {
+-			Common::VirtualMemory::FlushInstructionCache(rip, NearJumpSize);
++	// The site gets a jump to its replacement, written while other threads may be running this
++	// code, so it stops faulting.
++	bool                         jumps = false;
++	bool                         relayed = false;
++	std::array<u8, NearJumpSize> jump {0xe9};
++	if (instruction.length >= NearJumpSize) {
++		const s64 rel = reinterpret_cast<s64>(code) - static_cast<s64>(site + NearJumpSize);
++		if (rel >= INT32_MIN && rel <= INT32_MAX) {
++			const auto rel32 = static_cast<s32>(rel);
++			std::memcpy(jump.data() + 1, &rel32, sizeof(rel32));
++			jumps = WriteJumpAtomic(site, jump.data(), NearJumpSize);
++		}
++	} else if (instruction.length == NearJumpSize - 1 && depth < 64 &&
++	           site + NearJumpSize <= reinterpret_cast<u64>(module->end)) {
++		// The jump's last byte is the first byte of the next instruction and must not change
++		// afterwards: when that instruction is a missing one too, it gets its own jump first.
++		ReplaceJaguarSite(module, site + instruction.length, depth + 1);
++		const u8  next = *reinterpret_cast<const u8*>(site + instruction.length);
++		const s64 low  = static_cast<s64>(site + NearJumpSize) +
++		                 static_cast<s32>(static_cast<u32>(next) << 24);
++		if (low > 0) {
++			if (const u8* relay = AllocateRelay(static_cast<u64>(low),
++			                                    static_cast<u64>(low) + 0xffffffu, code);
++			    relay != nullptr) {
++				const auto rel32 = static_cast<s32>(reinterpret_cast<s64>(relay) -
++				                                    static_cast<s64>(site + NearJumpSize));
++				std::memcpy(jump.data() + 1, &rel32, sizeof(rel32));
++				jumps   = jump[NearJumpSize - 1] == next &&
++				          WriteJumpAtomic(site, jump.data(), NearJumpSize - 1);
++				relayed = jumps;
++			}
+ 		}
+ 	}
++	if (jumps) {
++		Common::VirtualMemory::FlushInstructionCache(site, NearJumpSize);
++	}
+ 	if (module->fallback_sites.size() <= 32) {
+ 		std::printf("PS4 CPU compatibility: %s at %p replaced at run time%s\n",
+-		            ZydisMnemonicGetString(instruction.mnemonic), reinterpret_cast<void*>(rip),
+-		            jumps ? "" : " (short: faults each time)");
++		            ZydisMnemonicGetString(instruction.mnemonic), reinterpret_cast<void*>(site),
++		            relayed ? " (short: jumps through a relay)"
++		                    : jumps ? "" : " (faults each time)");
++	}
++	return code;
++}
++
++} // namespace
++
++bool RedirectJaguarInstruction(void* native_context) {
++	if (native_context == nullptr || !JaguarCompat::Enabled()) {
++		return false;
++	}
++	u64&  rip    = GuestRip(native_context);
++	auto* module = GetContainingModule(reinterpret_cast<void*>(rip));
++	if (module == nullptr || module->fallback_size == 0) {
++		return false;
++	}
++	static std::mutex fallback_mutex;
++	static u64        hits = 0;
++	std::lock_guard   lock {fallback_mutex};
++	// A site that could not get a jump keeps faulting; report how often, so slow spots show in
++	// the log.
++	if (++hits % 1000000 == 0) {
++		std::printf("PS4 CPU compatibility: %" PRIu64 " run-time replacements so far\n", hits);
++	}
++	if (const auto known = module->fallback_sites.find(rip); known != module->fallback_sites.end()) {
++		if (auto& repeats = module->fallback_repeats[rip]; ++repeats == 100000) {
++			std::printf("PS4 CPU compatibility: the instruction at %p still faults each time "
++			            "(100000 times so far)\n",
++			            reinterpret_cast<void*>(rip));
++		}
++		rip = reinterpret_cast<u64>(known->second);
++		return true;
++	}
++	const u8* code = ReplaceJaguarSite(module, rip, 0);
++	if (code == nullptr) {
++		return false;
+ 	}
+ 	rip = reinterpret_cast<u64>(code);
+ 	return true;
