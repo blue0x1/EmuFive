@@ -143,6 +143,16 @@ Connexion : `ps5` / `ps5` sur tty2 ou en SSH. La sortie de l'émulateur est dans
 
 Ce projet ne contient aucun logiciel système PS5 ni aucun jeu. N'utilisez que des jeux que vous possédez et que vous avez dumpés vous-même.
 
+Jeux testés :
+
+| Jeu | Console | Résultat |
+|---|---|---|
+| God of War Sons of Sparta | PS4 Pro | Jouable, environ 40 FPS et plus |
+| Hollow Knight: Silksong | PS4 Pro | Jouable, de 50 à 60 FPS |
+| Spider-Man 2 | | Pas encore testé |
+
+Vous avez testé un jeu ? Ouvrez une [issue](https://github.com/blue0x1/EmuFive/issues) avec le jeu, le modèle de votre console et comment il a tourné.
+
 ## Journal des modifications
 
 ### 1.0.4 (2026-11-12)

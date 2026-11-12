@@ -143,6 +143,16 @@ Accesso: `ps5` / `ps5` su tty2 o via SSH. L'output dell'emulatore è in `~/kytyp
 
 Questo progetto non contiene software di sistema PS5 né giochi. Usa solo giochi che possiedi e di cui hai fatto il dump tu stesso.
 
+Giochi provati:
+
+| Gioco | Console | Risultato |
+|---|---|---|
+| God of War Sons of Sparta | PS4 Pro | Giocabile, circa 40 FPS e oltre |
+| Hollow Knight: Silksong | PS4 Pro | Giocabile, da 50 a 60 FPS |
+| Spider-Man 2 | | Non ancora provato |
+
+Hai provato un gioco? Apri una [issue](https://github.com/blue0x1/EmuFive/issues) con il gioco, il modello della tua console e come è andato.
+
 ## Registro delle modifiche
 
 ### 1.0.4 (2026-11-12)

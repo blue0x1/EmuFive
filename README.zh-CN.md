@@ -143,6 +143,16 @@ EmuFive 和其他 Linux 系统一样，通过 [PS4 Multiboot](https://github.com
 
 本项目不包含任何 PS5 系统软件，也不包含任何游戏。请只使用你自己拥有并亲自转储的游戏。
 
+已测试的游戏：
+
+| 游戏 | 主机 | 结果 |
+|---|---|---|
+| God of War Sons of Sparta | PS4 Pro | 可玩，约 40 FPS 及以上 |
+| Hollow Knight: Silksong | PS4 Pro | 可玩，50 到 60 FPS |
+| Spider-Man 2 | | 尚未测试 |
+
+测试过某个游戏？请开一个 [issue](https://github.com/blue0x1/EmuFive/issues)，写明游戏、主机型号和运行情况。
+
 ## 更新日志
 
 ### 1.0.4 (2026-11-12)

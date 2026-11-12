@@ -137,6 +137,16 @@ Login: `ps5` / `ps5` on tty2 or SSH. The emulator's output is in `~/kytyps5.log`
 
 This project contains no PS5 system software and no games. Use only games you own and dumped yourself.
 
+Tested games:
+
+| Game | Console | Result |
+|---|---|---|
+| God of War Sons of Sparta | PS4 Pro | Playable, about 40 FPS and more |
+| Hollow Knight: Silksong | PS4 Pro | Playable, 50 to 60 FPS |
+| Spider-Man 2 | | Not tested yet |
+
+Tested a game? Open an [issue](https://github.com/blue0x1/EmuFive/issues) with the game, your console model and how it ran.
+
 ## Changelog
 
 ### 1.0.4 (2026-11-12)

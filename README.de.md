@@ -143,6 +143,16 @@ Anmeldung: `ps5` / `ps5` auf tty2 oder per SSH. Die Ausgabe des Emulators steht 
 
 Dieses Projekt enthält keine PS5-Systemsoftware und keine Spiele. Verwende nur Spiele, die du besitzt und selbst gedumpt hast.
 
+Getestete Spiele:
+
+| Spiel | Konsole | Ergebnis |
+|---|---|---|
+| God of War Sons of Sparta | PS4 Pro | Spielbar, etwa 40 FPS und mehr |
+| Hollow Knight: Silksong | PS4 Pro | Spielbar, 50 bis 60 FPS |
+| Spider-Man 2 | | Noch nicht getestet |
+
+Ein Spiel getestet? Eröffne ein [Issue](https://github.com/blue0x1/EmuFive/issues) mit dem Spiel, deinem Konsolenmodell und wie es lief.
+
 ## Änderungsprotokoll
 
 ### 1.0.4 (2026-11-12)

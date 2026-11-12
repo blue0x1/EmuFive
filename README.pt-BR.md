@@ -143,6 +143,16 @@ Login: `ps5` / `ps5` no tty2 ou por SSH. A saída do emulador fica em `~/kytyps5
 
 Este projeto não contém software de sistema do PS5 nem jogos. Use apenas jogos que você possui e dos quais você mesmo fez o dump.
 
+Jogos testados:
+
+| Jogo | Console | Resultado |
+|---|---|---|
+| God of War Sons of Sparta | PS4 Pro | Jogável, cerca de 40 FPS ou mais |
+| Hollow Knight: Silksong | PS4 Pro | Jogável, de 50 a 60 FPS |
+| Spider-Man 2 | | Ainda não testado |
+
+Testou um jogo? Abra uma [issue](https://github.com/blue0x1/EmuFive/issues) com o jogo, o modelo do seu console e como ele rodou.
+
 ## Registro de alterações
 
 ### 1.0.4 (2026-11-12)
