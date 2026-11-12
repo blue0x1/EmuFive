@@ -228,8 +228,12 @@ def home_test():
     for cache in subprocess.run(["find", "/opt/ps5-on-ps4", "-name", "__pycache__", "-prune"],
                                 capture_output=True, text=True).stdout.split():
         shutil.rmtree(cache, ignore_errors=True)
-    code = subprocess.run(["su", "ps5", "-c", HOME_TEST], capture_output=True).returncode
-    if code != 124:       # Still running after 8 seconds: it started.
+    test = subprocess.run(["su", "ps5", "-c", HOME_TEST], capture_output=True)
+    if test.returncode != 124:       # Still running after 8 seconds: it started.
+        output = (test.stdout + test.stderr).decode("utf-8", "replace").strip().splitlines()
+        log(f"home screen test ended with {test.returncode}:")
+        for line in output[-15:]:
+            log(f"    {line}")
         raise Failed("The new home screen did not start.")
 
 
@@ -350,6 +354,8 @@ def rollback():
 
 def main():
     what = sys.argv[1] if len(sys.argv) > 1 else ""
+    if what == "update":            # What ps5-admin passed up to 1.0.3.
+        what = "install"
     if what not in ("install", "rollback"):
         sys.exit("usage: ps5-update install | rollback")
     os.makedirs(U.STATUS_DIR, mode=0o755, exist_ok=True)

@@ -97,7 +97,9 @@ update|rollback)
     # The progress is in /run/emufive-update/status.json.
     systemctl is-active --quiet emufive-update.service && die "An update is already running."
     systemctl reset-failed emufive-update.service 2>/dev/null
-    systemd-run --quiet --unit=emufive-update --collect /opt/ps5-on-ps4/bin/ps5-update "$1" \
+    # ps5-update calls installing "install" (it refused "update", so no update ever started).
+    what="$1"; [ "$what" = update ] && what=install
+    systemd-run --quiet --unit=emufive-update --collect /opt/ps5-on-ps4/bin/ps5-update "$what" \
         || die "Could not start the update."
     ;;
 default-password)
