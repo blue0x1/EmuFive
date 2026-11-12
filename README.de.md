@@ -18,6 +18,11 @@ Erstellt von **[Chokri Hammedi (blue0x1)](https://github.com/blue0x1)**. Basiert
 
 <p align="center"><img src="assets/home-screen.png" alt="Der EmuFive-Startbildschirm auf einer PS4 Pro, mit God of War Sons of Sparta ausgewählt" width="900"></p>
 
+<p align="center">
+  <b><a href="#installing">Installation</a></b> · <b><a href="#games">Spiele</a></b> · <b><a href="#changelog">Änderungsprotokoll</a></b> · <a href="#how-it-works">So funktioniert es</a> · <a href="#the-cpu-problem">Das CPU-Problem</a> · <a href="#plan">Plan</a> · <a href="#building">Kompilieren</a> · <a href="#credits">Danksagungen</a>
+</p>
+
+<a id="how-it-works"></a>
 ## So funktioniert es
 
 - **[PS4 Multiboot](https://github.com/blue0x1/ps4-multiboot)** startet Linux auf der PS4 und installiert Linux-Systeme auf ihrer internen Festplatte, mit dem Controller.
@@ -41,6 +46,7 @@ Patch `0004` fügt das dem Gast-Befehlspatcher von KytyPS5 hinzu. Wenn der Host-
 
 Der Jaguar ist immer noch viel langsamer als die CPU der PS5, und die Ersetzungen kommen hinzu, daher kann selbst ein Spiel, das läuft, langsam laufen.
 
+<a id="plan"></a>
 ## Plan
 
 | Schritt | Status |
@@ -139,6 +145,7 @@ Das System startet im Startbildschirm und braucht keine Tastatur:
 
 Anmeldung: `ps5` / `ps5` auf tty2 oder per SSH. Die Ausgabe des Emulators steht in `~/kytyps5.log` (der Lauf davor: `~/kytyps5.log.1`).
 
+<a id="games"></a>
 ## Spiele
 
 Dieses Projekt enthält keine PS5-Systemsoftware und keine Spiele. Verwende nur Spiele, die du besitzt und selbst gedumpt hast.
@@ -153,6 +160,7 @@ Getestete Spiele:
 
 Ein Spiel getestet? Eröffne ein [Issue](https://github.com/blue0x1/EmuFive/issues) mit dem Spiel, deinem Konsolenmodell und wie es lief.
 
+<a id="changelog"></a>
 ## Änderungsprotokoll
 
 ### 1.0.4 (2026-11-12)
@@ -187,6 +195,7 @@ Es installiert alle fehlenden Updates (von 1.0.0 oder 1.0.1 aus gehören die Bro
 - [KytyPS5](https://github.com/KytyPS5/KytyPS5), der PS5-Emulator, auf dem EmuFive basiert (GPL-2.0)
 - [Kyty](https://github.com/InoriRus/Kyty) von InoriRus, der Emulator, auf dem KytyPS5 basiert
 
+<a id="credits"></a>
 ## Danksagungen
 
 - [Mesa](https://mesa3d.org) und die PS4-GPU-Patches von fail0verflow, DionKill und striker91n

@@ -18,6 +18,11 @@ Créé par **[Chokri Hammedi (blue0x1)](https://github.com/blue0x1)**. Basé sur
 
 <p align="center"><img src="assets/home-screen.png" alt="L'écran d'accueil d'EmuFive sur une PS4 Pro, avec God of War Sons of Sparta sélectionné" width="900"></p>
 
+<p align="center">
+  <b><a href="#installing">Installation</a></b> · <b><a href="#games">Jeux</a></b> · <b><a href="#changelog">Journal des modifications</a></b> · <a href="#how-it-works">Fonctionnement</a> · <a href="#the-cpu-problem">Le problème du processeur</a> · <a href="#plan">Feuille de route</a> · <a href="#building">Compilation</a> · <a href="#credits">Crédits</a>
+</p>
+
+<a id="how-it-works"></a>
 ## Fonctionnement
 
 - **[PS4 Multiboot](https://github.com/blue0x1/ps4-multiboot)** démarre Linux sur la PS4 et installe des systèmes Linux sur son disque interne, à la manette.
@@ -41,6 +46,7 @@ Le patch `0004` ajoute cela au correcteur d'instructions invitées de KytyPS5. Q
 
 Le Jaguar reste bien plus lent que le processeur de la PS5, et les remplacements s'y ajoutent, donc même un jeu qui fonctionne peut tourner lentement.
 
+<a id="plan"></a>
 ## Feuille de route
 
 | Étape | État |
@@ -139,6 +145,7 @@ Le système démarre sur l'écran d'accueil et n'a pas besoin de clavier :
 
 Connexion : `ps5` / `ps5` sur tty2 ou en SSH. La sortie de l'émulateur est dans `~/kytyps5.log` (le lancement précédent : `~/kytyps5.log.1`).
 
+<a id="games"></a>
 ## Jeux
 
 Ce projet ne contient aucun logiciel système PS5 ni aucun jeu. N'utilisez que des jeux que vous possédez et que vous avez dumpés vous-même.
@@ -153,6 +160,7 @@ Jeux testés :
 
 Vous avez testé un jeu ? Ouvrez une [issue](https://github.com/blue0x1/EmuFive/issues) avec le jeu, le modèle de votre console et comment il a tourné.
 
+<a id="changelog"></a>
 ## Journal des modifications
 
 ### 1.0.4 (2026-11-12)
@@ -187,6 +195,7 @@ Elle installe toutes les mises à jour manquantes (depuis la 1.0.0 ou la 1.0.1, 
 - [KytyPS5](https://github.com/KytyPS5/KytyPS5), l'émulateur PS5 sur lequel EmuFive est basé (GPL-2.0)
 - [Kyty](https://github.com/InoriRus/Kyty) par InoriRus, l'émulateur sur lequel KytyPS5 est basé
 
+<a id="credits"></a>
 ## Crédits
 
 - [Mesa](https://mesa3d.org), et les patchs GPU PS4 de fail0verflow, DionKill et striker91n

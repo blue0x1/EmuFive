@@ -18,6 +18,11 @@ Creado por **[Chokri Hammedi (blue0x1)](https://github.com/blue0x1)**. Basado en
 
 <p align="center"><img src="assets/home-screen.png" alt="La pantalla de inicio de EmuFive en una PS4 Pro, con God of War Sons of Sparta seleccionado" width="900"></p>
 
+<p align="center">
+  <b><a href="#installing">Instalación</a></b> · <b><a href="#games">Juegos</a></b> · <b><a href="#changelog">Registro de cambios</a></b> · <a href="#how-it-works">Cómo funciona</a> · <a href="#the-cpu-problem">El problema de la CPU</a> · <a href="#plan">Plan</a> · <a href="#building">Compilación</a> · <a href="#credits">Créditos</a>
+</p>
+
+<a id="how-it-works"></a>
 ## Cómo funciona
 
 - **[PS4 Multiboot](https://github.com/blue0x1/ps4-multiboot)** arranca Linux en la PS4 e instala sistemas Linux en su disco interno, con el mando.
@@ -41,6 +46,7 @@ El parche `0004` añade eso al parcheador de instrucciones invitadas de KytyPS5.
 
 La Jaguar sigue siendo mucho más lenta que la CPU de la PS5, y los reemplazos suman a eso, así que incluso un juego que funciona puede ir lento.
 
+<a id="plan"></a>
 ## Plan
 
 | Paso | Estado |
@@ -139,6 +145,7 @@ El sistema arranca en la pantalla de inicio y no necesita teclado:
 
 Inicio de sesión: `ps5` / `ps5` en tty2 o por SSH. La salida del emulador está en `~/kytyps5.log` (la ejecución anterior: `~/kytyps5.log.1`).
 
+<a id="games"></a>
 ## Juegos
 
 Este proyecto no contiene software de sistema de PS5 ni juegos. Usa solo juegos que tengas y que hayas volcado tú mismo.
@@ -153,6 +160,7 @@ Juegos probados:
 
 ¿Probaste un juego? Abre un [issue](https://github.com/blue0x1/EmuFive/issues) con el juego, el modelo de tu consola y cómo funcionó.
 
+<a id="changelog"></a>
 ## Registro de cambios
 
 ### 1.0.4 (2026-11-12)
@@ -187,6 +195,7 @@ Instala todas las actualizaciones que faltan (desde la 1.0.0 o la 1.0.1 eso incl
 - [KytyPS5](https://github.com/KytyPS5/KytyPS5), el emulador de PS5 en el que se basa EmuFive (GPL-2.0)
 - [Kyty](https://github.com/InoriRus/Kyty) de InoriRus, el emulador en el que se basa KytyPS5
 
+<a id="credits"></a>
 ## Créditos
 
 - [Mesa](https://mesa3d.org), y los parches de GPU de PS4 de fail0verflow, DionKill y striker91n

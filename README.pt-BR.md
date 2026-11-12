@@ -18,6 +18,11 @@ Criado por **[Chokri Hammedi (blue0x1)](https://github.com/blue0x1)**. Baseado n
 
 <p align="center"><img src="assets/home-screen.png" alt="A tela inicial do EmuFive em um PS4 Pro, com God of War Sons of Sparta selecionado" width="900"></p>
 
+<p align="center">
+  <b><a href="#installing">Instalação</a></b> · <b><a href="#games">Jogos</a></b> · <b><a href="#changelog">Registro de alterações</a></b> · <a href="#how-it-works">Como funciona</a> · <a href="#the-cpu-problem">O problema da CPU</a> · <a href="#plan">Plano</a> · <a href="#building">Compilação</a> · <a href="#credits">Créditos</a>
+</p>
+
+<a id="how-it-works"></a>
 ## Como funciona
 
 - **[PS4 Multiboot](https://github.com/blue0x1/ps4-multiboot)** inicia o Linux no PS4 e instala sistemas Linux no disco interno dele, pelo controle.
@@ -41,6 +46,7 @@ O patch `0004` adiciona isso ao corretor de instruções do convidado do KytyPS5
 
 O Jaguar ainda é muito mais lento que a CPU do PS5, e as substituições somam a isso, então mesmo um jogo que roda pode rodar devagar.
 
+<a id="plan"></a>
 ## Plano
 
 | Etapa | Status |
@@ -139,6 +145,7 @@ O sistema inicia na tela inicial e não precisa de teclado:
 
 Login: `ps5` / `ps5` no tty2 ou por SSH. A saída do emulador fica em `~/kytyps5.log` (a execução anterior: `~/kytyps5.log.1`).
 
+<a id="games"></a>
 ## Jogos
 
 Este projeto não contém software de sistema do PS5 nem jogos. Use apenas jogos que você possui e dos quais você mesmo fez o dump.
@@ -153,6 +160,7 @@ Jogos testados:
 
 Testou um jogo? Abra uma [issue](https://github.com/blue0x1/EmuFive/issues) com o jogo, o modelo do seu console e como ele rodou.
 
+<a id="changelog"></a>
 ## Registro de alterações
 
 ### 1.0.4 (2026-11-12)
@@ -187,6 +195,7 @@ Ela instala todas as atualizações que faltam (a partir da 1.0.0 ou 1.0.1 isso 
 - [KytyPS5](https://github.com/KytyPS5/KytyPS5), o emulador de PS5 em que o EmuFive se baseia (GPL-2.0)
 - [Kyty](https://github.com/InoriRus/Kyty) de InoriRus, o emulador em que o KytyPS5 se baseia
 
+<a id="credits"></a>
 ## Créditos
 
 - [Mesa](https://mesa3d.org), e os patches de GPU do PS4 de fail0verflow, DionKill e striker91n

@@ -18,6 +18,11 @@
 
 <p align="center"><img src="assets/home-screen.png" alt="PS4 Pro 上的 EmuFive 主屏幕，选中了 God of War Sons of Sparta" width="900"></p>
 
+<p align="center">
+  <b><a href="#installing">安装</a></b> · <b><a href="#games">游戏</a></b> · <b><a href="#changelog">更新日志</a></b> · <a href="#how-it-works">工作原理</a> · <a href="#the-cpu-problem">CPU 问题</a> · <a href="#plan">计划</a> · <a href="#building">构建</a> · <a href="#credits">致谢</a>
+</p>
+
+<a id="how-it-works"></a>
 ## 工作原理
 
 - **[PS4 Multiboot](https://github.com/blue0x1/ps4-multiboot)** 在 PS4 上启动 Linux，并用手柄把 Linux 系统安装到 PS4 的内置硬盘上。
@@ -41,6 +46,7 @@ KytyPS5 并不模拟 PS5 的 CPU：它直接运行游戏自己的 x86-64 代码�
 
 Jaguar 仍然比 PS5 的 CPU 慢得多，替换代码还会增加开销，所以即使游戏能运行，也可能运行得很慢。
 
+<a id="plan"></a>
 ## 计划
 
 | 步骤 | 状态 |
@@ -139,6 +145,7 @@ EmuFive 和其他 Linux 系统一样，通过 [PS4 Multiboot](https://github.com
 
 登录：在 tty2 或 SSH 上使用 `ps5` / `ps5`。模拟器的输出在 `~/kytyps5.log`（上一次运行：`~/kytyps5.log.1`）。
 
+<a id="games"></a>
 ## 游戏
 
 本项目不包含任何 PS5 系统软件，也不包含任何游戏。请只使用你自己拥有并亲自转储的游戏。
@@ -153,6 +160,7 @@ EmuFive 和其他 Linux 系统一样，通过 [PS4 Multiboot](https://github.com
 
 测试过某个游戏？请开一个 [issue](https://github.com/blue0x1/EmuFive/issues)，写明游戏、主机型号和运行情况。
 
+<a id="changelog"></a>
 ## 更新日志
 
 ### 1.0.4 (2026-11-12)
@@ -187,6 +195,7 @@ sudo systemd-run --unit=emufive-update --collect /opt/ps5-on-ps4/bin/ps5-update 
 - [KytyPS5](https://github.com/KytyPS5/KytyPS5)，EmuFive 所基于的 PS5 模拟器（GPL-2.0）
 - InoriRus 的 [Kyty](https://github.com/InoriRus/Kyty)，KytyPS5 所基于的模拟器
 
+<a id="credits"></a>
 ## 致谢
 
 - [Mesa](https://mesa3d.org)，以及 fail0verflow、DionKill 和 striker91n 的 PS4 GPU 补丁

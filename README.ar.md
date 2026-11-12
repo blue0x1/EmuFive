@@ -22,8 +22,13 @@
 
 <p align="center"><img src="assets/home-screen.png" alt="الشاشة الرئيسية لـ EmuFive على PS4 Pro، ولعبة God of War Sons of Sparta محددة" width="900"></p>
 
+<p align="center">
+  <b><a href="#installing">التثبيت</a></b> · <b><a href="#games">الألعاب</a></b> · <b><a href="#changelog">سجل التغييرات</a></b> · <a href="#how-it-works">كيف يعمل</a> · <a href="#the-cpu-problem">مشكلة المعالج</a> · <a href="#plan">الخطة</a> · <a href="#building">البناء</a> · <a href="#credits">شكر وتقدير</a>
+</p>
+
 <div dir="rtl">
 
+<a id="how-it-works"></a>
 ## كيف يعمل
 
 - **[PS4 Multiboot](https://github.com/blue0x1/ps4-multiboot)** يشغّل Linux على PS4 ويثبّت أنظمة Linux على قرصه الداخلي، باستخدام وحدة التحكم.
@@ -47,6 +52,7 @@
 
 يبقى Jaguar أبطأ بكثير من معالج PS5، والبدائل تزيد على ذلك، لذا قد تعمل حتى اللعبة التي تشتغل ببطء.
 
+<a id="plan"></a>
 ## الخطة
 
 | الخطوة | الحالة |
@@ -149,6 +155,7 @@ scripts/build-rootfs.sh    # out/ps5-ps4-rootfs.tar.xz
 
 تسجيل الدخول: `ps5` / `ps5` على tty2 أو SSH. مخرجات المحاكي في `~/kytyps5.log` (التشغيل السابق: `~/kytyps5.log.1`).
 
+<a id="games"></a>
 ## الألعاب
 
 لا يحتوي هذا المشروع على أي برامج نظام PS5 ولا على أي ألعاب. استخدم فقط الألعاب التي تملكها ونسختها بنفسك.
@@ -163,6 +170,7 @@ scripts/build-rootfs.sh    # out/ps5-ps4-rootfs.tar.xz
 
 جربت لعبة؟ افتح [مشكلة](https://github.com/blue0x1/EmuFive/issues) واذكر اللعبة وطراز جهازك وكيف عملت.
 
+<a id="changelog"></a>
 ## سجل التغييرات
 
 ### 1.0.4 (2026-11-12)
@@ -197,6 +205,7 @@ sudo systemd-run --unit=emufive-update --collect /opt/ps5-on-ps4/bin/ps5-update 
 - [KytyPS5](https://github.com/KytyPS5/KytyPS5)، محاكي PS5 الذي بُني عليه EmuFive (GPL-2.0)
 - [Kyty](https://github.com/InoriRus/Kyty) من InoriRus، المحاكي الذي بُني عليه KytyPS5
 
+<a id="credits"></a>
 ## شكر وتقدير
 
 - [Mesa](https://mesa3d.org)، ورقع معالج رسوميات PS4 من fail0verflow وDionKill وstriker91n

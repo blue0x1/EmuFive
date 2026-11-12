@@ -18,6 +18,11 @@ Geliştiren: **[Chokri Hammedi (blue0x1)](https://github.com/blue0x1)**. [PS4 Mu
 
 <p align="center"><img src="assets/home-screen.png" alt="Bir PS4 Pro'da EmuFive ana ekranı, God of War Sons of Sparta seçili" width="900"></p>
 
+<p align="center">
+  <b><a href="#installing">Kurulum</a></b> · <b><a href="#games">Oyunlar</a></b> · <b><a href="#changelog">Değişiklik günlüğü</a></b> · <a href="#how-it-works">Nasıl çalışır</a> · <a href="#the-cpu-problem">CPU sorunu</a> · <a href="#plan">Plan</a> · <a href="#building">Derleme</a> · <a href="#credits">Katkıda bulunanlar</a>
+</p>
+
+<a id="how-it-works"></a>
 ## Nasıl çalışır
 
 - **[PS4 Multiboot](https://github.com/blue0x1/ps4-multiboot)**, PS4'te Linux'u başlatır ve kontrolcüyle Linux sistemlerini PS4'ün dahili diskine kurar.
@@ -41,6 +46,7 @@ Yama `0004`, bunu KytyPS5'in misafir komut yamalayıcısına ekler. Ana CPU'da A
 
 Jaguar, PS5'in CPU'sundan hâlâ çok daha yavaştır ve değiştirmeler buna eklenir; bu yüzden çalışan bir oyun bile yavaş çalışabilir.
 
+<a id="plan"></a>
 ## Plan
 
 | Adım | Durum |
@@ -139,6 +145,7 @@ Sistem ana ekranla açılır ve klavye gerektirmez:
 
 Giriş: tty2'de veya SSH ile `ps5` / `ps5`. Emülatörün çıktısı `~/kytyps5.log` içindedir (bir önceki çalıştırma: `~/kytyps5.log.1`).
 
+<a id="games"></a>
 ## Oyunlar
 
 Bu proje hiçbir PS5 sistem yazılımı ve hiçbir oyun içermez. Yalnızca sahip olduğunuz ve dökümünü kendiniz aldığınız oyunları kullanın.
@@ -153,6 +160,7 @@ Denenen oyunlar:
 
 Bir oyun mu denediniz? Oyunu, konsol modelinizi ve nasıl çalıştığını yazarak bir [issue](https://github.com/blue0x1/EmuFive/issues) açın.
 
+<a id="changelog"></a>
 ## Değişiklik günlüğü
 
 ### 1.0.4 (2026-11-12)
@@ -187,6 +195,7 @@ Eksik tüm güncellemeleri kurar (1.0.0 veya 1.0.1'den buna 1.0.2'nin yaklaşık
 - [KytyPS5](https://github.com/KytyPS5/KytyPS5), EmuFive'ın temel aldığı PS5 emülatörü (GPL-2.0)
 - InoriRus'un [Kyty](https://github.com/InoriRus/Kyty) projesi, KytyPS5'in temel aldığı emülatör
 
+<a id="credits"></a>
 ## Katkıda bulunanlar
 
 - [Mesa](https://mesa3d.org) ve fail0verflow, DionKill ile striker91n'nin PS4 GPU yamaları
