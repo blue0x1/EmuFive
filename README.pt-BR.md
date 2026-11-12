@@ -145,11 +145,18 @@ Este projeto não contém software de sistema do PS5 nem jogos. Use apenas jogos
 
 ## Registro de alterações
 
-### 1.0.3 (2026-11-11)
+### 1.0.4 (2026-11-12)
 
-- Corrigido: com o EmuFive instalado no disco do PS4, esse disco não era montado, então os jogos em `/user/home/PS5` não apareciam ([#7](https://github.com/blue0x1/EmuFive/issues/7)).
+- Corrigido: a atualização de software nas Configurações não iniciava ("The update did not start.") [#16](https://github.com/blue0x1/EmuFive/issues/16).
+- Corrigido: com o EmuFive instalado em um drive USB, os jogos de um segundo drive USB não eram encontrados [#15](https://github.com/blue0x1/EmuFive/issues/15).
 
-Para atualizar: Configurações, Sistema, Atualização de software. Os jogos do disco do PS4 aparecem logo depois, sem reiniciar. A partir da 1.0.0 ou da 1.0.1, a atualização instala primeiro a 1.0.2 (os pacotes do navegador dela têm cerca de 110 MB, e depois o PS4 reinicia). Instalações novas usam o `ps5-ps4-rootfs.tar.xz` da versão 1.0.3.
+Para atualizar a partir da 1.0.3 ou anterior, inicie a atualização uma vez à mão, pois a atualização de software antiga não consegue: ative o SSH nas Configurações, conecte com `ssh ps5@<endereço do PS4>` (senha `ps5`, se não a mudou) e execute
+
+```bash
+sudo systemd-run --unit=emufive-update --collect /opt/ps5-on-ps4/bin/ps5-update install
+```
+
+Ela instala todas as atualizações que faltam (a partir da 1.0.0 ou 1.0.1 isso inclui os pacotes do navegador da 1.0.2, cerca de 110 MB); depois reinicie pela tela inicial. A partir da 1.0.4, a atualização de software nas Configurações funciona. Instalações novas usam o `ps5-ps4-rootfs.tar.xz` da versão 1.0.4.
 
 ## Estrutura do projeto
 

@@ -145,11 +145,18 @@ Bu proje hiçbir PS5 sistem yazılımı ve hiçbir oyun içermez. Yalnızca sahi
 
 ## Değişiklik günlüğü
 
-### 1.0.3 (2026-11-11)
+### 1.0.4 (2026-11-12)
 
-- Düzeltildi: EmuFive PS4 diskine kurulduğunda PS4 diski bağlanmıyordu, bu yüzden `/user/home/PS5` içindeki oyunlar görünmüyordu ([#7](https://github.com/blue0x1/EmuFive/issues/7)).
+- Düzeltildi: Ayarlar'daki yazılım güncellemesi başlamıyordu ("The update did not start.") [#16](https://github.com/blue0x1/EmuFive/issues/16).
+- Düzeltildi: EmuFive bir USB sürücüye kuruluyken, ikinci bir USB sürücüdeki oyunlar bulunmuyordu [#15](https://github.com/blue0x1/EmuFive/issues/15).
 
-Güncellemek için: Ayarlar, Sistem, Yazılım güncellemesi. PS4 diskindeki oyunlar hemen ardından görünür, yeniden başlatma gerekmez. 1.0.0 veya 1.0.1'den güncellerken önce 1.0.2 kurulur (tarayıcı paketleri yaklaşık 110 MB'tır ve ardından PS4 yeniden başlar). Yeni kurulumlar 1.0.3 sürümündeki `ps5-ps4-rootfs.tar.xz` dosyasını kullanır.
+1.0.3 veya önceki bir sürümden güncellemek için, eski yazılım güncellemesi bunu yapamadığından güncellemeyi bir kez elle başlatın: Ayarlar'da SSH'yi açın, `ssh ps5@<PS4 adresi>` ile bağlanın (değiştirmediyseniz parola `ps5`) ve çalıştırın:
+
+```bash
+sudo systemd-run --unit=emufive-update --collect /opt/ps5-on-ps4/bin/ps5-update install
+```
+
+Eksik tüm güncellemeleri kurar (1.0.0 veya 1.0.1'den buna 1.0.2'nin yaklaşık 110 MB'lık tarayıcı paketleri dahildir); ardından ana ekrandan yeniden başlatın. 1.0.4'ten itibaren Ayarlar'daki yazılım güncellemesi çalışır. Yeni kurulumlar 1.0.4 sürümündeki `ps5-ps4-rootfs.tar.xz` dosyasını kullanır.
 
 ## Proje yapısı
 

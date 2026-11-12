@@ -145,11 +145,18 @@ EmuFive 和其他 Linux 系统一样，通过 [PS4 Multiboot](https://github.com
 
 ## 更新日志
 
-### 1.0.3 (2026-11-11)
+### 1.0.4 (2026-11-12)
 
-- 修复：EmuFive 安装在 PS4 硬盘上时，PS4 硬盘没有被挂载，因此 `/user/home/PS5` 中的游戏不会显示（[#7](https://github.com/blue0x1/EmuFive/issues/7)）。
+- 修复：设置中的软件更新无法开始（“The update did not start.”）[#16](https://github.com/blue0x1/EmuFive/issues/16)。
+- 修复：EmuFive 安装在 USB 驱动器上时，找不到第二个 USB 驱动器上的游戏 [#15](https://github.com/blue0x1/EmuFive/issues/15)。
 
-更新方法：设置（Settings）、系统（System）、软件更新（Software update）。更新后 PS4 硬盘中的游戏会立即显示，无需重启。从 1.0.0 或 1.0.1 更新时，会先安装 1.0.2（其浏览器软件包约 110 MB，之后 PS4 会重启）。新安装请使用 1.0.3 版本中的 `ps5-ps4-rootfs.tar.xz`。
+从 1.0.3 或更早版本更新时，旧的软件更新无法完成，请手动启动一次：在设置中打开 SSH，用 `ssh ps5@<PS4 地址>` 连接（未修改时密码为 `ps5`），然后运行
+
+```bash
+sudo systemd-run --unit=emufive-update --collect /opt/ps5-on-ps4/bin/ps5-update install
+```
+
+它会安装所有缺少的更新（从 1.0.0 或 1.0.1 更新时包括 1.0.2 的浏览器软件包，约 110 MB），完成后在主屏幕上重启。从 1.0.4 起，设置中的软件更新可以正常使用。新安装请使用 1.0.4 版本中的 `ps5-ps4-rootfs.tar.xz`。
 
 ## 项目结构
 
