@@ -17,6 +17,14 @@ let_go() {
 
 case "$action" in
 add)
+    # When EmuFive itself runs from a USB drive, that drive is not a game
+    # drive: it would take /media/ps5-usb and the real game drive would be
+    # skipped. Leave alone the system's own filesystem and anything else on
+    # the same disk.
+    root=$(findmnt -nvo SOURCE /)
+    [ "$dev" = "$root" ] && exit 0
+    parent=$(lsblk -no PKNAME "$dev" 2>/dev/null)
+    [ -n "$parent" ] && { [ "/dev/$parent" = "$root" ] || [ "$parent" = "$(lsblk -no PKNAME "$root" 2>/dev/null)" ]; } && exit 0
     if grep -q " $MNT " /proc/mounts; then
         src=$(awk -v m="$MNT" '$2 == m { print $1; exit }' /proc/mounts)
         # A drive that is still there and can be read stays mounted.
