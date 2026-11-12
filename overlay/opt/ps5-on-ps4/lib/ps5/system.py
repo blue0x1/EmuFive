@@ -1152,6 +1152,11 @@ def change_password(current, new):
             os._exit(127)
     answers = [current, new, new]
     output = ""
+    # Only what passwd printed after the last answer can be a new prompt. Looking at all
+    # of the output answered the line break after "Current password:" as if it were the
+    # next prompt: the new password went out early, passwd showed it, and "Retype new
+    # password" got no answer, so the password was never changed.
+    since_answer = ""
     deadline = time.time() + 20
     try:
         while time.time() < deadline:
@@ -1164,9 +1169,11 @@ def change_password(current, new):
                 if not chunk:
                     break
                 output += chunk
-                if output.rstrip().lower().endswith("password:") and answers:
+                since_answer += chunk
+                if since_answer.rstrip().lower().endswith("password:") and answers:
                     os.write(fd, (answers.pop(0) + "\n").encode())
                     output += "\n"
+                    since_answer = ""
             elif not answers:
                 pid_done, _ = os.waitpid(pid, os.WNOHANG)
                 if pid_done:
@@ -1191,10 +1198,12 @@ def change_password(current, new):
     lower = output.lower()
     if "authentication token manipulation" in lower or "authentication failure" in lower:
         return False, "The current password is wrong."
-    for hint in ("too short", "too simple", "palindrome", "same as", "too similar", "dictionary"):
+    for hint in ("too short", "longer password", "too simple", "palindrome", "same as", "too similar", "dictionary"):
         if hint in lower:
             return False, "The new password is too simple or too short. Try a longer one."
-    lines = [l.strip() for l in output.splitlines() if l.strip() and "password" not in l.lower()]
+    # Never show a line that holds one of the passwords (passwd echoes what it did not ask for).
+    lines = [l.strip() for l in output.splitlines() if l.strip() and "password" not in l.lower()
+             and not (current and current in l) and not (new and new in l)]
     return False, lines[-1] if lines else "The password was not changed."
 
 
