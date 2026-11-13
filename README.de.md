@@ -163,10 +163,11 @@ Ein Spiel getestet? Eröffne ein [Issue](https://github.com/blue0x1/EmuFive/issu
 <a id="changelog"></a>
 ## Änderungsprotokoll
 
-### 1.0.4 (2026-11-12)
+### 1.0.5 (2026-11-14)
 
-- Behoben: Die Softwareaktualisierung in den Einstellungen startete nicht („The update did not start.“) [#16](https://github.com/blue0x1/EmuFive/issues/16).
-- Behoben: Mit EmuFive auf einem USB-Laufwerk installiert wurden Spiele auf einem zweiten USB-Laufwerk nicht gefunden [#15](https://github.com/blue0x1/EmuFive/issues/15).
+- Behoben: Externe SSDs und Festplatten wurden nicht erkannt, nur USB-Sticks [#23](https://github.com/blue0x1/EmuFive/issues/23).
+- Behoben: Das Ändern des Passworts in den Einstellungen funktionierte nicht, daher ließ sich SSH nicht einschalten [#17](https://github.com/blue0x1/EmuFive/issues/17).
+- Behoben: Mit PS4 Multiboot 1.5.0 (Kernel 7.3.3) blieb der Mauszeiger über Spielen auf dem Bildschirm.
 
 Um von 1.0.3 oder älter zu aktualisieren, starte das Update einmal von Hand, da die alte Softwareaktualisierung es nicht kann: SSH in den Einstellungen einschalten, mit `ssh ps5@<Adresse der PS4>` verbinden (Passwort `ps5`, falls nicht geändert) und ausführen:
 

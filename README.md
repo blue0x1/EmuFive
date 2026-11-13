@@ -154,10 +154,11 @@ Tested a game? Open an [issue](https://github.com/blue0x1/EmuFive/issues) with t
 
 ## Changelog
 
-### 1.0.4 (2026-11-12)
+### 1.0.5 (2026-11-14)
 
-- Fixed: Software update in Settings did not start ("The update did not start.") [#16](https://github.com/blue0x1/EmuFive/issues/16).
-- Fixed: with EmuFive installed on a USB drive, games on a second USB drive were not found [#15](https://github.com/blue0x1/EmuFive/issues/15).
+- Fixed: external SSDs and hard drives were not found, only USB sticks [#23](https://github.com/blue0x1/EmuFive/issues/23).
+- Fixed: changing the password in Settings did not work, so SSH could not be turned on [#17](https://github.com/blue0x1/EmuFive/issues/17).
+- Fixed: with PS4 Multiboot 1.5.0 (kernel 7.3.3), the mouse pointer stayed on screen over games.
 
 To update from 1.0.3 or earlier, start the update once by hand, since the old Software update cannot: turn on SSH in Settings, connect with `ssh ps5@<PS4 address>` (password `ps5` unless you changed it) and run
 

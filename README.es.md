@@ -163,10 +163,11 @@ Juegos probados:
 <a id="changelog"></a>
 ## Registro de cambios
 
-### 1.0.4 (2026-11-12)
+### 1.0.5 (2026-11-14)
 
-- Corregido: la actualización de software en Ajustes no se iniciaba («The update did not start.») [#16](https://github.com/blue0x1/EmuFive/issues/16).
-- Corregido: con EmuFive instalado en una unidad USB, no se encontraban los juegos de una segunda unidad USB [#15](https://github.com/blue0x1/EmuFive/issues/15).
+- Corregido: no se reconocían los SSD ni los discos duros externos, solo las memorias USB [#23](https://github.com/blue0x1/EmuFive/issues/23).
+- Corregido: cambiar la contraseña en Ajustes no funcionaba, así que no se podía activar SSH [#17](https://github.com/blue0x1/EmuFive/issues/17).
+- Corregido: con PS4 Multiboot 1.5.0 (kernel 7.3.3), el puntero del ratón se quedaba en pantalla sobre los juegos.
 
 Para actualizar desde la 1.0.3 o anteriores, inicia la actualización una vez a mano, porque la actualización de software antigua no puede: activa SSH en Ajustes, conéctate con `ssh ps5@<dirección de la PS4>` (contraseña `ps5` si no la cambiaste) y ejecuta
 

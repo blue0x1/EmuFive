@@ -163,10 +163,11 @@ Vous avez testé un jeu ? Ouvrez une [issue](https://github.com/blue0x1/EmuFive/
 <a id="changelog"></a>
 ## Journal des modifications
 
-### 1.0.4 (2026-11-12)
+### 1.0.5 (2026-11-14)
 
-- Corrigé : la mise à jour du logiciel dans les Paramètres ne démarrait pas (« The update did not start. ») [#16](https://github.com/blue0x1/EmuFive/issues/16).
-- Corrigé : avec EmuFive installé sur une clé ou un disque USB, les jeux d'un second disque USB n'étaient pas trouvés [#15](https://github.com/blue0x1/EmuFive/issues/15).
+- Corrigé : les SSD et disques durs externes n'étaient pas reconnus, seulement les clés USB [#23](https://github.com/blue0x1/EmuFive/issues/23).
+- Corrigé : changer le mot de passe dans les Paramètres ne fonctionnait pas, donc SSH ne pouvait pas être activé [#17](https://github.com/blue0x1/EmuFive/issues/17).
+- Corrigé : avec PS4 Multiboot 1.5.0 (noyau 7.3.3), le pointeur de la souris restait à l'écran par-dessus les jeux.
 
 Pour mettre à jour depuis la 1.0.3 ou avant, lancez la mise à jour une fois à la main, car l'ancienne mise à jour du logiciel n'y arrive pas : activez SSH dans les Paramètres, connectez-vous avec `ssh ps5@<adresse de la PS4>` (mot de passe `ps5` si vous ne l'avez pas changé) et lancez
 

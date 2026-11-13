@@ -163,10 +163,11 @@ EmuFive 和其他 Linux 系统一样，通过 [PS4 Multiboot](https://github.com
 <a id="changelog"></a>
 ## 更新日志
 
-### 1.0.4 (2026-11-12)
+### 1.0.5 (2026-11-14)
 
-- 修复：设置中的软件更新无法开始（“The update did not start.”）[#16](https://github.com/blue0x1/EmuFive/issues/16)。
-- 修复：EmuFive 安装在 USB 驱动器上时，找不到第二个 USB 驱动器上的游戏 [#15](https://github.com/blue0x1/EmuFive/issues/15)。
+- 修复：外置 SSD 和硬盘无法识别，只能识别 U 盘 [#23](https://github.com/blue0x1/EmuFive/issues/23)。
+- 修复：在设置中修改密码无效，因此无法打开 SSH [#17](https://github.com/blue0x1/EmuFive/issues/17)。
+- 修复：使用 PS4 Multiboot 1.5.0（内核 7.3.3）时，鼠标指针会一直显示在游戏画面上。
 
 从 1.0.3 或更早版本更新时，旧的软件更新无法完成，请手动启动一次：在设置中打开 SSH，用 `ssh ps5@<PS4 地址>` 连接（未修改时密码为 `ps5`），然后运行
 

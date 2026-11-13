@@ -163,10 +163,11 @@ Testou um jogo? Abra uma [issue](https://github.com/blue0x1/EmuFive/issues) com 
 <a id="changelog"></a>
 ## Registro de alterações
 
-### 1.0.4 (2026-11-12)
+### 1.0.5 (2026-11-14)
 
-- Corrigido: a atualização de software nas Configurações não iniciava ("The update did not start.") [#16](https://github.com/blue0x1/EmuFive/issues/16).
-- Corrigido: com o EmuFive instalado em um drive USB, os jogos de um segundo drive USB não eram encontrados [#15](https://github.com/blue0x1/EmuFive/issues/15).
+- Corrigido: SSDs e HDs externos não eram reconhecidos, só pendrives [#23](https://github.com/blue0x1/EmuFive/issues/23).
+- Corrigido: mudar a senha nas Configurações não funcionava, então não era possível ativar o SSH [#17](https://github.com/blue0x1/EmuFive/issues/17).
+- Corrigido: com o PS4 Multiboot 1.5.0 (kernel 7.3.3), o ponteiro do mouse ficava na tela sobre os jogos.
 
 Para atualizar a partir da 1.0.3 ou anterior, inicie a atualização uma vez à mão, pois a atualização de software antiga não consegue: ative o SSH nas Configurações, conecte com `ssh ps5@<endereço do PS4>` (senha `ps5`, se não a mudou) e execute
 

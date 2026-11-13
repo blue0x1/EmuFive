@@ -163,10 +163,11 @@ Bir oyun mu denediniz? Oyunu, konsol modelinizi ve nasıl çalıştığını yaz
 <a id="changelog"></a>
 ## Değişiklik günlüğü
 
-### 1.0.4 (2026-11-12)
+### 1.0.5 (2026-11-14)
 
-- Düzeltildi: Ayarlar'daki yazılım güncellemesi başlamıyordu ("The update did not start.") [#16](https://github.com/blue0x1/EmuFive/issues/16).
-- Düzeltildi: EmuFive bir USB sürücüye kuruluyken, ikinci bir USB sürücüdeki oyunlar bulunmuyordu [#15](https://github.com/blue0x1/EmuFive/issues/15).
+- Düzeltildi: harici SSD'ler ve sabit diskler tanınmıyordu, yalnızca USB bellekler tanınıyordu [#23](https://github.com/blue0x1/EmuFive/issues/23).
+- Düzeltildi: Ayarlar'da parolayı değiştirmek çalışmıyordu, bu yüzden SSH açılamıyordu [#17](https://github.com/blue0x1/EmuFive/issues/17).
+- Düzeltildi: PS4 Multiboot 1.5.0 (çekirdek 7.3.3) ile fare imleci oyunların üzerinde ekranda kalıyordu.
 
 1.0.3 veya önceki bir sürümden güncellemek için, eski yazılım güncellemesi bunu yapamadığından güncellemeyi bir kez elle başlatın: Ayarlar'da SSH'yi açın, `ssh ps5@<PS4 adresi>` ile bağlanın (değiştirmediyseniz parola `ps5`) ve çalıştırın:
 
