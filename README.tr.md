@@ -175,7 +175,7 @@ Bir oyun mu denediniz? Oyunu, konsol modelinizi ve nasıl çalıştığını yaz
 sudo systemd-run --unit=emufive-update --collect /opt/ps5-on-ps4/bin/ps5-update install
 ```
 
-Eksik tüm güncellemeleri kurar (1.0.0 veya 1.0.1'den buna 1.0.2'nin yaklaşık 110 MB'lık tarayıcı paketleri dahildir); ardından ana ekrandan yeniden başlatın. 1.0.4'ten itibaren Ayarlar'daki yazılım güncellemesi çalışır. Yeni kurulumlar 1.0.4 sürümündeki `ps5-ps4-rootfs.tar.xz` dosyasını kullanır.
+Eksik tüm güncellemeleri kurar (1.0.0 veya 1.0.1'den buna 1.0.2'nin yaklaşık 110 MB'lık tarayıcı paketleri dahildir); ardından ana ekrandan yeniden başlatın. 1.0.4'ten itibaren Ayarlar'daki yazılım güncellemesi çalışır. Yeni kurulumlar 1.0.5 sürümündeki `ps5-ps4-rootfs.tar.xz` dosyasını kullanır.
 
 ## Proje yapısı
 

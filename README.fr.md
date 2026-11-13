@@ -175,7 +175,7 @@ Pour mettre à jour depuis la 1.0.3 ou avant, lancez la mise à jour une fois à
 sudo systemd-run --unit=emufive-update --collect /opt/ps5-on-ps4/bin/ps5-update install
 ```
 
-Elle installe toutes les mises à jour manquantes (depuis la 1.0.0 ou la 1.0.1, cela inclut les paquets du navigateur de la 1.0.2, environ 110 Mo), puis redémarrez depuis l'écran d'accueil. À partir de la 1.0.4, la mise à jour du logiciel dans les Paramètres fonctionne. Les nouvelles installations utilisent le `ps5-ps4-rootfs.tar.xz` de la version 1.0.4.
+Elle installe toutes les mises à jour manquantes (depuis la 1.0.0 ou la 1.0.1, cela inclut les paquets du navigateur de la 1.0.2, environ 110 Mo), puis redémarrez depuis l'écran d'accueil. À partir de la 1.0.4, la mise à jour du logiciel dans les Paramètres fonctionne. Les nouvelles installations utilisent le `ps5-ps4-rootfs.tar.xz` de la version 1.0.5.
 
 ## Organisation du projet
 

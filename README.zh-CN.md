@@ -175,7 +175,7 @@ EmuFive 和其他 Linux 系统一样，通过 [PS4 Multiboot](https://github.com
 sudo systemd-run --unit=emufive-update --collect /opt/ps5-on-ps4/bin/ps5-update install
 ```
 
-它会安装所有缺少的更新（从 1.0.0 或 1.0.1 更新时包括 1.0.2 的浏览器软件包，约 110 MB），完成后在主屏幕上重启。从 1.0.4 起，设置中的软件更新可以正常使用。新安装请使用 1.0.4 版本中的 `ps5-ps4-rootfs.tar.xz`。
+它会安装所有缺少的更新（从 1.0.0 或 1.0.1 更新时包括 1.0.2 的浏览器软件包，约 110 MB），完成后在主屏幕上重启。从 1.0.4 起，设置中的软件更新可以正常使用。新安装请使用 1.0.5 版本中的 `ps5-ps4-rootfs.tar.xz`。
 
 ## 项目结构
 

@@ -166,7 +166,7 @@ To update from 1.0.3 or earlier, start the update once by hand, since the old So
 sudo systemd-run --unit=emufive-update --collect /opt/ps5-on-ps4/bin/ps5-update install
 ```
 
-It installs every update you are missing (from 1.0.0 or 1.0.1 that includes 1.0.2's browser packages, about 110 MB), then restart from the home screen. From 1.0.4 on, Software update in Settings works. New installs use the `ps5-ps4-rootfs.tar.xz` of the 1.0.4 release.
+It installs every update you are missing (from 1.0.0 or 1.0.1 that includes 1.0.2's browser packages, about 110 MB), then restart from the home screen. From 1.0.4 on, Software update in Settings works. New installs use the `ps5-ps4-rootfs.tar.xz` of the 1.0.5 release.
 
 ## Project layout
 
