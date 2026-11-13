@@ -5,5 +5,7 @@
 if [ -z "$DISPLAY" ] && [ "$(tty)" = /dev/tty1 ]; then
     # Nothing to read on the TV: no cursor, black text on black, here and when X ends (power off).
     setterm --cursor off --foreground black --background black --store --clear all 2>/dev/null
-    exec startx /opt/ps5-on-ps4/bin/ps5-session -- :0 vt1 -nolisten tcp > ~/.ps5-session.log 2>&1
+    # -nocursor: nothing here uses X's cursor (the browser draws its own pointer), and on
+    # kernel 7.3.3 it stays on screen over fullscreen games.
+    exec startx /opt/ps5-on-ps4/bin/ps5-session -- :0 vt1 -nolisten tcp -nocursor > ~/.ps5-session.log 2>&1
 fi
