@@ -189,8 +189,8 @@ It installs every update you are missing (from 1.0.0 or 1.0.1 that includes 1.0.
 ## Credits
 
 - [Mesa](https://mesa3d.org), and the PS4 GPU patches by fail0verflow, DionKill and striker91n
-- The PS4 Linux kernel developers ([sony-jaguar-devs/ps4-linux](https://github.com/sony-jaguar-devs/ps4-linux))
-
+- The PS4 Linux kernel developers ([rmuxnet/linux](https://gitlab.com/rmuxnet/linux))
+  
 ## License
 
 Copyright (C) 2026 [Chokri Hammedi (blue0x1)](https://github.com/blue0x1).
