@@ -156,6 +156,8 @@ EmuFive 和其他 Linux 系统一样，通过 [PS4 Multiboot](https://github.com
 |---|---|---|
 | God of War Sons of Sparta | PS4 Pro | 可玩，约 40 FPS 及以上 |
 | Hollow Knight: Silksong | PS4 Pro | 可玩，50 到 60 FPS |
+| Plants vs. Zombies: Replanted | PS4 Pro | 可玩，锁定 60 FPS |
+| Vampire Survivors | PS4 Slim | 可玩，稳定 60 FPS |
 | Spider-Man 2 | | 尚未测试 |
 
 测试过某个游戏？请开一个 [issue](https://github.com/blue0x1/EmuFive/issues)，写明游戏、主机型号和运行情况。

@@ -156,6 +156,8 @@ Juegos probados:
 |---|---|---|
 | God of War Sons of Sparta | PS4 Pro | Jugable, unos 40 FPS o más |
 | Hollow Knight: Silksong | PS4 Pro | Jugable, de 50 a 60 FPS |
+| Plants vs. Zombies: Replanted | PS4 Pro | Jugable, 60 FPS fijos |
+| Vampire Survivors | PS4 Slim | Jugable, 60 FPS estables |
 | Spider-Man 2 | | Aún no probado |
 
 ¿Probaste un juego? Abre un [issue](https://github.com/blue0x1/EmuFive/issues) con el juego, el modelo de tu consola y cómo funcionó.

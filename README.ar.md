@@ -166,6 +166,8 @@ scripts/build-rootfs.sh    # out/ps5-ps4-rootfs.tar.xz
 |---|---|---|
 | God of War Sons of Sparta | PS4 Pro | قابلة للعب، حوالي 40 إطارًا في الثانية وأكثر |
 | Hollow Knight: Silksong | PS4 Pro | قابلة للعب، من 50 إلى 60 إطارًا في الثانية |
+| Plants vs. Zombies: Replanted | PS4 Pro | قابلة للعب، 60 إطارًا في الثانية ثابتة |
+| Vampire Survivors | PS4 Slim | قابلة للعب، 60 إطارًا في الثانية مستقرة |
 | Spider-Man 2 | | لم تتم تجربتها بعد |
 
 جربت لعبة؟ افتح [مشكلة](https://github.com/blue0x1/EmuFive/issues) واذكر اللعبة وطراز جهازك وكيف عملت.

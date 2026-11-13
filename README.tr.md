@@ -156,6 +156,8 @@ Denenen oyunlar:
 |---|---|---|
 | God of War Sons of Sparta | PS4 Pro | Oynanabilir, yaklaşık 40 FPS ve üzeri |
 | Hollow Knight: Silksong | PS4 Pro | Oynanabilir, 50 ile 60 FPS arası |
+| Plants vs. Zombies: Replanted | PS4 Pro | Oynanabilir, sabit 60 FPS |
+| Vampire Survivors | PS4 Slim | Oynanabilir, kararlı 60 FPS |
 | Spider-Man 2 | | Henüz denenmedi |
 
 Bir oyun mu denediniz? Oyunu, konsol modelinizi ve nasıl çalıştığını yazarak bir [issue](https://github.com/blue0x1/EmuFive/issues) açın.
