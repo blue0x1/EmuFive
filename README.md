@@ -155,11 +155,9 @@ Tested a game? Open an [issue](https://github.com/blue0x1/EmuFive/issues) with t
 
 ## Changelog
 
-### 1.0.5 (2026-11-14)
+### 1.0.6 (2026-11-14)
 
-- Fixed: external SSDs and hard drives were not found, only USB sticks [#23](https://github.com/blue0x1/EmuFive/issues/23).
-- Fixed: changing the password in Settings did not work, so SSH could not be turned on [#17](https://github.com/blue0x1/EmuFive/issues/17).
-- Fixed: with PS4 Multiboot 1.5.0 (kernel 7.3.3), the mouse pointer stayed on screen over games.
+- Improved: the home screen uses much less CPU while nobody uses it (at 4K about a third of one core, it was a whole core), so the PS4 runs cooler and quieter.
 
 To update from 1.0.3 or earlier, start the update once by hand, since the old Software update cannot: turn on SSH in Settings, connect with `ssh ps5@<PS4 address>` (password `ps5` unless you changed it) and run
 
@@ -167,7 +165,7 @@ To update from 1.0.3 or earlier, start the update once by hand, since the old So
 sudo systemd-run --unit=emufive-update --collect /opt/ps5-on-ps4/bin/ps5-update install
 ```
 
-It installs every update you are missing (from 1.0.0 or 1.0.1 that includes 1.0.2's browser packages, about 110 MB), then restart from the home screen. From 1.0.4 on, Software update in Settings works. New installs use the `ps5-ps4-rootfs.tar.xz` of the 1.0.5 release.
+It installs every update you are missing (from 1.0.0 or 1.0.1 that includes 1.0.2's browser packages, about 110 MB), then restart from the home screen. From 1.0.4 on, Software update in Settings works. New installs use the `ps5-ps4-rootfs.tar.xz` of the 1.0.6 release.
 
 ## Project layout
 

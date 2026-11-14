@@ -165,11 +165,9 @@ EmuFive 和其他 Linux 系统一样，通过 [PS4 Multiboot](https://github.com
 <a id="changelog"></a>
 ## 更新日志
 
-### 1.0.5 (2026-11-14)
+### 1.0.6 (2026-11-14)
 
-- 修复：外置 SSD 和硬盘无法识别，只能识别 U 盘 [#23](https://github.com/blue0x1/EmuFive/issues/23)。
-- 修复：在设置中修改密码无效，因此无法打开 SSH [#17](https://github.com/blue0x1/EmuFive/issues/17)。
-- 修复：使用 PS4 Multiboot 1.5.0（内核 7.3.3）时，鼠标指针会一直显示在游戏画面上。
+- 改进：无人操作时主屏幕占用的 CPU 大幅减少（4K 下约为一个核心的三分之一，之前占满一个核心），PS4 因此更凉、更安静。
 
 从 1.0.3 或更早版本更新时，旧的软件更新无法完成，请手动启动一次：在设置中打开 SSH，用 `ssh ps5@<PS4 地址>` 连接（未修改时密码为 `ps5`），然后运行
 
@@ -177,7 +175,7 @@ EmuFive 和其他 Linux 系统一样，通过 [PS4 Multiboot](https://github.com
 sudo systemd-run --unit=emufive-update --collect /opt/ps5-on-ps4/bin/ps5-update install
 ```
 
-它会安装所有缺少的更新（从 1.0.0 或 1.0.1 更新时包括 1.0.2 的浏览器软件包，约 110 MB），完成后在主屏幕上重启。从 1.0.4 起，设置中的软件更新可以正常使用。新安装请使用 1.0.5 版本中的 `ps5-ps4-rootfs.tar.xz`。
+它会安装所有缺少的更新（从 1.0.0 或 1.0.1 更新时包括 1.0.2 的浏览器软件包，约 110 MB），完成后在主屏幕上重启。从 1.0.4 起，设置中的软件更新可以正常使用。新安装请使用 1.0.6 版本中的 `ps5-ps4-rootfs.tar.xz`。
 
 ## 项目结构
 

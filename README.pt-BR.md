@@ -165,11 +165,9 @@ Testou um jogo? Abra uma [issue](https://github.com/blue0x1/EmuFive/issues) com 
 <a id="changelog"></a>
 ## Registro de alterações
 
-### 1.0.5 (2026-11-14)
+### 1.0.6 (2026-11-14)
 
-- Corrigido: SSDs e HDs externos não eram reconhecidos, só pendrives [#23](https://github.com/blue0x1/EmuFive/issues/23).
-- Corrigido: mudar a senha nas Configurações não funcionava, então não era possível ativar o SSH [#17](https://github.com/blue0x1/EmuFive/issues/17).
-- Corrigido: com o PS4 Multiboot 1.5.0 (kernel 7.3.3), o ponteiro do mouse ficava na tela sobre os jogos.
+- Melhorado: a tela inicial usa muito menos CPU enquanto ninguém a usa (em 4K, cerca de um terço de um núcleo; antes, um núcleo inteiro), então o PS4 esquenta menos e faz menos barulho.
 
 Para atualizar a partir da 1.0.3 ou anterior, inicie a atualização uma vez à mão, pois a atualização de software antiga não consegue: ative o SSH nas Configurações, conecte com `ssh ps5@<endereço do PS4>` (senha `ps5`, se não a mudou) e execute
 
@@ -177,7 +175,7 @@ Para atualizar a partir da 1.0.3 ou anterior, inicie a atualização uma vez à 
 sudo systemd-run --unit=emufive-update --collect /opt/ps5-on-ps4/bin/ps5-update install
 ```
 
-Ela instala todas as atualizações que faltam (a partir da 1.0.0 ou 1.0.1 isso inclui os pacotes do navegador da 1.0.2, cerca de 110 MB); depois reinicie pela tela inicial. A partir da 1.0.4, a atualização de software nas Configurações funciona. Instalações novas usam o `ps5-ps4-rootfs.tar.xz` da versão 1.0.5.
+Ela instala todas as atualizações que faltam (a partir da 1.0.0 ou 1.0.1 isso inclui os pacotes do navegador da 1.0.2, cerca de 110 MB); depois reinicie pela tela inicial. A partir da 1.0.4, a atualização de software nas Configurações funciona. Instalações novas usam o `ps5-ps4-rootfs.tar.xz` da versão 1.0.6.
 
 ## Estrutura do projeto
 

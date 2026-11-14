@@ -165,11 +165,9 @@ Ein Spiel getestet? Eröffne ein [Issue](https://github.com/blue0x1/EmuFive/issu
 <a id="changelog"></a>
 ## Änderungsprotokoll
 
-### 1.0.5 (2026-11-14)
+### 1.0.6 (2026-11-14)
 
-- Behoben: Externe SSDs und Festplatten wurden nicht erkannt, nur USB-Sticks [#23](https://github.com/blue0x1/EmuFive/issues/23).
-- Behoben: Das Ändern des Passworts in den Einstellungen funktionierte nicht, daher ließ sich SSH nicht einschalten [#17](https://github.com/blue0x1/EmuFive/issues/17).
-- Behoben: Mit PS4 Multiboot 1.5.0 (Kernel 7.3.3) blieb der Mauszeiger über Spielen auf dem Bildschirm.
+- Verbessert: Der Startbildschirm braucht viel weniger CPU, solange ihn niemand bedient (in 4K etwa ein Drittel eines Kerns statt eines ganzen Kerns), daher bleibt die PS4 kühler und leiser.
 
 Um von 1.0.3 oder älter zu aktualisieren, starte das Update einmal von Hand, da die alte Softwareaktualisierung es nicht kann: SSH in den Einstellungen einschalten, mit `ssh ps5@<Adresse der PS4>` verbinden (Passwort `ps5`, falls nicht geändert) und ausführen:
 
@@ -177,7 +175,7 @@ Um von 1.0.3 oder älter zu aktualisieren, starte das Update einmal von Hand, da
 sudo systemd-run --unit=emufive-update --collect /opt/ps5-on-ps4/bin/ps5-update install
 ```
 
-Es installiert alle fehlenden Updates (von 1.0.0 oder 1.0.1 aus gehören die Browser-Pakete von 1.0.2 dazu, etwa 110 MB); danach über den Startbildschirm neu starten. Ab 1.0.4 funktioniert die Softwareaktualisierung in den Einstellungen. Neuinstallationen verwenden die `ps5-ps4-rootfs.tar.xz` der Version 1.0.5.
+Es installiert alle fehlenden Updates (von 1.0.0 oder 1.0.1 aus gehören die Browser-Pakete von 1.0.2 dazu, etwa 110 MB); danach über den Startbildschirm neu starten. Ab 1.0.4 funktioniert die Softwareaktualisierung in den Einstellungen. Neuinstallationen verwenden die `ps5-ps4-rootfs.tar.xz` der Version 1.0.6.
 
 ## Projektaufbau
 

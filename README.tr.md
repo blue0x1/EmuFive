@@ -165,11 +165,9 @@ Bir oyun mu denediniz? Oyunu, konsol modelinizi ve nasıl çalıştığını yaz
 <a id="changelog"></a>
 ## Değişiklik günlüğü
 
-### 1.0.5 (2026-11-14)
+### 1.0.6 (2026-11-14)
 
-- Düzeltildi: harici SSD'ler ve sabit diskler tanınmıyordu, yalnızca USB bellekler tanınıyordu [#23](https://github.com/blue0x1/EmuFive/issues/23).
-- Düzeltildi: Ayarlar'da parolayı değiştirmek çalışmıyordu, bu yüzden SSH açılamıyordu [#17](https://github.com/blue0x1/EmuFive/issues/17).
-- Düzeltildi: PS4 Multiboot 1.5.0 (çekirdek 7.3.3) ile fare imleci oyunların üzerinde ekranda kalıyordu.
+- İyileştirildi: ana ekran kullanılmadığı sürece çok daha az CPU kullanıyor (4K'da bir çekirdeğin yaklaşık üçte biri, önceden bir çekirdeğin tamamı); böylece PS4 daha serin ve sessiz çalışıyor.
 
 1.0.3 veya önceki bir sürümden güncellemek için, eski yazılım güncellemesi bunu yapamadığından güncellemeyi bir kez elle başlatın: Ayarlar'da SSH'yi açın, `ssh ps5@<PS4 adresi>` ile bağlanın (değiştirmediyseniz parola `ps5`) ve çalıştırın:
 
@@ -177,7 +175,7 @@ Bir oyun mu denediniz? Oyunu, konsol modelinizi ve nasıl çalıştığını yaz
 sudo systemd-run --unit=emufive-update --collect /opt/ps5-on-ps4/bin/ps5-update install
 ```
 
-Eksik tüm güncellemeleri kurar (1.0.0 veya 1.0.1'den buna 1.0.2'nin yaklaşık 110 MB'lık tarayıcı paketleri dahildir); ardından ana ekrandan yeniden başlatın. 1.0.4'ten itibaren Ayarlar'daki yazılım güncellemesi çalışır. Yeni kurulumlar 1.0.5 sürümündeki `ps5-ps4-rootfs.tar.xz` dosyasını kullanır.
+Eksik tüm güncellemeleri kurar (1.0.0 veya 1.0.1'den buna 1.0.2'nin yaklaşık 110 MB'lık tarayıcı paketleri dahildir); ardından ana ekrandan yeniden başlatın. 1.0.4'ten itibaren Ayarlar'daki yazılım güncellemesi çalışır. Yeni kurulumlar 1.0.6 sürümündeki `ps5-ps4-rootfs.tar.xz` dosyasını kullanır.
 
 ## Proje yapısı
 
