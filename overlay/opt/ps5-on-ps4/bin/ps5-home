@@ -3961,6 +3961,24 @@ class Home:
     def draw_background(self, c, orbs=True):
         s = self.settings
         use_art = s["background"] == "art" or self.quick or self.saver_on
+        # A still background with its veil is kept: a whole new frame (once a second with the
+        # seconds on the clock) then copies it instead of dimming the full screen again.
+        key = None
+        if self.bg_mix >= 1.0:
+            key = (c.s.get_size(), use_art, id(self.bg_current), id(self.static_bg), s["dim"], s["accent"], s["theme"], ACCENT)
+            cached = getattr(self, "bg_layer", None)
+            if cached is not None and cached[0] == key:
+                c.s.blit(cached[1], (0, 0))
+                if orbs:
+                    self.draw_orbs(c)
+                return
+        self.paint_background(c, s, use_art)
+        if key is not None:
+            self.bg_layer = (key, c.s.copy())
+        if orbs:
+            self.draw_orbs(c)
+
+    def paint_background(self, c, s, use_art):
         if not use_art:
             if self.static_bg is None:
                 self.make_static_background()
@@ -3983,8 +4001,6 @@ class Home:
                 c.dim(255 * self.bg_mix, ui.mix(ACCENT, (6, 6, 14), 0.86))
         if s["dim"]:
             c.dim(255 * s["dim"] / 100, (0, 0, 0))
-        if orbs:
-            self.draw_orbs(c)
 
     def draw_orbs(self, c, avoid=None):
         s = self.settings
@@ -4415,7 +4431,14 @@ class Home:
             pygame.display.flip()
             if self.fade_out is not None and self.fade_out >= 1.0:
                 return self.result
-            self.clock.tick(60)
+            # Each frame is drawn on the CPU, a whole core at 4K. Left alone, with no transition
+            # running, fewer frames are enough (the orbs move slowly); a button brings 60 back at once.
+            idle = now - self.input.last_input
+            if (idle < 10 or self.input.held or self.fade_out is not None or self.bg_mix < 1.0
+                    or self.info_alpha < 1.0 or any(m.appear < 1.0 for m in self.modals)):
+                self.clock.tick(60)
+            else:
+                self.clock.tick(5 if self.saver_on else 20 if idle < 60 else 10)
 
 
 def main():
