@@ -1,0 +1,70 @@
+From: Chokri Hammedi <52697989+blue0x1@users.noreply.github.com>
+Subject: [PATCH] graphics: less fixed GPU memory on small GPUs
+
+Invincible VS (PPSA30568) runs out of GPU memory on the PS4 Pro, which has
+about 3 GB for the GPU in all. Two buffers KytyPS5 keeps for itself took
+768 MB of that:
+
+- The upload staging ring was 512 MB. With under 8 GB of device-local memory
+  it is now 128 MB. Uploads that do not fit already take one-time buffers,
+  and WriteDataBuffer already splits writes into ring-sized pieces.
+- The tiler's two scratch buffers grew to the largest image ever converted
+  and stayed (256 MB for a 16384x2048 array). They now stay only up to
+  64 MB; a larger conversion gets a buffer freed once its submit completes.
+
+diff --git a/src/graphics/host_gpu/renderer/cache/bufferCache.cpp b/src/graphics/host_gpu/renderer/cache/bufferCache.cpp
+index 1e64234..e4ca0d8 100644
+--- a/src/graphics/host_gpu/renderer/cache/bufferCache.cpp
++++ b/src/graphics/host_gpu/renderer/cache/bufferCache.cpp
+@@ -30,6 +30,20 @@ constexpr uint64_t GdsBufferSize = 64 * 1024;
+ // GPU-modified ranges come as many small scattered islands, so a readback widens to a window.
+ constexpr uint64_t DownloadWindowSize = 512 * 1024;
+ 
++// The staging ring is host memory the GPU reads. With under 8 GB of device-local memory (the
++// PS4's GPU has about 3 GB in all) 512 MB of it is too much; larger uploads take one-time
++// buffers and WriteDataBuffer splits writes into ring-sized pieces.
++uint64_t StagingSize(const GraphicContext& graphics) {
++	const auto& properties = graphics.physical_device_memory_properties;
++	uint64_t    local      = 0;
++	for (uint32_t heap = 0; heap < properties.memoryHeapCount; heap++) {
++		if (properties.memoryHeaps[heap].flags & vk::MemoryHeapFlagBits::eDeviceLocal) {
++			local += properties.memoryHeaps[heap].size;
++		}
++	}
++	return local < 8192 * MiB ? 128 * MiB : 512 * MiB;
++}
++
+ std::pair<Buffer*, uint64_t> UploadMemory(GraphicContext& graphics, CommandScheduler& scheduler,
+                                         StreamBuffer& staging, uint64_t size, uint64_t alignment,
+                                         vk::BufferUsageFlags usage, const auto& write) {
+@@ -243,7 +257,7 @@ BufferCache::BufferCache(GraphicContext& graphics, CommandScheduler& scheduler,
+                                                             : MemoryUsage::DeviceLocal,
+                              0, AllFlags, BDA_PAGETABLE_SIZE),
+       m_memory_tracker(page_manager),
+-      m_staging_buffer(graphics, scheduler, MemoryUsage::Upload, 512 * MiB),
++      m_staging_buffer(graphics, scheduler, MemoryUsage::Upload, StagingSize(graphics)),
+       m_stream_buffer(graphics, scheduler, MemoryUsage::Stream, 64 * MiB),
+       m_download_buffer(graphics, scheduler, MemoryUsage::Download, 64 * MiB),
+       m_device_buffer(graphics, scheduler, MemoryUsage::DeviceLocal, 128 * MiB),
+diff --git a/src/graphics/host_gpu/renderer/image/tiler.cpp b/src/graphics/host_gpu/renderer/image/tiler.cpp
+index 25edb7d..598bc87 100644
+--- a/src/graphics/host_gpu/renderer/image/tiler.cpp
++++ b/src/graphics/host_gpu/renderer/image/tiler.cpp
+@@ -365,6 +365,17 @@ void TileManager::TileImage(Image& image, std::span<const vk::BufferImageCopy> r
+ TileManager::Result TileManager::GetScratchBuffer(uint64_t size, vk::Buffer input) {
+ 	EXIT_IF(size == 0);
+ 	size = Common::AlignUp(size, 4);
++	// The two kept buffers would otherwise grow to the largest image ever converted and stay
++	// (256 MB for a 16384x2048 array in Invincible VS); a bigger one lives for this submit only.
++	constexpr uint64_t KeptScratchSize = 64ull * 1024 * 1024;
++	if (size > KeptScratchSize) {
++		auto temporary = std::make_unique<Buffer>(m_graphics, m_scheduler, MemoryUsage::DeviceLocal, 0,
++		    vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferSrc |
++		        vk::BufferUsageFlagBits::eTransferDst, size);
++		const auto handle = temporary->Handle();
++		m_scheduler.DeferOperation([owner = std::move(temporary)]() mutable { owner.reset(); });
++		return {handle, 0, size};
++	}
+ 	auto& buffer = m_scratch[m_scratch[0] && m_scratch[0]->Handle() == input ? 1 : 0];
+ 	if (!buffer || buffer->Size() < size) {
+ 		if (buffer) {

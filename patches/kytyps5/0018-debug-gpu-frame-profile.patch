@@ -1,0 +1,335 @@
+From: Chokri Hammedi <52697989+blue0x1@users.noreply.github.com>
+Subject: [PATCH] debug: time one frame in 16 on the GPU with a perf-log file
+
+With a file named perf-log in the working folder, one frame in every 16 gets
+a GPU timestamp after each guest draw and dispatch and each emulator pass.
+Once that frame completes, the log lists where its GPU time went, by
+pipeline or shader. Not for a release.
+
+diff --git a/src/graphics/host_gpu/renderer/gpuProfile.h b/src/graphics/host_gpu/renderer/gpuProfile.h
+new file mode 100644
+index 00000000..c40b5c7e
+--- /dev/null
++++ b/src/graphics/host_gpu/renderer/gpuProfile.h
+@@ -0,0 +1,126 @@
++#ifndef EMULATOR_SRC_GRAPHICS_HOST_GPU_RENDERER_GPUPROFILE_H_
++#define EMULATOR_SRC_GRAPHICS_HOST_GPU_RENDERER_GPUPROFILE_H_
++
++// Debug: times one frame in every 16 on the GPU (with a perf-log file in the working folder).
++// A timestamp after each guest draw and dispatch and each emulator pass; the time since the
++// previous one is charged to it. The GPU thread records; results are read once that frame's
++// submits complete.
++#include "common/logging/log.h"
++#include "graphics/host_gpu/graphicContext.h"
++#include "graphics/host_gpu/renderer/commandScheduler.h"
++
++#include <algorithm>
++#include <map>
++#include <memory>
++#include <string>
++#include <utility>
++#include <vector>
++
++#include <fmt/format.h>
++
++namespace Libs::Graphics::GpuProfile {
++
++struct Label {
++	const char* kind = "";
++	uint64_t    key  = 0;
++	uint32_t    w    = 0;
++	uint32_t    h    = 0;
++};
++
++struct State {
++	vk::Device         device  = nullptr;
++	vk::QueryPool      pool    = nullptr;
++	double             period  = 1.0;
++	bool               recording = false;
++	bool               reading   = false;
++	uint32_t           flips     = 0;
++	std::vector<Label> labels;
++};
++
++inline constexpr uint32_t MaxStamps = 8192;
++
++inline State& Get() {
++	static State state;
++	return state;
++}
++
++inline void Stamp(vk::CommandBuffer command, const char* kind, uint64_t key = 0, uint32_t w = 0,
++                  uint32_t h = 0) {
++	auto& s = Get();
++	if (!s.recording || s.labels.size() >= MaxStamps) {
++		return;
++	}
++	command.writeTimestamp(vk::PipelineStageFlagBits::eBottomOfPipe, s.pool,
++	                       static_cast<uint32_t>(s.labels.size()));
++	s.labels.push_back({kind, key, w, h});
++}
++
++// At each flip, on the GPU thread, after the flip's command list was flushed.
++inline void OnFlip(GraphicContext& graphics, CommandScheduler& scheduler) {
++	auto& s = Get();
++	if (s.pool == nullptr) {
++		s.device = graphics.device;
++		vk::QueryPoolCreateInfo info {};
++		info.queryType  = vk::QueryType::eTimestamp;
++		info.queryCount = MaxStamps;
++		if (graphics.device.createQueryPool(&info, nullptr, &s.pool) != vk::Result::eSuccess) {
++			s.pool = nullptr;
++			return;
++		}
++		s.period = graphics.physical_device_properties.limits.timestampPeriod;
++	}
++	if (s.recording) {
++		scheduler.EndRendering();
++		Stamp(scheduler.Current().Handle(), "end-of-frame");
++		s.recording = false;
++		s.reading   = true;
++		auto labels = std::make_shared<std::vector<Label>>(std::move(s.labels));
++		s.labels.clear();
++		scheduler.DeferOperation([labels] {
++			auto& state = Get();
++			std::vector<uint64_t> stamps(labels->size());
++			const auto result = state.device.getQueryPoolResults(
++			    state.pool, 0, static_cast<uint32_t>(stamps.size()),
++			    stamps.size() * sizeof(uint64_t), stamps.data(), sizeof(uint64_t),
++			    vk::QueryResultFlagBits::e64);
++			state.reading = false;
++			if (result != vk::Result::eSuccess || stamps.size() < 2) {
++				return;
++			}
++			std::map<std::string, std::pair<double, uint32_t>> groups;
++			double total = 0;
++			for (size_t i = 1; i < stamps.size(); i++) {
++				const double ms = static_cast<double>(stamps[i] - stamps[i - 1]) * state.period / 1e6;
++				total += ms;
++				const auto& l   = (*labels)[i];
++				auto&       g   = groups[l.w != 0 ? fmt::format("{} {:016x} {}x{}", l.kind, l.key, l.w, l.h)
++				                                  : fmt::format("{} {:016x}", l.kind, l.key)];
++				g.first += ms;
++				g.second++;
++			}
++			std::vector<std::pair<std::string, std::pair<double, uint32_t>>> sorted(groups.begin(),
++			                                                                       groups.end());
++			std::sort(sorted.begin(), sorted.end(),
++			          [](const auto& a, const auto& b) { return a.second.first > b.second.first; });
++			std::string text = fmt::format("GPU frame profile: {:.1f} ms in {} stamps\n", total,
++			                               stamps.size());
++			for (size_t i = 0; i < sorted.size() && i < 25; i++) {
++				text += fmt::format("  {:7.1f} ms  x{:<4} {}\n", sorted[i].second.first,
++				                    sorted[i].second.second, sorted[i].first);
++			}
++			Log::WriteToConsoleAndLog(text);
++		});
++		return;
++	}
++	if (!s.reading && (++s.flips % 16u) == 0u) {
++		scheduler.EndRendering();
++		auto command = scheduler.Current().Handle();
++		command.resetQueryPool(s.pool, 0, MaxStamps);
++		s.recording = true;
++		Stamp(command, "start");
++	}
++}
++
++} // namespace Libs::Graphics::GpuProfile
++
++#endif // EMULATOR_SRC_GRAPHICS_HOST_GPU_RENDERER_GPUPROFILE_H_
+diff --git a/src/graphics/host_gpu/renderer/renderDraw.cpp b/src/graphics/host_gpu/renderer/renderDraw.cpp
+index 6ae34d0..b127807 100644
+--- a/src/graphics/host_gpu/renderer/renderDraw.cpp
++++ b/src/graphics/host_gpu/renderer/renderDraw.cpp
+@@ -1,3 +1,4 @@
++#include "graphics/host_gpu/renderer/gpuProfile.h"
+ #include "graphics/host_gpu/renderer/renderDraw.h"
+ 
+ #include "common/perfTrace.h"
+@@ -1213,6 +1214,7 @@ void RenderExecutor::ExecutePreparedDraw(CommandBuffer& buffer, const DrawCallIn
+ 		                       emit.indirect.count, emit.indirect.stride);
+ 	}
+ 	occlusion_queries.End(vk_buffer, occlusion_query);
++	GpuProfile::Stamp(vk_buffer, state.ps_active ? "draw" : "draw-no-ps", reinterpret_cast<uint64_t>(static_cast<VkPipeline>(pipeline.pipeline)), state.color_count != 0 ? state.color_info[0].Extent().width : 0, state.color_count != 0 ? state.color_info[0].Extent().height : 0);
+ 	Common::DebugCounters::Add(Common::DebugCounters::Counter::Draws);
+ 	Common::DebugCounters::Add(Common::DebugCounters::Counter::DrawInstances, draw.instance_count);
+ 
+diff --git a/src/graphics/host_gpu/renderer/renderCompute.cpp b/src/graphics/host_gpu/renderer/renderCompute.cpp
+index ee0316f..879a4b9 100644
+--- a/src/graphics/host_gpu/renderer/renderCompute.cpp
++++ b/src/graphics/host_gpu/renderer/renderCompute.cpp
+@@ -8,6 +8,7 @@
+ #include "common/profiler.h"
+ #include "common/stringUtils.h"
+ #include "common/threads.h"
++#include "graphics/host_gpu/renderer/gpuProfile.h"
+ #include "graphics/guest_gpu/gpu_defs.h"
+ #include "graphics/guest_gpu/graphicsRun.h"
+ #include "graphics/guest_gpu/hardwareContext.h"
+@@ -468,6 +469,7 @@ void RenderExecutor::DispatchDirect(CommandBuffer& buffer, uint32_t thread_group
+ 		vk_buffer.dispatch(thread_group_x, thread_group_y, thread_group_z);
+ 	}
+ 	Common::DebugCounters::Add(Common::DebugCounters::Counter::Dispatches);
++	GpuProfile::Stamp(vk_buffer, "dispatch", program.shader_hash, thread_group_x, thread_group_y);
+ 
+ 	// The removed host fence also ordered read-only dispatches before later writers.
+ 	ShaderAccessBarrier(vk_buffer, vk::PipelineStageFlagBits::eComputeShader);
+@@ -533,6 +535,7 @@ void RenderExecutor::DispatchIndirect(CommandBuffer& buffer, uint64_t args_addr,
+ 	vk_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, pipeline.pipeline);
+ 	vk_buffer.dispatchIndirect(args_buffer->Handle(), args_offset);
+ 	Common::DebugCounters::Add(Common::DebugCounters::Counter::Dispatches);
++	GpuProfile::Stamp(vk_buffer, "dispatch-indirect", reinterpret_cast<uint64_t>(static_cast<VkPipeline>(pipeline.pipeline)));
+ 	ShaderAccessBarrier(vk_buffer, vk::PipelineStageFlagBits::eComputeShader);
+ 	ResetBindings();
+ }
+diff --git a/src/graphics/host_gpu/renderer/image/tiler.cpp b/src/graphics/host_gpu/renderer/image/tiler.cpp
+index 378ebc5..bdd9ad0 100644
+--- a/src/graphics/host_gpu/renderer/image/tiler.cpp
++++ b/src/graphics/host_gpu/renderer/image/tiler.cpp
+@@ -1,3 +1,4 @@
++#include "graphics/host_gpu/renderer/gpuProfile.h"
+ #include "graphics/host_gpu/renderer/image/tiler.h"
+ 
+ #include "common/perfTrace.h"
+@@ -319,6 +320,7 @@ void TileManager::Record(vk::Buffer source, uint64_t source_offset, uint64_t sou
+ 	EXIT_NOT_IMPLEMENTED(groups_y > limits.maxComputeWorkGroupCount[1]);
+ 	Common::PerfTrace::Add(Common::PerfTrace::TilerConvert, uint64_t {groups_x} * groups_y);
+ 	command.dispatch(groups_x, groups_y, 1);
++	GpuProfile::Stamp(command, "tiler-convert", 0, groups_x, groups_y);
+ 
+ 	barriers[1].srcAccessMask = vk::AccessFlagBits::eShaderWrite;
+ 	barriers[1].dstAccessMask = vk::AccessFlagBits::eTransferRead | vk::AccessFlagBits::eMemoryRead;
+@@ -543,6 +545,7 @@ void TileManager::ConvertD16(Result source, Result target, D16Direction directio
+ 			                      sizeof(push), &push);
+ 			Common::PerfTrace::Add(Common::PerfTrace::TilerRows, static_cast<uint64_t>(groups_x) * rows);
+ 			command.dispatch(static_cast<uint32_t>(groups_x), rows, 1);
++			GpuProfile::Stamp(command, "tiler-rows", 0, static_cast<uint32_t>(groups_x), rows);
+ 			row += rows;
+ 		}
+ 	}
+@@ -614,6 +617,7 @@ void TileManager::TransformColor(Result input, Result output, ColorTransform tra
+ 	                      &push);
+ 	Common::PerfTrace::Add(Common::PerfTrace::TilerColor, pixels);
+ 	command.dispatch((pixels + 63u) / 64u, 1, 1);
++	GpuProfile::Stamp(command, "tiler-color");
+ 	barriers[1].srcAccessMask = vk::AccessFlagBits::eShaderWrite;
+ 	barriers[1].dstAccessMask = vk::AccessFlagBits::eTransferRead;
+ 	command.pipelineBarrier(vk::PipelineStageFlagBits::eComputeShader,
+@@ -681,6 +685,7 @@ vk::Buffer TileManager::CheckColorClear(Result metadata, uint64_t stride, uint32
+ 	                      &push);
+ 	Common::PerfTrace::Add(Common::PerfTrace::TilerClearCheck, slices);
+ 	command.dispatch(slices, 1, 1);
++	GpuProfile::Stamp(command, "clear-check");
+ 	barrier.srcAccessMask = vk::AccessFlagBits::eShaderWrite;
+ 	barrier.dstAccessMask = vk::AccessFlagBits::eMemoryRead | vk::AccessFlagBits::eMemoryWrite;
+ 	command.pipelineBarrier(vk::PipelineStageFlagBits::eComputeShader,
+diff --git a/src/graphics/host_gpu/renderer/image/blitHelper.cpp b/src/graphics/host_gpu/renderer/image/blitHelper.cpp
+index cd53787..e8a2ee0 100644
+--- a/src/graphics/host_gpu/renderer/image/blitHelper.cpp
++++ b/src/graphics/host_gpu/renderer/image/blitHelper.cpp
+@@ -1,3 +1,4 @@
++#include "graphics/host_gpu/renderer/gpuProfile.h"
+ #include "graphics/host_gpu/renderer/image/blitHelper.h"
+ 
+ #include "common/assert.h"
+@@ -325,6 +326,7 @@ void BlitHelper::PredicatedClear(vk::CommandBuffer command, vk::Format format, u
+ 	command.setViewport(0, 1, &viewport);
+ 	command.setScissor(0, 1, &area);
+ 	command.draw(3, 1, 0, 0);
++	GpuProfile::Stamp(command, "shader-clear", 0, area.extent.width, area.extent.height);
+ 	// The helper pipeline has static state that invalidates the guest draw's dynamic state.
+ 	m_scheduler.GetDynamicState().Invalidate();
+ }
+diff --git a/src/graphics/guest_gpu/graphicsRun.cpp b/src/graphics/guest_gpu/graphicsRun.cpp
+index 29d4236..eebe9a8 100644
+--- a/src/graphics/guest_gpu/graphicsRun.cpp
++++ b/src/graphics/guest_gpu/graphicsRun.cpp
+@@ -13,6 +13,7 @@
+ #include "graphics/host_gpu/graphicContext.h"
+ #include "graphics/guest_gpu/pm4.h"
+ #include "graphics/host_gpu/renderer/debug.h"
++#include "graphics/host_gpu/renderer/gpuProfile.h"
+ #include "graphics/host_gpu/renderer/render.h"
+ #include "graphics/host_gpu/renderer/renderContext.h"
+ #include "graphics/host_gpu/renderer/sync.h"
+@@ -1040,6 +1041,17 @@ void CommandProcessor::TriggerEvent(uint32_t event_type, uint32_t event_index,
+ 	}
+ }
+ 
++static bool perf_log_enabled() {
++	static const bool enabled = [] {
++		std::FILE* probe = std::fopen("perf-log", "r");
++		if (probe != nullptr) {
++			std::fclose(probe);
++		}
++		return probe != nullptr;
++	}();
++	return enabled;
++}
++
+ void CommandProcessor::Flip(int handle, int index, int flip_mode, int64_t flip_arg) {
+ 	if (graphics_debug_dump_enabled()) {
+ 		LOGF("CommandProcessor::Flip()\n");
+@@ -1052,6 +1064,9 @@ void CommandProcessor::Flip(int handle, int index, int flip_mode, int64_t flip_a
+ 	GetScheduler().DeferPriorityOperation(
+ 	    [&renderer = m_renderer, request] { renderer.GetVideoOut().CompleteFlip(request); });
+ 	GetScheduler().Flush();
++	if (perf_log_enabled()) {
++		GpuProfile::OnFlip(m_renderer.GetGraphics(), GetScheduler());
++	}
+ }
+ 
+ void CommandProcessor::NoteFlipForGc() {
+@@ -1140,6 +1155,9 @@ void CommandProcessor::PrepareCpuFlip(uint64_t request_id) {
+ 	GetScheduler().DeferPriorityOperation(
+ 	    [this, request_id] { m_renderer.GetVideoOut().CompleteFlip(request_id); });
+ 	GetScheduler().Flush();
++	if (perf_log_enabled()) {
++		GpuProfile::OnFlip(m_renderer.GetGraphics(), GetScheduler());
++	}
+ }
+ 
+ bool GuestGpu::IsGpuThread() noexcept {
+diff --git a/src/graphics/host_gpu/renderer/cache/bufferCache.cpp b/src/graphics/host_gpu/renderer/cache/bufferCache.cpp
+index 749934d..476e0fd 100644
+--- a/src/graphics/host_gpu/renderer/cache/bufferCache.cpp
++++ b/src/graphics/host_gpu/renderer/cache/bufferCache.cpp
+@@ -1,3 +1,4 @@
++#include "graphics/host_gpu/renderer/gpuProfile.h"
+ #include "graphics/host_gpu/renderer/cache/bufferCache.h"
+ 
+ #include "common/perfTrace.h"
+@@ -98,6 +99,7 @@ void BufferCache::WriteDataBuffer(Buffer& buffer, uint64_t address, const void*
+ 		const vk::BufferCopy copy {offset, destination_offset, chunk};
+ 		Common::PerfTrace::Add(Common::PerfTrace::BufferStagingCopy, chunk);
+ 		command.copyBuffer(m_staging_buffer.Handle(), buffer.Handle(), 1, &copy);
++		GpuProfile::Stamp(command, "buffer-upload");
+ 		auto after          = before;
+ 		after.srcStageMask  = vk::PipelineStageFlagBits2::eTransfer;
+ 		after.srcAccessMask = vk::AccessFlagBits2::eTransferWrite;
+@@ -476,6 +478,7 @@ bool BufferCache::SynchronizeBuffer(Buffer& buffer, uint64_t vaddr, uint64_t siz
+ 		Common::PerfTrace::Add(Common::PerfTrace::BufferCopy, copies.size());
+ 		native.copyBuffer(source, buffer.Handle(), static_cast<uint32_t>(copies.size()),
+ 		                  copies.data());
++		GpuProfile::Stamp(native, "buffer-copy");
+ 		auto after          = before;
+ 		after.srcAccessMask = vk::AccessFlagBits::eTransferWrite;
+ 		after.dstAccessMask = vk::AccessFlagBits::eMemoryRead | vk::AccessFlagBits::eMemoryWrite;
+diff --git a/src/graphics/host_gpu/renderer/image/image.cpp b/src/graphics/host_gpu/renderer/image/image.cpp
+index 700b700..0bfd28f 100644
+--- a/src/graphics/host_gpu/renderer/image/image.cpp
++++ b/src/graphics/host_gpu/renderer/image/image.cpp
+@@ -1,3 +1,4 @@
++#include "graphics/host_gpu/renderer/gpuProfile.h"
+ #include "graphics/host_gpu/renderer/image/image.h"
+ 
+ #include "common/perfTrace.h"
+@@ -276,6 +277,7 @@ void Image::Upload(std::span<const vk::BufferImageCopy> copies, vk::Buffer buffe
+ 	Common::PerfTrace::Add(Common::PerfTrace::ImageUpload, 0);
+ 	command.copyBufferToImage(buffer, backing.image, vk::ImageLayout::eTransferDstOptimal,
+ 	                          static_cast<uint32_t>(copies.size()), copies.data());
++	GpuProfile::Stamp(command, "image-upload", 0, info.extent.width, info.extent.height);
+ 	buffer_barrier.srcStageMask  = vk::PipelineStageFlagBits2::eTransfer;
+ 	buffer_barrier.srcAccessMask = vk::AccessFlagBits2::eTransferRead;
+ 	buffer_barrier.dstStageMask  = vk::PipelineStageFlagBits2::eAllCommands;

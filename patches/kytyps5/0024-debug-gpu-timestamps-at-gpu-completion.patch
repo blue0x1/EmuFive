@@ -1,0 +1,76 @@
+From: Chokri Hammedi <52697989+blue0x1@users.noreply.github.com>
+Subject: [PATCH] debug: write guest GPU timestamps when the host GPU finishes
+
+With a gpu-timestamps file in the working folder, end-of-pipe and copy_data
+reference-clock timestamps are written once the host GPU has finished the
+work before them, instead of when the command is read. UE5 sizes its dynamic
+resolution from these. Also logs how many timestamps the game asks for.
+An experiment, not for a release.
+
+diff --git a/src/graphics/guest_gpu/graphicsRun.cpp b/src/graphics/guest_gpu/graphicsRun.cpp
+index eebe9a8d..7093bc66 100644
+--- a/src/graphics/guest_gpu/graphicsRun.cpp
++++ b/src/graphics/guest_gpu/graphicsRun.cpp
+@@ -297,12 +297,43 @@ void CommandProcessor::WriteData(uint32_t* dst, const uint32_t* src, uint32_t dw
+ 	}
+ }
+ 
++// Experiment (a gpu-timestamps file in the working folder): a guest GPU timestamp
++// is the time its work finished on the host GPU, not the time the command was read.
++// UE5 sizes its dynamic resolution from these.
++static bool gpu_timestamps_enabled() {
++	static const bool enabled = [] {
++		std::FILE* probe = std::fopen("gpu-timestamps", "r");
++		if (probe != nullptr) {
++			std::fclose(probe);
++			LOGF("gpu-timestamps: timestamps are written when the GPU finishes\n");
++		}
++		return probe != nullptr;
++	}();
++	return enabled;
++}
++
++static void count_timestamp(const char* kind) {
++	static std::atomic<uint64_t> count {0};
++	const auto n = count.fetch_add(1) + 1;
++	if ((n & (n - 1u)) == 0) {
++		LOGF("guest GPU timestamps: %" PRIu64 " so far (last: %s)\n", n, kind);
++	}
++}
++
+ void CommandProcessor::WriteReferenceClock(uint64_t dst_address, uint32_t num_bytes) {
+ 	if (dst_address == 0 || (num_bytes != sizeof(uint32_t) && num_bytes != sizeof(uint64_t)) ||
+ 	    (dst_address & (num_bytes - 1u)) != 0) {
+ 		EXIT("invalid reference-clock copy, dst=0x%016" PRIx64 " size=%u\n", dst_address,
+ 		     num_bytes);
+ 	}
++	count_timestamp("copy_data");
++	if (gpu_timestamps_enabled()) {
++		GetScheduler().DeferPriorityOperation([dst_address, num_bytes] {
++			const auto value = Sync::ReadReferenceClock();
++			std::memcpy(reinterpret_cast<void*>(dst_address), &value, num_bytes);
++		});
++		return;
++	}
+ 	const auto value = Sync::ReadReferenceClock();
+ 	std::memcpy(reinterpret_cast<void*>(dst_address), &value, num_bytes);
+ 	static std::atomic<uint32_t> clock_log_count {0};
+@@ -942,7 +973,17 @@ void CommandProcessor::ReleaseMem(uint32_t data_sel, uint32_t interrupt_selector
+ 			write_label(&value, sizeof(value));
+ 			break;
+ 		}
+-		case 3: data = Sync::ReadReferenceClock(); [[fallthrough]];
++		case 3:
++			count_timestamp("release_mem");
++			if (gpu_timestamps_enabled()) {
++				GetScheduler().DeferPriorityOperation([address] {
++					const auto value = Sync::ReadReferenceClock();
++					std::memcpy(address, &value, sizeof(value));
++				});
++				break;
++			}
++			data = Sync::ReadReferenceClock();
++			[[fallthrough]];
+ 		case 2: write_label(&data, sizeof(data)); break;
+ 		case 5: {
+ 			GetScheduler().Finish();

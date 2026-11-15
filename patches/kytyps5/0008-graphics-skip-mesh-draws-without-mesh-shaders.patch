@@ -1,0 +1,46 @@
+From: Chokri Hammedi <52697989+blue0x1@users.noreply.github.com>
+Subject: [PATCH] graphics: skip mesh draws on GPUs without mesh shaders
+
+KytyPS5 runs the PS5's primitive and geometry shaders as Vulkan mesh shaders.
+RADV offers mesh shaders only on RDNA2 and newer, not on the PS4's GPUs
+(Liverpool and Gladius), so the first such draw stopped the game:
+"Not implemented (!m_graphics.mesh_shader_enabled)". Invincible VS
+(PPSA30568) stops there right after it starts.
+
+On a GPU without mesh shaders these draws are now skipped, and the log says
+how many (at 1, 2, 4, 8... skipped draws), so the game keeps running with that
+geometry missing. Drawing it needs mesh shaders emulated with compute shaders.
+
+diff --git a/src/graphics/host_gpu/renderer/pipeline/pipelineCache.cpp b/src/graphics/host_gpu/renderer/pipeline/pipelineCache.cpp
+index c944fdc7..5009d0b0 100644
+--- a/src/graphics/host_gpu/renderer/pipeline/pipelineCache.cpp
++++ b/src/graphics/host_gpu/renderer/pipeline/pipelineCache.cpp
+@@ -694,6 +694,18 @@ void PipelineCache::GetGraphicsPrograms(const CommandBuffer& command, DrawRender
+ 		vertex_params[0] = PrepareProgram(vertex_regs, context, user_config, vertex_info[0]);
+ 	}
+ 	const bool mesh_active = vertex_info[0].logical_stage == ShaderType::Mesh;
++	if (mesh_active && !m_graphics.mesh_shader_enabled) {
++		// GPUs without mesh shaders (the PS4's GCN GPUs) cannot run these draws yet: skip
++		// them instead of stopping the game. Logged at 1, 2, 4, 8... skipped draws.
++		static std::atomic<uint32_t> skipped = 0;
++		const auto count = skipped.fetch_add(1, std::memory_order_relaxed) + 1u;
++		if ((count & (count - 1u)) == 0) {
++			Log::WriteToConsoleAndLog(fmt::format(
++			    "Warning: no mesh shaders on this GPU; skipped {} mesh draw(s) (shader 0x{:016x}).\n",
++			    count, vertex_params[0].hash));
++		}
++		return;
++	}
+ 	if (!tess_active && !mesh_active) {
+ 		vertex_info[0].indirect_offsets = state.indirect_offsets;
+ 		vertex_info[0].indirect_draw    = state.indirect_draw;
+@@ -709,8 +721,7 @@ void PipelineCache::GetGraphicsPrograms(const CommandBuffer& command, DrawRender
+ 		                         .buffer_format != Prospero::BufferFormat::k32UInt);
+ 	}
+ 	if (mesh_active) {
+-		EXIT_NOT_IMPLEMENTED(!m_graphics.mesh_shader_enabled);
+-		auto& mesh              = vertex_info[0].mesh;
++		auto& mesh             = vertex_info[0].mesh;
+ 		mesh.host_subgroup_size = m_graphics.subgroup_size;
+ 		const auto& limits      = m_graphics.mesh_shader_properties;
+ 		const auto  logical_threads =

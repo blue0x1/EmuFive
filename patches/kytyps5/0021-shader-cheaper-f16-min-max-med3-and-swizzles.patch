@@ -1,0 +1,114 @@
+From: Chokri Hammedi <52697989+blue0x1@users.noreply.github.com>
+Subject: [PATCH] shader: cheaper half-float min/max, med3 and lane swizzles
+
+When the host min/max is trusted (AMD), build V_MED3_F16/F32 from four
+NMin/NMax ops instead of the ~50-instruction exact path, and skip the
+signaling-NaN fix-up after V_PK_MIN/MAX_F16, which AMD min/max already
+do. Read the source lane's exec bit for DS_SWIZZLE/DS_BPERMUTE from one
+ballot instead of a second cross-lane shuffle.
+---
+diff --git a/src/graphics/shader/recompiler/backend/spirv/spirvEmitterAluHelpers.cpp b/src/graphics/shader/recompiler/backend/spirv/spirvEmitterAluHelpers.cpp
+index dd1ad9f6..86999082 100644
+--- a/src/graphics/shader/recompiler/backend/spirv/spirvEmitterAluHelpers.cpp
++++ b/src/graphics/shader/recompiler/backend/spirv/spirvEmitterAluHelpers.cpp
+@@ -124,6 +124,14 @@ uint32_t EmitMinMaxF32Value(EmitterState& state, uint32_t lhs, uint32_t rhs, boo
+ }
+ 
+ uint32_t EmitFPMedTri32(EmitterState& state, uint32_t a, uint32_t b, uint32_t c) {
++	if (state.profile.native_float_min_max) {
++		// With the host's NMin/NMax trusted for V_MIN/V_MAX, med3 is max(min(a, b), min(max(a, b), c)).
++		// The exact path below costs about 50 instructions, and shaders that sort or clamp with
++		// med3 use hundreds of them.
++		const auto low  = EmitMinMaxF32Value(state, a, b, false);
++		const auto high = EmitMinMaxF32Value(state, a, b, true);
++		return EmitMinMaxF32Value(state, low, EmitMinMaxF32Value(state, high, c, false), true);
++	}
+ 	const auto a_bits = EmitBitcastF32ToU32(state, a);
+ 	const auto b_bits = EmitBitcastF32ToU32(state, b);
+ 	const auto c_bits = EmitBitcastF32ToU32(state, c);
+diff --git a/src/graphics/shader/recompiler/backend/spirv/spirvEmitterMemory.cpp b/src/graphics/shader/recompiler/backend/spirv/spirvEmitterMemory.cpp
+index 5b9f45a7..272f50df 100644
+--- a/src/graphics/shader/recompiler/backend/spirv/spirvEmitterMemory.cpp
++++ b/src/graphics/shader/recompiler/backend/spirv/spirvEmitterMemory.cpp
+@@ -22,11 +22,12 @@ uint32_t EmitDsMaskedLaneRead(EmitterState& state, uint32_t source, uint32_t tar
+ 	const auto shuffled = state.builder.AllocateId();
+ 	state.builder.AddFunction(spv::OpGroupNonUniformShuffle, TypeU32(state), shuffled,
+ 	                          ConstantU32(state, spv::ScopeSubgroup), source, target);
+-	const auto source_exec = state.builder.AllocateId();
+-	state.builder.AddFunction(spv::OpGroupNonUniformShuffle, TypeBool(state), source_exec,
+-	                          ConstantU32(state, spv::ScopeSubgroup), exec, target);
+-	const auto source_active =
+-	    AndCondition(state, source_exec, EmitSubgroupLaneActiveBool(state, target));
++	// A ballot of exec holds exactly the lanes that are active and have exec set, so one scalar
++	// ballot replaces a second cross-lane shuffle for the exec bit plus a ballot of active lanes.
++	const auto exec_ballot = state.builder.AllocateId();
++	state.builder.AddFunction(spv::OpGroupNonUniformBallot, TypeU32Vector(state, 4), exec_ballot,
++	                          ConstantU32(state, spv::ScopeSubgroup), exec);
++	const auto source_active = EmitBallotLaneActiveBool(state, exec_ballot, target);
+ 	return Select(state, TypeU32(state), source_active, shuffled, ConstantU32(state, 0));
+ }
+ 
+diff --git a/src/graphics/shader/recompiler/frontend/translate/Translate.h b/src/graphics/shader/recompiler/frontend/translate/Translate.h
+index dd6b7137..f558c5b9 100644
+--- a/src/graphics/shader/recompiler/frontend/translate/Translate.h
++++ b/src/graphics/shader/recompiler/frontend/translate/Translate.h
+@@ -29,6 +29,8 @@ struct TranslateOptions {
+ 	uint32_t                      user_data_count     = 64;
+ 	ShaderStageInputInfo          input_info;
+ 	const EmbeddedFetchPlan*      embedded_fetch = nullptr;
++	// False when the host's min/max already quiets a signaling NaN source, as AMD's does.
++	bool                          quiet_snan_min_max = true;
+ };
+ 
+ IR::Program TranslateProgram(const Decoder::Program& decoded, const CFG::Graph& cfg,
+diff --git a/src/graphics/shader/recompiler/frontend/translate/Translator.h b/src/graphics/shader/recompiler/frontend/translate/Translator.h
+index 8945b3e1..97910045 100644
+--- a/src/graphics/shader/recompiler/frontend/translate/Translator.h
++++ b/src/graphics/shader/recompiler/frontend/translate/Translator.h
+@@ -36,6 +36,9 @@ public:
+ 	    : program(program), ir(block), current_vector_limit(vector_limit), lane_spills(lane_spills),
+ 	      flush_f32_inputs(flush_f32_inputs), graphics_compute(graphics_compute) {}
+ 
++	// Whether V_PK_MIN/MAX_F16 quiet a signaling NaN source themselves.
++	bool quiet_snan_min_max = true;
++
+ 	void TranslateInstruction(const Decoder::Instruction& inst);
+ 	void TranslateEmbeddedFetch(const Decoder::Instruction& inst, uint32_t attribute,
+ 	                            uint32_t component_count, const ShaderBufferResource& resource);
+diff --git a/src/graphics/shader/recompiler/frontend/translate/Translate.cpp b/src/graphics/shader/recompiler/frontend/translate/Translate.cpp
+index 122165c5..4d32efe8 100644
+--- a/src/graphics/shader/recompiler/frontend/translate/Translate.cpp
++++ b/src/graphics/shader/recompiler/frontend/translate/Translate.cpp
+@@ -1434,6 +1434,7 @@ IR::Program TranslateProgram(const Decoder::Program& decoded, const CFG::Graph&
+ 		auto*      block = blocks_by_id.at(cfg_block.id);
+ 		Translator translator(result, block, vector_limit, lane_spills, flush_f32_inputs,
+ 		    options.stage == ShaderType::Compute && !options.input_info.compute->async_compute);
++		translator.quiet_snan_min_max = options.quiet_snan_min_max;
+ 		for (uint32_t index = cfg_block.inst_begin; index < cfg_block.inst_end; index++) {
+ 			const auto& instruction = decoded.instructions[index];
+ 			if (IsCodeTableLoad(cfg, instruction.pc)) {
+diff --git a/src/graphics/shader/recompiler/frontend/translate/Float.cpp b/src/graphics/shader/recompiler/frontend/translate/Float.cpp
+index 76d73819..915db51a 100644
+--- a/src/graphics/shader/recompiler/frontend/translate/Float.cpp
++++ b/src/graphics/shader/recompiler/frontend/translate/Float.cpp
+@@ -25,7 +25,7 @@ void Translator::PackedFloat16(const Decoder::Instruction& inst, IR::ValueOpcode
+ 	raw.omod    = 0u;
+ 	raw.clamp   = false;
+ 	auto result = PackHalf2x16(translate_lane(false), translate_lane(true));
+-	if (quiet_snan) {
++	if (quiet_snan && quiet_snan_min_max) {
+ 		const auto quiet_snan_lane = [&](const Decoder::Operand& operand, bool high) {
+ 			const auto bits     = ReadU16LaneAsU32(operand, high, false);
+ 			const auto exponent = ir.BitwiseAnd(bits, IR::U32(IR::Value(0x7e00u)));
+diff --git a/src/graphics/shader/recompiler/ShaderRecompiler.cpp b/src/graphics/shader/recompiler/ShaderRecompiler.cpp
+index 843894a7..0fcd9c2f 100644
+--- a/src/graphics/shader/recompiler/ShaderRecompiler.cpp
++++ b/src/graphics/shader/recompiler/ShaderRecompiler.cpp
+@@ -827,6 +827,7 @@ TranslateResult TranslateProgram(const Decoder::Program& decoded, const CompileO
+ 	    .user_data_count  = static_cast<uint32_t>(options.user_data.size()),
+ 	    .input_info       = options.input_info,
+ 	    .embedded_fetch   = embedded_fetch.loads.empty() ? nullptr : &embedded_fetch,
++	    .quiet_snan_min_max = !options.profile->native_float_min_max,
+ 	};
+ 	LOGF("ShaderRecompiler %s phase begin: hash=0x%016" PRIx64 " IR TranslateProgram\n", stage,
+ 	     options.shader_hash);

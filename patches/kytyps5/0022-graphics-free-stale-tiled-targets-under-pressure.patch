@@ -1,0 +1,25 @@
+From: Chokri Hammedi <52697989+blue0x1@users.noreply.github.com>
+Subject: [PATCH] graphics: free stale tiled render targets under critical memory pressure
+
+The texture GC never freed GPU-written tiled images. A game that switches
+render resolution keeps ~800 MB of the other size alive, and on a 2 GB GPU
+the kernel then moves the live targets into GTT. Under critical pressure,
+write such images back and free them once unused for 160+ frames.
+---
+diff --git a/src/graphics/host_gpu/renderer/cache/textureCache.cpp b/src/graphics/host_gpu/renderer/cache/textureCache.cpp
+index caf0d2c2..e5124112 100644
+--- a/src/graphics/host_gpu/renderer/cache/textureCache.cpp
++++ b/src/graphics/host_gpu/renderer/cache/textureCache.cpp
+@@ -2033,7 +2033,11 @@ void TextureCache::RunGarbageCollector() {
+ 			}
+ 			if (owner->IsGpuModified()) {
+ 				const bool safe = owner->SafeToDownload();
+-				if (safe && owner->info.IsTiled()) {
++				// Tiled targets go back to guest memory only under critical pressure, when they
++				// have gone unused for 160+ frames. Games that switch render resolution leave
++				// hundreds of MB of the other size behind, which pushes the live targets out of
++				// VRAM on GPUs with little of it.
++				if (safe && owner->info.IsTiled() && !aggressive) {
+ 					continue;
+ 				}
+ 				if (safe && !pressured) {

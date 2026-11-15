@@ -1,0 +1,90 @@
+From: Chokri Hammedi <52697989+blue0x1@users.noreply.github.com>
+Subject: [PATCH] debug: log what the texture and buffer cache GCs leave
+
+With the GPU memory log on, every 64 frames each cache logs how much it
+holds that has not been used for a while, and for images what stops the GC
+from freeing them (GPU-written tiled images, images in heaps, depth). Not
+for a release.
+
+diff --git a/src/graphics/host_gpu/renderer/cache/textureCache.cpp b/src/graphics/host_gpu/renderer/cache/textureCache.cpp
+index a1cddcd..1e7df8c 100644
+--- a/src/graphics/host_gpu/renderer/cache/textureCache.cpp
++++ b/src/graphics/host_gpu/renderer/cache/textureCache.cpp
+@@ -5,6 +5,8 @@
+ #include "common/debugCounters.h"
+ #include "common/emulatorConfig.h"
+ #include "common/logging/log.h"
++
++#include <fmt/format.h>
+ #include "common/profiler.h"
+ #include "graphics/guest_gpu/gpu_format.h"
+ #include "graphics/guest_gpu/tile.h"
+@@ -1925,6 +1927,32 @@ void TextureCache::RunGarbageCollector() {
+ 	if (m_graphics.CanReportMemoryUsage()) {
+ 		m_total_used_memory = m_graphics.GetDeviceMemoryUsage();
+ 	}
++	if (GraphicContext::GpuMemoryLogEnabled() && (tick % 64u) == 0) {
++		// How much has not been used for a while, and what keeps the GC from freeing it.
++		for (const uint64_t age: {16u, 160u}) {
++			uint64_t count = 0, bytes = 0, tiled_gpu = 0, tiled_gpu_bytes = 0, heap = 0, depth = 0;
++			m_lru_cache.ForEachItemBelow(tick > age ? tick - age : 0, [&](ImageId id) {
++				const auto* image = m_slot_images.try_get(id);
++				if (image == nullptr) {
++					return;
++				}
++				count++;
++				bytes += image->AccountedSize();
++				if (image->IsGpuModified() && image->SafeToDownload() && image->info.IsTiled()) {
++					tiled_gpu++;
++					tiled_gpu_bytes += image->AccountedSize();
++				}
++				heap += image->heap_refs.load(std::memory_order_relaxed) != 0u ? 1 : 0;
++				depth += image->depth_id ? 1 : 0;
++			});
++			Log::WriteToConsoleAndLog(fmt::format(
++			    "Texture GC frame {}: used {} MB (trigger {} pressure {} critical {}); unused for {}+ "
++			    "frames: {} images {} MB, of them GPU-written tiled {} ({} MB), in heaps {}, depth {}\n",
++			    tick, m_total_used_memory >> 20u, m_trigger_gc_memory >> 20u,
++			    m_pressure_gc_memory >> 20u, m_critical_gc_memory >> 20u, age, count, bytes >> 20u,
++			    tiled_gpu, tiled_gpu_bytes >> 20u, heap, depth));
++		}
++	}
+ 	if (m_total_used_memory < m_trigger_gc_memory) {
+ 		return;
+ 	}
+diff --git a/src/graphics/host_gpu/renderer/cache/bufferCache.cpp b/src/graphics/host_gpu/renderer/cache/bufferCache.cpp
+index e4ca0d8..d394b2b 100644
+--- a/src/graphics/host_gpu/renderer/cache/bufferCache.cpp
++++ b/src/graphics/host_gpu/renderer/cache/bufferCache.cpp
+@@ -4,6 +4,8 @@
+ #include "common/assert.h"
+ #include "common/debugCounters.h"
+ #include "common/logging/log.h"
++
++#include <fmt/format.h>
+ #include "common/profiler.h"
+ #include "graphics/guest_gpu/graphicsRun.h"
+ #include "graphics/host_gpu/graphicContext.h"
+@@ -673,6 +675,22 @@ void BufferCache::RunGarbageCollector() {
+ 	if (m_graphics.CanReportMemoryUsage()) {
+ 		m_total_used_memory = m_graphics.GetDeviceMemoryUsage();
+ 	}
++	if (GraphicContext::GpuMemoryLogEnabled() && (tick % 64u) == 0) {
++		for (const uint64_t age: {16u, 80u}) {
++			uint64_t count = 0, bytes = 0, dirty = 0;
++			m_lru_cache.ForEachItemBelow(tick > age ? tick - age : 0, [&](BufferId id) {
++				auto& buffer = m_slot_buffers[id];
++				count++;
++				bytes += buffer.Size();
++				dirty += m_memory_tracker.IsRegionGpuModified(buffer.CpuAddress(), buffer.Size()) ? 1 : 0;
++			});
++			Log::WriteToConsoleAndLog(fmt::format(
++			    "Buffer GC frame {}: used {} MB (trigger {} critical {}); unused for {}+ frames: {} "
++			    "buffers {} MB, {} GPU-written\n",
++			    tick, m_total_used_memory >> 20u, m_trigger_gc_memory >> 20u,
++			    m_critical_gc_memory >> 20u, age, count, bytes >> 20u, dirty));
++		}
++	}
+ 	if (m_total_used_memory < m_trigger_gc_memory) {
+ 		return;
+ 	}

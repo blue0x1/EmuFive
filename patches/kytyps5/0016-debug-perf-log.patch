@@ -1,0 +1,357 @@
+From: Chokri Hammedi <52697989+blue0x1@users.noreply.github.com>
+Subject: [PATCH] debug: log per-flip GPU work with a perf-log file
+
+With a file named perf-log in the working folder, every 16 flips the log gets
+the frame rate, the performance counters per flip, and how often each place
+where the emulator records its own GPU work (tiling, image copies, buffer
+copies) ran. Not for a release.
+
+diff --git a/src/common/perfTrace.h b/src/common/perfTrace.h
+new file mode 100644
+index 00000000..cc00c524
+--- /dev/null
++++ b/src/common/perfTrace.h
+@@ -0,0 +1,49 @@
++#ifndef EMULATOR_INCLUDE_EMULATOR_COMMON_PERFTRACE_H_
++#define EMULATOR_INCLUDE_EMULATOR_COMMON_PERFTRACE_H_
++
++// Debug: counts the GPU work the emulator records besides the game's own draws.
++#include <array>
++#include <atomic>
++#include <cstdint>
++
++namespace Common::PerfTrace {
++
++enum Site : int {
++	GameDispatch,
++	TilerConvert,
++	TilerRows,
++	TilerColor,
++	TilerClearCheck,
++	ImageUpload,
++	ImageDownload,
++	ImageCopy,
++	ImageCopyMips,
++	ImageResolve,
++	ImageViaBufferDown,
++	ImageViaBufferUp,
++	ImageCopyOther,
++	DrawFeedbackCopy,
++	BufferStagingCopy,
++	BufferDownload,
++	BufferCopy,
++	ClearColor,
++	Count
++};
++
++inline constexpr std::array<const char*, Count> Names {
++    "game-dispatch", "tiler-convert", "tiler-rows", "tiler-color", "tiler-clear-check",
++    "image-upload", "image-download", "image-copy", "image-copy-mips", "image-resolve",
++    "image-via-buffer-down", "image-via-buffer-up", "image-copy-other", "draw-feedback-copy",
++    "buffer-staging-copy", "buffer-download", "buffer-copy", "clear-color"};
++
++inline std::array<std::atomic<uint64_t>, Count> g_count {};
++inline std::array<std::atomic<uint64_t>, Count> g_work {};
++
++inline void Add(Site site, uint64_t work = 0) noexcept {
++	g_count[site].fetch_add(1, std::memory_order_relaxed);
++	g_work[site].fetch_add(work, std::memory_order_relaxed);
++}
++
++} // namespace Common::PerfTrace
++
++#endif /* EMULATOR_INCLUDE_EMULATOR_COMMON_PERFTRACE_H_ */
+diff --git a/src/graphics/host_gpu/renderer/image/tiler.cpp b/src/graphics/host_gpu/renderer/image/tiler.cpp
+index 598bc87..36dc79c 100644
+--- a/src/graphics/host_gpu/renderer/image/tiler.cpp
++++ b/src/graphics/host_gpu/renderer/image/tiler.cpp
+@@ -1,5 +1,6 @@
+ #include "graphics/host_gpu/renderer/image/tiler.h"
+ 
++#include "common/perfTrace.h"
+ #include "common/alignment.h"
+ #include "common/assert.h"
+ #include "gpu_tiler_shaders/gpu_tiler_demote_d16_spv.h"
+@@ -316,6 +317,7 @@ void TileManager::Record(vk::Buffer source, uint64_t source_offset, uint64_t sou
+ 	    (groups + limits.maxComputeWorkGroupCount[0] - 1u) / limits.maxComputeWorkGroupCount[0]);
+ 	const uint32_t groups_x = static_cast<uint32_t>((groups + groups_y - 1u) / groups_y);
+ 	EXIT_NOT_IMPLEMENTED(groups_y > limits.maxComputeWorkGroupCount[1]);
++	Common::PerfTrace::Add(Common::PerfTrace::TilerConvert, uint64_t {groups_x} * groups_y);
+ 	command.dispatch(groups_x, groups_y, 1);
+ 
+ 	barriers[1].srcAccessMask = vk::AccessFlagBits::eShaderWrite;
+@@ -539,6 +541,7 @@ void TileManager::ConvertD16(Result source, Result target, D16Direction directio
+ 			push.target_pitch = static_cast<uint32_t>(layout.target_row_stride);
+ 			command.pushConstants(m_pipeline_layout, vk::ShaderStageFlagBits::eCompute, 0,
+ 			                      sizeof(push), &push);
++			Common::PerfTrace::Add(Common::PerfTrace::TilerRows, static_cast<uint64_t>(groups_x) * rows);
+ 			command.dispatch(static_cast<uint32_t>(groups_x), rows, 1);
+ 			row += rows;
+ 		}
+@@ -609,6 +612,7 @@ void TileManager::TransformColor(Result input, Result output, ColorTransform tra
+ 	push.to_host         = to_host;
+ 	command.pushConstants(m_pipeline_layout, vk::ShaderStageFlagBits::eCompute, 0, sizeof(push),
+ 	                      &push);
++	Common::PerfTrace::Add(Common::PerfTrace::TilerColor, pixels);
+ 	command.dispatch((pixels + 63u) / 64u, 1, 1);
+ 	barriers[1].srcAccessMask = vk::AccessFlagBits::eShaderWrite;
+ 	barriers[1].dstAccessMask = vk::AccessFlagBits::eTransferRead;
+@@ -673,6 +677,7 @@ vk::Buffer TileManager::CheckColorClear(Result metadata, uint64_t stride, uint32
+ 	                  static_cast<uint32_t>(stride / 4), keys, expand};
+ 	command.pushConstants(m_pipeline_layout, vk::ShaderStageFlagBits::eCompute, 0, sizeof(push),
+ 	                      &push);
++	Common::PerfTrace::Add(Common::PerfTrace::TilerClearCheck, slices);
+ 	command.dispatch(slices, 1, 1);
+ 	barrier.srcAccessMask = vk::AccessFlagBits::eShaderWrite;
+ 	barrier.dstAccessMask = vk::AccessFlagBits::eMemoryRead | vk::AccessFlagBits::eMemoryWrite;
+diff --git a/src/graphics/host_gpu/renderer/image/image.cpp b/src/graphics/host_gpu/renderer/image/image.cpp
+index cdb1e41..700b700 100644
+--- a/src/graphics/host_gpu/renderer/image/image.cpp
++++ b/src/graphics/host_gpu/renderer/image/image.cpp
+@@ -1,5 +1,6 @@
+ #include "graphics/host_gpu/renderer/image/image.h"
+ 
++#include "common/perfTrace.h"
+ #include "common/assert.h"
+ #include "common/logging/log.h"
+ #include "common/profiler.h"
+@@ -272,6 +273,7 @@ void Image::Upload(std::span<const vk::BufferImageCopy> copies, vk::Buffer buffe
+ 	dependency.pImageMemoryBarriers     = image_barriers.data();
+ 	auto command                        = m_scheduler.Current().Handle();
+ 	command.pipelineBarrier2(dependency);
++	Common::PerfTrace::Add(Common::PerfTrace::ImageUpload, 0);
+ 	command.copyBufferToImage(buffer, backing.image, vk::ImageLayout::eTransferDstOptimal,
+ 	                          static_cast<uint32_t>(copies.size()), copies.data());
+ 	buffer_barrier.srcStageMask  = vk::PipelineStageFlagBits2::eTransfer;
+@@ -312,6 +314,7 @@ void Image::Download(std::span<const vk::BufferImageCopy> copies, vk::Buffer buf
+ 	dependency.pImageMemoryBarriers     = image_barriers.data();
+ 	auto command                        = m_scheduler.Current().Handle();
+ 	command.pipelineBarrier2(dependency);
++	Common::PerfTrace::Add(Common::PerfTrace::ImageDownload, 0);
+ 	command.copyImageToBuffer(backing.image, vk::ImageLayout::eTransferSrcOptimal, buffer,
+ 	                          static_cast<uint32_t>(copies.size()), copies.data());
+ 	buffer_barrier.srcStageMask  = vk::PipelineStageFlagBits2::eCopy;
+@@ -394,6 +397,7 @@ void Image::CopyImage(Image& source) {
+ 	source.Transit(vk::ImageLayout::eTransferSrcOptimal, vk::AccessFlagBits2::eTransferRead, {},
+ 	               command);
+ 	Transit(vk::ImageLayout::eTransferDstOptimal, vk::AccessFlagBits2::eTransferWrite, {}, command);
++	Common::PerfTrace::Add(Common::PerfTrace::ImageCopy, 0);
+ 	command.copyImage(source.backing.image, vk::ImageLayout::eTransferSrcOptimal, backing.image,
+ 	                  vk::ImageLayout::eTransferDstOptimal, levels, copies.data());
+ 	Transit(vk::ImageLayout::eGeneral,
+@@ -444,6 +448,7 @@ void Image::Resolve(Image& source, const ImageSubresourceRange& source_range,
+ 		                         resolved_destination_range.base_level,
+ 		                         resolved_destination_range.base_layer, layers};
+ 		region.extent         = resolve_extent;
++		Common::PerfTrace::Add(Common::PerfTrace::ImageCopyMips, 0);
+ 		command.copyImage(source.backing.image, vk::ImageLayout::eTransferSrcOptimal, backing.image,
+ 		                  vk::ImageLayout::eTransferDstOptimal, region);
+ 	} else {
+@@ -454,6 +459,7 @@ void Image::Resolve(Image& source, const ImageSubresourceRange& source_range,
+ 		                         resolved_destination_range.base_level,
+ 		                         resolved_destination_range.base_layer, layers};
+ 		region.extent         = resolve_extent;
++		Common::PerfTrace::Add(Common::PerfTrace::ImageResolve, 0);
+ 		command.resolveImage(source.backing.image, vk::ImageLayout::eTransferSrcOptimal,
+ 		                     backing.image, vk::ImageLayout::eTransferDstOptimal, region);
+ 	}
+@@ -542,6 +548,7 @@ void Image::CopyImageWithBuffer(Image& source, Buffer& buffer, TileManager& tile
+ 				barrier.srcAccessMask = vk::AccessFlagBits2::eTransferRead;
+ 				barrier.dstAccessMask = vk::AccessFlagBits2::eTransferWrite;
+ 				command.pipelineBarrier2(dependency);
++				Common::PerfTrace::Add(Common::PerfTrace::ImageViaBufferDown, 0);
+ 				command.copyImageToBuffer(source.backing.image,
+ 				                          vk::ImageLayout::eTransferSrcOptimal, buffer.Handle(),
+ 				                          source_copy);
+@@ -558,6 +565,7 @@ void Image::CopyImageWithBuffer(Image& source, Buffer& buffer, TileManager& tile
+ 					barrier.dstAccessMask = vk::AccessFlagBits2::eTransferRead;
+ 					command.pipelineBarrier2(dependency);
+ 				}
++				Common::PerfTrace::Add(Common::PerfTrace::ImageViaBufferUp, 0);
+ 				command.copyBufferToImage(buffer.Handle(), backing.image,
+ 				                          vk::ImageLayout::eTransferDstOptimal, destination_copy);
+ 			}
+@@ -594,6 +602,7 @@ void Image::CopyMip(Image& source, uint32_t mip, uint32_t layer) {
+ 	Transit(vk::ImageLayout::eTransferDstOptimal, vk::AccessFlagBits2::eTransferWrite, {}, command);
+ 	source.Transit(vk::ImageLayout::eTransferSrcOptimal, vk::AccessFlagBits2::eTransferRead, {},
+ 	               command);
++	Common::PerfTrace::Add(Common::PerfTrace::ImageCopyOther, 0);
+ 	command.copyImage(source.backing.image, vk::ImageLayout::eTransferSrcOptimal, backing.image,
+ 	                  vk::ImageLayout::eTransferDstOptimal, copy_count, copies.data());
+ 	Transit(vk::ImageLayout::eGeneral,
+diff --git a/src/graphics/host_gpu/renderer/cache/bufferCache.cpp b/src/graphics/host_gpu/renderer/cache/bufferCache.cpp
+index d394b2b..749934d 100644
+--- a/src/graphics/host_gpu/renderer/cache/bufferCache.cpp
++++ b/src/graphics/host_gpu/renderer/cache/bufferCache.cpp
+@@ -1,5 +1,6 @@
+ #include "graphics/host_gpu/renderer/cache/bufferCache.h"
+ 
++#include "common/perfTrace.h"
+ #include "common/alignment.h"
+ #include "common/assert.h"
+ #include "common/debugCounters.h"
+@@ -95,6 +96,7 @@ void BufferCache::WriteDataBuffer(Buffer& buffer, uint64_t address, const void*
+ 		dependency.pBufferMemoryBarriers    = &before;
+ 		command.pipelineBarrier2(dependency);
+ 		const vk::BufferCopy copy {offset, destination_offset, chunk};
++		Common::PerfTrace::Add(Common::PerfTrace::BufferStagingCopy, chunk);
+ 		command.copyBuffer(m_staging_buffer.Handle(), buffer.Handle(), 1, &copy);
+ 		auto after          = before;
+ 		after.srcStageMask  = vk::PipelineStageFlagBits2::eTransfer;
+@@ -218,6 +220,7 @@ bool BufferCache::DownloadBufferMemory(Buffer& buffer, uint64_t vaddr, uint64_t
+ 	native.pipelineBarrier(vk::PipelineStageFlagBits::eAllCommands,
+ 	                       vk::PipelineStageFlagBits::eTransfer, {}, 0, nullptr, 1, &before, 0,
+ 	                       nullptr);
++	Common::PerfTrace::Add(Common::PerfTrace::BufferDownload, 0);
+ 	native.copyBuffer(buffer.Handle(), download.Handle(),
+ 	                  static_cast<uint32_t>(copies.size()), copies.data());
+ 
+@@ -470,6 +473,7 @@ bool BufferCache::SynchronizeBuffer(Buffer& buffer, uint64_t vaddr, uint64_t siz
+ 		native.pipelineBarrier(vk::PipelineStageFlagBits::eAllCommands,
+ 		                       vk::PipelineStageFlagBits::eTransfer,
+ 		                       vk::DependencyFlagBits::eByRegion, 0, nullptr, 1, &before, 0, nullptr);
++		Common::PerfTrace::Add(Common::PerfTrace::BufferCopy, copies.size());
+ 		native.copyBuffer(source, buffer.Handle(), static_cast<uint32_t>(copies.size()),
+ 		                  copies.data());
+ 		auto after          = before;
+diff --git a/src/graphics/host_gpu/renderer/cache/textureCache.cpp b/src/graphics/host_gpu/renderer/cache/textureCache.cpp
+index 1e7df8c..2d83130 100644
+--- a/src/graphics/host_gpu/renderer/cache/textureCache.cpp
++++ b/src/graphics/host_gpu/renderer/cache/textureCache.cpp
+@@ -1,5 +1,6 @@
+ #include "graphics/host_gpu/renderer/cache/textureCache.h"
+ 
++#include "common/perfTrace.h"
+ #include "common/alignment.h"
+ #include "common/assert.h"
+ #include "common/debugCounters.h"
+@@ -1618,6 +1619,7 @@ void TextureCache::ClearImage(CommandBuffer& command, ImageId id, vk::Format for
+ 		native_range.layerCount     = 1;
+ 	}
+ 	if (range.aspectMask == vk::ImageAspectFlagBits::eColor) {
++		Common::PerfTrace::Add(Common::PerfTrace::ClearColor, 0);
+ 		command.Handle().clearColorImage(image.backing.image, vk::ImageLayout::eTransferDstOptimal,
+ 		                                 &clear.color, 1, &native_range);
+ 	} else {
+diff --git a/src/graphics/host_gpu/renderer/renderDraw.cpp b/src/graphics/host_gpu/renderer/renderDraw.cpp
+index c23f043..6ae34d0 100644
+--- a/src/graphics/host_gpu/renderer/renderDraw.cpp
++++ b/src/graphics/host_gpu/renderer/renderDraw.cpp
+@@ -1,5 +1,6 @@
+ #include "graphics/host_gpu/renderer/renderDraw.h"
+ 
++#include "common/perfTrace.h"
+ #include "common/assert.h"
+ #include "common/common.h"
+ #include "common/debugCounters.h"
+@@ -1026,6 +1027,7 @@ bool RenderExecutor::CopyDepthToColor(CommandBuffer& buffer, const DrawCallInfo&
+ 		               {}, command);
+ 		destination.Transit(vk::ImageLayout::eTransferDstOptimal,
+ 		                    vk::AccessFlagBits2::eTransferWrite, {}, command);
++		Common::PerfTrace::Add(Common::PerfTrace::DrawFeedbackCopy, 0);
+ 		command.copyImage(source.backing.image, vk::ImageLayout::eTransferSrcOptimal,
+ 		                  destination.backing.image, vk::ImageLayout::eTransferDstOptimal,
+ 		                  1, &region);
+diff --git a/src/graphics/host_gpu/renderer/renderCompute.cpp b/src/graphics/host_gpu/renderer/renderCompute.cpp
+index 41dcece..ee0316f 100644
+--- a/src/graphics/host_gpu/renderer/renderCompute.cpp
++++ b/src/graphics/host_gpu/renderer/renderCompute.cpp
+@@ -1,3 +1,4 @@
++#include "common/perfTrace.h"
+ #include "common/assert.h"
+ #include "common/common.h"
+ #include "common/debugCounters.h"
+@@ -463,6 +464,7 @@ void RenderExecutor::DispatchDirect(CommandBuffer& buffer, uint32_t thread_group
+ 			}
+ 		}
+ 	} else {
++		Common::PerfTrace::Add(Common::PerfTrace::GameDispatch, 0);
+ 		vk_buffer.dispatch(thread_group_x, thread_group_y, thread_group_z);
+ 	}
+ 	Common::DebugCounters::Add(Common::DebugCounters::Counter::Dispatches);
+diff --git a/src/graphics/guest_gpu/graphicsRun.cpp b/src/graphics/guest_gpu/graphicsRun.cpp
+index 4925f8a..29d4236 100644
+--- a/src/graphics/guest_gpu/graphicsRun.cpp
++++ b/src/graphics/guest_gpu/graphicsRun.cpp
+@@ -2,6 +2,7 @@
+ 
+ #include "common/assert.h"
+ #include "common/debugCounters.h"
++#include "common/perfTrace.h"
+ #include "common/logging/log.h"
+ #include "common/profiler.h"
+ #include "common/stringUtils.h"
+@@ -30,6 +31,7 @@
+ #include <memory>
+ #include <mutex>
+ #include <semaphore>
++#include <string>
+ #include <thread>
+ #include <vector>
+ 
+@@ -1054,6 +1056,65 @@ void CommandProcessor::Flip(int handle, int index, int flip_mode, int64_t flip_a
+ 
+ void CommandProcessor::NoteFlipForGc() {
+ 	auto& gpu = m_renderer.GetGpu();
++	static const bool perf_log = [] {
++		std::FILE* probe = std::fopen("perf-log", "r");
++		if (probe != nullptr) {
++			std::fclose(probe);
++		}
++		return probe != nullptr;
++	}();
++	if (perf_log) {
++		// Every 16 flips: what the GPU thread did, per flip.
++		using Common::DebugCounters::Counter;
++		static uint64_t   perf_flips = 0;
++		static auto       last       = std::chrono::steady_clock::now();
++		static std::array<uint64_t, static_cast<int>(Counter::Count)> counters {};
++		static std::array<uint64_t, Common::PerfTrace::Count>         counts {};
++		static std::array<uint64_t, Common::PerfTrace::Count>         works {};
++		if ((++perf_flips & 15u) == 0u) {
++			const auto now = std::chrono::steady_clock::now();
++			const double seconds = std::chrono::duration<double>(now - last).count();
++			last = now;
++			std::string text = fmt::format("Perf flips {}: {:.2f} fps |", perf_flips, 16.0 / seconds);
++			const auto delta = [](uint64_t& old, uint64_t value) {
++				const auto d = value - old;
++				old          = value;
++				return d;
++			};
++			static constexpr std::pair<Counter, const char*> shown[] = {
++			    {Counter::Draws, "draws"}, {Counter::Dispatches, "dispatches"},
++			    {Counter::QueueSubmits, "submits"}, {Counter::GpuWaits, "gpu-waits"},
++			    {Counter::GpuWaitNs, "gpu-wait-ms"}, {Counter::GpuFaults, "faults"},
++			    {Counter::ShadersCompiled, "shaders"}, {Counter::PipelinesCreated, "pipelines"},
++			    {Counter::PipelineCreateNs, "pipeline-ms"},
++			    {Counter::TextureUploadBytes, "tex-up-MB"}, {Counter::TextureDownloadBytes, "tex-down-MB"},
++			    {Counter::ColorMetadataReadbacks, "meta-readbacks"},
++			    {Counter::ColorMetadataReadbackNs, "meta-readback-ms"},
++			    {Counter::ColorMetadataChecks, "meta-checks"},
++			    {Counter::BufferUploadBytes, "buf-up-MB"}, {Counter::BufferDownloadBytes, "buf-down-MB"},
++			    {Counter::GpuThreadBusyNs, "gpu-thread-busy-ms"}};
++			for (const auto& [counter, name]: shown) {
++				auto value = delta(counters[static_cast<int>(counter)],
++				                   Common::DebugCounters::Get(counter));
++				if (std::string_view(name).ends_with("-ms")) {
++					value /= 1000000u;
++				} else if (std::string_view(name).ends_with("-MB")) {
++					value >>= 20u;
++				}
++				text += fmt::format(" {} {:.1f}", name, static_cast<double>(value) / 16.0);
++			}
++			text += " | emulator work per flip:";
++			for (int site = 0; site < Common::PerfTrace::Count; site++) {
++				const auto n = delta(counts[site], Common::PerfTrace::g_count[site].load());
++				const auto w = delta(works[site], Common::PerfTrace::g_work[site].load());
++				if (n != 0) {
++					text += fmt::format(" {} {:.1f} (work {:.0f})", Common::PerfTrace::Names[site],
++					                    static_cast<double>(n) / 16.0, static_cast<double>(w) / 16.0);
++				}
++			}
++			Log::WriteToConsoleAndLog(text + "\n");
++		}
++	}
+ 	if (GraphicContext::GpuMemoryLogEnabled()) {
+ 		static uint64_t   flips = 0;
+ 		static const auto start = std::chrono::steady_clock::now();

@@ -1,0 +1,177 @@
+From: Chokri Hammedi <52697989+blue0x1@users.noreply.github.com>
+Subject: [PATCH] debug: log GPU memory use (KYTY_GPU_MEM_LOG)
+
+With KYTY_GPU_MEM_LOG set, or a file named gpu-mem-log in the working folder:
+- the GPU memory heaps (VK_EXT_memory_budget) and the kernel driver's VRAM and
+  GTT use are logged every 32 submits, and always when a submit fails;
+- every image and buffer allocation of 4 MB or more is logged with what it is
+  and the running total.
+To find what fills the PS4 GPU's memory before "Not enough memory for command
+submission". A debug aid: not for a release.
+
+diff --git a/src/graphics/host_gpu/graphicContext.h b/src/graphics/host_gpu/graphicContext.h
+index 07aa6499..9019d962 100644
+--- a/src/graphics/host_gpu/graphicContext.h
++++ b/src/graphics/host_gpu/graphicContext.h
+@@ -9,6 +9,7 @@
+ #include <map>
+ #include <mutex>
+ #include <span>
++#include <string>
+ #include <tuple>
+ #include <vector>
+ #include <vk_mem_alloc.h>
+@@ -106,6 +107,9 @@ struct GraphicContext {
+ 	[[nodiscard]] bool CreateAllocator();
+ 	void               DestroyAllocator();
+ 	void               LogMemoryBudget() const;
++	// KYTY_GPU_MEM_LOG (or a gpu-mem-log file in the working folder): log GPU memory use.
++	[[nodiscard]] static bool GpuMemoryLogEnabled();
++	void NoteAllocation(const char* kind, VmaAllocation allocation, const std::string& what) const;
+ 	[[nodiscard]] bool CanReportMemoryUsage() const noexcept { return memory_budget_ext_enabled; }
+ 	[[nodiscard]] uint64_t GetDeviceMemoryUsage() const;
+ 	[[nodiscard]] uint64_t GetTotalMemoryBudget() const;
+diff --git a/src/graphics/host_gpu/renderer/cache/streamBuffer.cpp b/src/graphics/host_gpu/renderer/cache/streamBuffer.cpp
+index bf5ad932..10ee8118 100644
+--- a/src/graphics/host_gpu/renderer/cache/streamBuffer.cpp
++++ b/src/graphics/host_gpu/renderer/cache/streamBuffer.cpp
+@@ -7,6 +7,7 @@
+ #include "graphics/host_gpu/renderer/commandScheduler.h"
+ 
+ #include <cstring>
++#include <fmt/format.h>
+ #include <numeric>
+ #include <vk_mem_alloc.h>
+ 
+@@ -89,6 +90,10 @@ Buffer::Buffer(GraphicContext& graphics, CommandScheduler& scheduler, MemoryUsag
+ 	EXIT_NOT_IMPLEMENTED(result != vk::Result::eSuccess);
+ 
+ 	m_buffer = native_buffer;
++	graphics.NoteAllocation("buffer", m_allocation,
++	                        fmt::format("guest 0x{:x} usage {} flags 0x{:x}", cpu_address,
++	                                    static_cast<int>(usage),
++	                                    static_cast<uint32_t>(flags)));
+ 	if (with_bda) {
+ 		vk::BufferDeviceAddressInfo address_info {};
+ 		address_info.buffer = m_buffer;
+diff --git a/src/graphics/host_gpu/renderer/commandScheduler.cpp b/src/graphics/host_gpu/renderer/commandScheduler.cpp
+index 983049b7..b23bb980 100644
+--- a/src/graphics/host_gpu/renderer/commandScheduler.cpp
++++ b/src/graphics/host_gpu/renderer/commandScheduler.cpp
+@@ -5,6 +5,11 @@
+ #include "graphics/host_gpu/graphicContext.h"
+ 
+ #include <algorithm>
++#include <array>
++#include <fmt/format.h>
++#include <string>
++#include <cstdio>
++#include <cstdlib>
+ #include <optional>
+ 
+ namespace Libs::Graphics {
+@@ -337,7 +342,35 @@ uint64_t CommandScheduler::Submit(SubmitInfo submit) {
+ 	}
+ 	Common::DebugCounters::Add(Common::DebugCounters::Counter::QueueSubmits);
+ 
++	// The GPU memory heaps every 32 submits (with KYTY_GPU_MEM_LOG set, or a file named
++	// gpu-mem-log in the working folder), to find what fills them.
++	const bool mem_log = GraphicContext::GpuMemoryLogEnabled();
++	const auto log_memory = [&](const char* when) {
++		std::array<GraphicContext::HeapUsage, VK_MAX_MEMORY_HEAPS> heaps {};
++		const auto count = graphics.GetHeapUsage(heaps);
++		std::string text = fmt::format("GPU memory {} tick {}:", when, tick);
++		for (uint32_t i = 0; i < count; i++) {
++			text += fmt::format(" heap{}{} {}/{} MB ({} allocs)", i, heaps[i].device_local ? "(vram)" : "",
++			                    heaps[i].usage >> 20u, heaps[i].budget >> 20u, heaps[i].allocations);
++		}
++		// What the kernel driver itself has placed, for every process.
++		for (const char* name: {"vram", "gtt"}) {
++			const auto path = fmt::format("/sys/class/drm/card0/device/mem_info_{}_used", name);
++			if (std::FILE* f = std::fopen(path.c_str(), "r"); f != nullptr) {
++				unsigned long long used = 0;
++				if (std::fscanf(f, "%llu", &used) == 1) {
++					text += fmt::format(" kernel-{} {} MB", name, used >> 20u);
++				}
++				std::fclose(f);
++			}
++		}
++		Log::WriteToConsoleAndLog(text + "\n");
++	};
++	if (mem_log && (tick % 32u) == 0) {
++		log_memory("at");
++	}
+ 	if (result != vk::Result::eSuccess) {
++		log_memory("when the submit failed at");
+ 		EXIT("vkQueueSubmit failed: %s, tick=%" PRIu64 "\n", vk::to_string(result).c_str(), tick);
+ 	}
+ 
+diff --git a/src/graphics/host_gpu/vma.cpp b/src/graphics/host_gpu/vma.cpp
+index 1ea3fa8d..63ba8e29 100644
+--- a/src/graphics/host_gpu/vma.cpp
++++ b/src/graphics/host_gpu/vma.cpp
+@@ -20,7 +20,12 @@
+ #include "graphics/host_gpu/graphicContext.h"
+ 
+ #include <algorithm>
++#include <atomic>
+ #include <cinttypes>
++#include <cstdio>
++#include <cstdlib>
++#include <fmt/format.h>
++#include <string>
+ 
+ namespace Libs::Graphics {
+ 
+@@ -60,6 +65,37 @@ void GraphicContext::DestroyAllocator() {
+ 	allocator = nullptr;
+ }
+ 
++bool GraphicContext::GpuMemoryLogEnabled() {
++	static const bool enabled = [] {
++		if (std::getenv("KYTY_GPU_MEM_LOG") != nullptr) {
++			return true;
++		}
++		std::FILE* probe = std::fopen("gpu-mem-log", "r");
++		if (probe != nullptr) {
++			std::fclose(probe);
++		}
++		return probe != nullptr;
++	}();
++	return enabled;
++}
++
++// Logs each allocation of 4 MB or more, with the running total of all logged ones.
++void GraphicContext::NoteAllocation(const char* kind, VmaAllocation allocation,
++                                    const std::string& what) const {
++	if (!GpuMemoryLogEnabled() || allocation == nullptr) {
++		return;
++	}
++	VmaAllocationInfo info {};
++	vmaGetAllocationInfo(allocator, allocation, &info);
++	static std::atomic<uint64_t> total = 0;
++	const auto                   sum   = total.fetch_add(info.size) + info.size;
++	if (info.size >= (4ull << 20u)) {
++		Log::WriteToConsoleAndLog(fmt::format("GPU alloc {} {} MB ({}), memory type {}, total {} MB\n",
++		                                      kind, info.size >> 20u, what, info.memoryType,
++		                                      sum >> 20u));
++	}
++}
++
+ void GraphicContext::LogMemoryBudget() const {
+ 	if (allocator == nullptr || physical_device == nullptr) {
+ 		return;
+@@ -164,6 +200,13 @@ bool GraphicContext::CreateImage(const vk::ImageCreateInfo& image_info, VulkanIm
+ 		return false;
+ 	}
+ 
++	NoteAllocation("image", image.allocation,
++	               fmt::format("{}x{}x{} format {} mips {} layers {} samples {} usage 0x{:x}",
++	                           image_info.extent.width, image_info.extent.height,
++	                           image_info.extent.depth, static_cast<int>(image_info.format),
++	                           image_info.mipLevels, image_info.arrayLayers,
++	                           static_cast<uint32_t>(image_info.samples),
++	                           static_cast<uint32_t>(image_info.usage)));
+ 	image.format     = image_info.format;
+ 	image.image_type = image_info.imageType;
+ 	image.extent     = image_info.extent;

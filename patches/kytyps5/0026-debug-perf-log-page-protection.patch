@@ -1,0 +1,90 @@
+From: Chokri Hammedi <52697989+blue0x1@users.noreply.github.com>
+Subject: [PATCH] debug: perf log counts page protection changes
+
+With perf-log, every mprotect of the CPU write tracker is counted per flip,
+with its microseconds as "work", split by tracker (buffer regions vs images)
+and by direction (protect vs unprotect; unprotects mostly come from game
+write faults).
+---
+--- a/src/common/perfTrace.h
++++ b/src/common/perfTrace.h
+@@ -27,6 +27,10 @@
+ 	BufferDownload,
+ 	BufferCopy,
+ 	ClearColor,
++	WatchBufferOn,
++	WatchBufferOff,
++	WatchImageOn,
++	WatchImageOff,
+ 	Count
+ };
+ 
+@@ -34,7 +38,8 @@
+     "game-dispatch", "tiler-convert", "tiler-rows", "tiler-color", "tiler-clear-check",
+     "image-upload", "image-download", "image-copy", "image-copy-mips", "image-resolve",
+     "image-via-buffer-down", "image-via-buffer-up", "image-copy-other", "draw-feedback-copy",
+-    "buffer-staging-copy", "buffer-download", "buffer-copy", "clear-color"};
++    "buffer-staging-copy", "buffer-download", "buffer-copy", "clear-color",
++    "protect-buffer", "unprotect-buffer", "protect-image", "unprotect-image"};
+ 
+ inline std::array<std::atomic<uint64_t>, Count> g_count {};
+ inline std::array<std::atomic<uint64_t>, Count> g_work {};
+--- a/src/graphics/host_gpu/pageManager.cpp
++++ b/src/graphics/host_gpu/pageManager.cpp
+@@ -1,6 +1,7 @@
+ #include "graphics/host_gpu/pageManager.h"
+ 
+ #include "common/alignment.h"
++#include "common/perfTrace.h"
+ #include "common/virtualMemory.h"
+ #include "graphics/host_gpu/regionDefinitions.h"
+ #include "kernel/memory.h"
+@@ -8,6 +9,7 @@
+ #include <algorithm>
+ #include <array>
+ #include <atomic>
++#include <chrono>
+ #include <cstdarg>
+ #include <cstdio>
+ #include <cstdlib>
+@@ -74,6 +76,8 @@
+ 	}
+ }
+ 
++thread_local bool t_buffer_watch = false;
++
+ } // namespace
+ 
+ struct PageManager::Impl {
+@@ -186,7 +190,19 @@
+ 	}
+ 
+ 	void Protect(uint64_t vaddr, uint64_t size, Common::VirtualMemory::Mode mode) noexcept {
+-		if (!Libs::LibKernel::Memory::ProtectGuestHostMemory(vaddr, size, mode)) {
++		// perf-log: mprotect calls per flip and their microseconds, by tracker and direction.
++		const auto start = std::chrono::steady_clock::now();
++		const bool ok    = Libs::LibKernel::Memory::ProtectGuestHostMemory(vaddr, size, mode);
++		const auto us    = std::chrono::duration_cast<std::chrono::microseconds>(
++		                    std::chrono::steady_clock::now() - start)
++		                    .count();
++		const bool off = mode == Common::VirtualMemory::Mode::ReadWrite;
++		Common::PerfTrace::Add(t_buffer_watch ? (off ? Common::PerfTrace::WatchBufferOff
++		                                             : Common::PerfTrace::WatchBufferOn)
++		                                      : (off ? Common::PerfTrace::WatchImageOff
++		                                             : Common::PerfTrace::WatchImageOn),
++		                       static_cast<uint64_t>(us));
++		if (!ok) {
+ 			Fatal("address-space protection failed at 0x%016" PRIx64 ", mode=0x%08" PRIx32, vaddr,
+ 			      static_cast<uint32_t>(mode));
+ 		}
+@@ -284,6 +300,10 @@
+ 
+ template <bool track, bool is_read>
+ void PageManager::UpdatePageWatchersForRegion(uint64_t base_addr, RegionBits& mask) {
++	struct BufferWatchScope {
++		BufferWatchScope() { t_buffer_watch = true; }
++		~BufferWatchScope() { t_buffer_watch = false; }
++	} scope;
+ 	const auto start_range = mask.FirstRange();
+ 	const auto end_range   = mask.LastRange();
+ 	const auto first       = start_range.first;

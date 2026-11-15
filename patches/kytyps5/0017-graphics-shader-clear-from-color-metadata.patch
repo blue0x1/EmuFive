@@ -1,0 +1,344 @@
+From: Chokri Hammedi <52697989+blue0x1@users.noreply.github.com>
+Subject: [PATCH] graphics: clear from color metadata with a shader where conditional rendering is off
+
+When a game samples a color target it fast-cleared, KytyPS5 checks the
+target's DCC/CMASK metadata for a clear key. With conditional rendering a
+compute pass finds the key and a predicated clear applies it, so the CPU
+never waits. Patch 0006 turns conditional rendering off on the PS4's GPUs
+(they hang on SET_PREDICATION), and the metadata was then read back on the
+CPU, which waits for the GPU to finish everything first. Invincible VS
+(PPSA30568) does that 29 times a frame in its menu: 446 ms of a 558 ms
+frame, 1.8 FPS.
+
+Without conditional rendering, the same compute check now runs, and a
+full-screen pass with a small fragment shader reads its result and writes
+the matching clear color, or discards. The CPU never waits. Integer formats,
+which the shader's float output cannot write, still read back.
+
+diff --git a/src/graphics/host_gpu/shaders/gpu_predicated_clear.frag b/src/graphics/host_gpu/shaders/gpu_predicated_clear.frag
+new file mode 100644
+index 00000000..35b9b85e
+--- /dev/null
++++ b/src/graphics/host_gpu/shaders/gpu_predicated_clear.frag
+@@ -0,0 +1,23 @@
++#version 450
++
++// Clears a color target to the key TileManager::CheckColorClear found for this slice, without
++// conditional rendering (which hangs the PS4's GPUs). Every pixel takes the same branch.
++layout(set = 0, binding = 0, std430) readonly buffer Predicates { uint data[]; } predicates;
++
++layout(push_constant, std430) uniform Clear {
++	vec4 colors[8]; // TileManager::ColorClearSlots
++	uint first;     // slice * ColorClearSlots
++	uint keys;
++} params;
++
++layout(location = 0) out vec4 color;
++
++void main() {
++	for (uint key = 0u; key < 8u; key++) {
++		if ((params.keys & (1u << key)) != 0u && predicates.data[params.first + key] != 0u) {
++			color = params.colors[key];
++			return;
++		}
++	}
++	discard;
++}
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 78d4963..077407a 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -314,6 +314,7 @@ function(add_gpu_blit_shader shader_name shader_file)
+ endfunction()
+ add_gpu_blit_shader(gpu_blit_fs_triangle gpu_blit_fs_triangle.vert)
+ add_gpu_blit_shader(gpu_blit_color_to_ms_depth gpu_blit_color_to_ms_depth.frag)
++add_gpu_blit_shader(gpu_predicated_clear gpu_predicated_clear.frag)
+ add_gpu_blit_shader(gpu_video_out_overlay gpu_video_out_overlay.frag)
+ add_gpu_blit_shader(gpu_imgui_hdr gpu_video_out_overlay.frag -DIMGUI_HDR=1)
+ add_gpu_blit_shader(gpu_pssr_linear gpu_pssr_linear.comp)
+diff --git a/src/graphics/host_gpu/renderer/image/blitHelper.h b/src/graphics/host_gpu/renderer/image/blitHelper.h
+index c9476b1..e8be131 100644
+--- a/src/graphics/host_gpu/renderer/image/blitHelper.h
++++ b/src/graphics/host_gpu/renderer/image/blitHelper.h
+@@ -4,6 +4,7 @@
+ #include "common/common.h"
+ #include "graphics/host_gpu/vulkanCommon.h"
+ 
++#include <array>
+ #include <compare>
+ #include <vector>
+ 
+@@ -24,6 +25,14 @@ public:
+ 
+ 	void ReinterpretColorAsMsDepth(Image& source, Image& destination);
+ 
++	// Inside a color rendering pass over one layer: writes colors[key] to `area` when
++	// predicates[first + key] is set for a key in `keys`, else leaves the target unchanged.
++	// For GPUs where conditional rendering is unusable. Float and normalized formats only.
++	[[nodiscard]] bool CanPredicatedClear(vk::Format format) const;
++	void PredicatedClear(vk::CommandBuffer command, vk::Format format, uint32_t samples,
++	                     vk::Buffer predicates, uint32_t first, uint32_t keys,
++	                     const std::array<vk::ClearColorValue, 8>& colors, vk::Rect2D area);
++
+ private:
+ 	struct PipelineKey {
+ 		uint32_t   samples = 1;
+@@ -38,6 +47,7 @@ private:
+ 	};
+ 
+ 	[[nodiscard]] vk::Pipeline GetPipeline(PipelineKey key);
++	[[nodiscard]] vk::Pipeline GetClearPipeline(PipelineKey key);
+ 
+ 	GraphicContext&         m_graphics;
+ 	CommandScheduler&       m_scheduler;
+@@ -46,6 +56,10 @@ private:
+ 	vk::ShaderModule        m_vertex_shader     = nullptr;
+ 	vk::ShaderModule        m_fragment_shader   = nullptr;
+ 	std::vector<Pipeline>   m_pipelines;
++	vk::DescriptorSetLayout m_clear_descriptor_layout = nullptr;
++	vk::PipelineLayout      m_clear_pipeline_layout   = nullptr;
++	vk::ShaderModule        m_clear_shader            = nullptr;
++	std::vector<Pipeline>   m_clear_pipelines;
+ };
+ 
+ } // namespace Libs::Graphics
+diff --git a/src/graphics/host_gpu/renderer/image/blitHelper.cpp b/src/graphics/host_gpu/renderer/image/blitHelper.cpp
+index 4df9c72..cd53787 100644
+--- a/src/graphics/host_gpu/renderer/image/blitHelper.cpp
++++ b/src/graphics/host_gpu/renderer/image/blitHelper.cpp
+@@ -3,6 +3,7 @@
+ #include "common/assert.h"
+ #include "gpu_blit_shaders/gpu_blit_color_to_ms_depth_spv.h"
+ #include "gpu_blit_shaders/gpu_blit_fs_triangle_spv.h"
++#include "gpu_blit_shaders/gpu_predicated_clear_spv.h"
+ #include "graphics/host_gpu/graphicContext.h"
+ #include "graphics/host_gpu/renderer/commandScheduler.h"
+ #include "graphics/host_gpu/renderer/image/image.h"
+@@ -10,6 +11,9 @@
+ 
+ #include <algorithm>
+ #include <array>
++#include <cstring>
++#include <string_view>
++#include <vulkan/vulkan_format_traits.hpp>
+ 
+ namespace Libs::Graphics {
+ 
+@@ -38,12 +42,37 @@ BlitHelper::BlitHelper(GraphicContext& graphics, CommandScheduler& scheduler)
+ 
+ 	m_vertex_shader   = CompileSPV(GPU_BLIT_FS_TRIANGLE_SPV, m_graphics.device);
+ 	m_fragment_shader = CompileSPV(GPU_BLIT_COLOR_TO_MS_DEPTH_SPV, m_graphics.device);
++
++	vk::DescriptorSetLayoutBinding predicates_binding {};
++	predicates_binding.binding         = 0;
++	predicates_binding.descriptorType  = vk::DescriptorType::eStorageBuffer;
++	predicates_binding.descriptorCount = 1;
++	predicates_binding.stageFlags      = vk::ShaderStageFlagBits::eFragment;
++	descriptor_info.pBindings          = &predicates_binding;
++	RequireVulkanSuccess(m_graphics.device.createDescriptorSetLayout(&descriptor_info, nullptr,
++	                                                                 &m_clear_descriptor_layout),
++	                     "create predicated clear descriptor layout");
++	const vk::PushConstantRange push {vk::ShaderStageFlagBits::eFragment, 0,
++	                                  sizeof(float) * 4 * 8 + sizeof(uint32_t) * 2};
++	layout_info.pSetLayouts            = &m_clear_descriptor_layout;
++	layout_info.pushConstantRangeCount = 1;
++	layout_info.pPushConstantRanges    = &push;
++	RequireVulkanSuccess(
++	    m_graphics.device.createPipelineLayout(&layout_info, nullptr, &m_clear_pipeline_layout),
++	    "create predicated clear pipeline layout");
++	m_clear_shader = CompileSPV(GPU_PREDICATED_CLEAR_SPV, m_graphics.device);
+ }
+ 
+ BlitHelper::~BlitHelper() {
+ 	for (const auto& pipeline: m_pipelines) {
+ 		m_graphics.device.destroyPipeline(pipeline.handle, nullptr);
+ 	}
++	for (const auto& pipeline: m_clear_pipelines) {
++		m_graphics.device.destroyPipeline(pipeline.handle, nullptr);
++	}
++	m_graphics.device.destroyShaderModule(m_clear_shader, nullptr);
++	m_graphics.device.destroyPipelineLayout(m_clear_pipeline_layout, nullptr);
++	m_graphics.device.destroyDescriptorSetLayout(m_clear_descriptor_layout, nullptr);
+ 	m_graphics.device.destroyShaderModule(m_fragment_shader, nullptr);
+ 	m_graphics.device.destroyShaderModule(m_vertex_shader, nullptr);
+ 	m_graphics.device.destroyPipelineLayout(m_pipeline_layout, nullptr);
+@@ -189,4 +218,115 @@ void BlitHelper::ReinterpretColorAsMsDepth(Image& source, Image& destination) {
+ 	m_scheduler.GetDynamicState().Invalidate();
+ }
+ 
++bool BlitHelper::CanPredicatedClear(vk::Format format) const {
++	const auto limit = m_graphics.GetPhysicalDeviceProperties().limits.maxPushConstantsSize;
++	const std::string_view numeric = vk::componentNumericFormat(format, 0);
++	return limit >= sizeof(float) * 4 * 8 + sizeof(uint32_t) * 2 && numeric != "UINT" &&
++	       numeric != "SINT" && vk::componentCount(format) != 0 &&
++	       !vk::isCompressed(format);
++}
++
++vk::Pipeline BlitHelper::GetClearPipeline(PipelineKey key) {
++	const auto cached = std::ranges::find(m_clear_pipelines, key, &Pipeline::key);
++	if (cached != m_clear_pipelines.end()) {
++		return cached->handle;
++	}
++	const auto samples = vulkan_sample_count(key.samples);
++	EXIT_IF(samples == vk::SampleCountFlagBits {} || key.format == vk::Format::eUndefined);
++
++	std::array<vk::PipelineShaderStageCreateInfo, 2> stages {};
++	stages[0].stage  = vk::ShaderStageFlagBits::eVertex;
++	stages[0].module = m_vertex_shader;
++	stages[0].pName  = "main";
++	stages[1].stage  = vk::ShaderStageFlagBits::eFragment;
++	stages[1].module = m_clear_shader;
++	stages[1].pName  = "main";
++
++	vk::PipelineVertexInputStateCreateInfo   vertex_input {};
++	vk::PipelineInputAssemblyStateCreateInfo input_assembly {};
++	input_assembly.topology = vk::PrimitiveTopology::eTriangleList;
++	vk::PipelineViewportStateCreateInfo viewport {};
++	viewport.viewportCount = 1;
++	viewport.scissorCount  = 1;
++	vk::PipelineRasterizationStateCreateInfo rasterization {};
++	rasterization.lineWidth = 1.0f;
++	vk::PipelineMultisampleStateCreateInfo multisample {};
++	multisample.rasterizationSamples = samples;
++	vk::PipelineDepthStencilStateCreateInfo depth {};
++	vk::PipelineColorBlendAttachmentState   attachment {};
++	attachment.colorWriteMask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
++	                            vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA;
++	vk::PipelineColorBlendStateCreateInfo color_blend {};
++	color_blend.attachmentCount = 1;
++	color_blend.pAttachments    = &attachment;
++	const std::array dynamic_states {vk::DynamicState::eViewport, vk::DynamicState::eScissor};
++	vk::PipelineDynamicStateCreateInfo dynamic {};
++	dynamic.dynamicStateCount = static_cast<uint32_t>(dynamic_states.size());
++	dynamic.pDynamicStates    = dynamic_states.data();
++
++	vk::PipelineRenderingCreateInfo rendering {};
++	rendering.colorAttachmentCount    = 1;
++	rendering.pColorAttachmentFormats = &key.format;
++
++	vk::GraphicsPipelineCreateInfo create {};
++	create.pNext               = &rendering;
++	create.stageCount          = static_cast<uint32_t>(stages.size());
++	create.pStages             = stages.data();
++	create.pVertexInputState   = &vertex_input;
++	create.pInputAssemblyState = &input_assembly;
++	create.pViewportState      = &viewport;
++	create.pRasterizationState = &rasterization;
++	create.pMultisampleState   = &multisample;
++	create.pDepthStencilState  = &depth;
++	create.pColorBlendState    = &color_blend;
++	create.pDynamicState       = &dynamic;
++	create.layout              = m_clear_pipeline_layout;
++
++	vk::Pipeline pipeline = nullptr;
++	RequireVulkanSuccess(
++	    m_graphics.device.createGraphicsPipelines(nullptr, 1, &create, nullptr, &pipeline),
++	    "create predicated clear pipeline");
++	m_clear_pipelines.push_back({key, pipeline});
++	return pipeline;
++}
++
++void BlitHelper::PredicatedClear(vk::CommandBuffer command, vk::Format format, uint32_t samples,
++                                 vk::Buffer predicates, uint32_t first, uint32_t keys,
++                                 const std::array<vk::ClearColorValue, 8>& colors,
++                                 vk::Rect2D area) {
++	struct Push {
++		float    colors[8][4];
++		uint32_t first;
++		uint32_t keys;
++	} push {};
++	for (size_t key = 0; key < colors.size(); key++) {
++		std::memcpy(push.colors[key], colors[key].float32.data(), sizeof(push.colors[key]));
++	}
++	push.first = first;
++	push.keys  = keys;
++
++	vk::DescriptorBufferInfo buffer {predicates, 0, VK_WHOLE_SIZE};
++	vk::WriteDescriptorSet   write {};
++	write.dstBinding      = 0;
++	write.descriptorCount = 1;
++	write.descriptorType  = vk::DescriptorType::eStorageBuffer;
++	write.pBufferInfo     = &buffer;
++	command.bindPipeline(vk::PipelineBindPoint::eGraphics, GetClearPipeline({samples, format}));
++	command.pushDescriptorSetKHR(vk::PipelineBindPoint::eGraphics, m_clear_pipeline_layout, 0, 1,
++	                             &write);
++	command.pushConstants(m_clear_pipeline_layout, vk::ShaderStageFlagBits::eFragment, 0,
++	                      sizeof(push), &push);
++	const vk::Viewport viewport {static_cast<float>(area.offset.x),
++	                             static_cast<float>(area.offset.y),
++	                             static_cast<float>(area.extent.width),
++	                             static_cast<float>(area.extent.height),
++	                             0.0f,
++	                             1.0f};
++	command.setViewport(0, 1, &viewport);
++	command.setScissor(0, 1, &area);
++	command.draw(3, 1, 0, 0);
++	// The helper pipeline has static state that invalidates the guest draw's dynamic state.
++	m_scheduler.GetDynamicState().Invalidate();
++}
++
+ } // namespace Libs::Graphics
+diff --git a/src/graphics/host_gpu/renderer/cache/textureCache.cpp b/src/graphics/host_gpu/renderer/cache/textureCache.cpp
+index 2d83130..caf0d2c 100644
+--- a/src/graphics/host_gpu/renderer/cache/textureCache.cpp
++++ b/src/graphics/host_gpu/renderer/cache/textureCache.cpp
+@@ -1111,6 +1111,44 @@ void TextureCache::MaterializeColorClear(ImageId id, const ImageDesc& desc,
+ 				CommitGpuWrite(image);
+ 				return;
+ 			}
++			// Without usable conditional rendering (the PS4's GPUs hang on it), a fragment
++			// shader applies the key the GPU check found, so the CPU still never waits.
++			// Reading the metadata back instead stalled the GPU each time: 29 times a frame
++			// in Invincible VS's menu, most of its frame time.
++			if (!m_graphics.conditional_rendering_enabled &&
++			    count <= m_graphics.GetPhysicalDeviceProperties().limits.maxFramebufferLayers &&
++			    m_blit_helper.CanPredicatedClear(view.format) &&
++			    (image.backing.usage & vk::ImageUsageFlagBits::eColorAttachment) &&
++			    (m_graphics.GetFormatProperties(view.format).optimalTilingFeatures &
++			     vk::FormatFeatureFlagBits::eColorAttachment) &&
++			    (desc.info.metadata.compression == VideoOutCompression::Uncompressed ||
++			     native_current)) {
++				Common::DebugCounters::Add(Common::DebugCounters::Counter::ColorMetadataChecks);
++				InitializeImage(id);
++				const bool expand = desc.type != BindingType::VideoOut;
++				const auto [buffer, offset] =
++				    m_buffer_cache.ObtainBuffer(viewed.address, viewed.size, expand);
++				const auto predicates = m_tiler.CheckColorClear(
++				    {buffer->Handle(), offset, viewed.size}, slice_size, count, keys, expand);
++				for (uint32_t slice = 0; slice < count && expand; slice++) {
++					m_buffer_cache.MarkColorMetadataChecked(run(slice), mip.size, keys);
++				}
++				std::array<vk::ClearColorValue, TileManager::ColorClearSlots> colors {};
++				for (uint32_t key = 0; key < colors.size(); key++) {
++					colors[key] = clears[key].clearValue.color;
++				}
++				const auto command = m_scheduler.Current().Handle();
++				for (uint32_t slice = 0; slice < count; slice++) {
++					const auto area = BeginColorRendering(image, view.format, view.base_level,
++					                                      image_first + slice, 1, nullptr, command);
++					m_blit_helper.PredicatedClear(command, view.format, image.info.samples,
++					                              predicates, slice * TileManager::ColorClearSlots,
++					                              keys, colors, area);
++					command.endRendering();
++				}
++				CommitGpuWrite(image);
++				return;
++			}
+ 		}
+ 		// Finish native metadata writes before reading backing bytes. This can submit the
+ 		// scheduler, so discovery runs before final draw uploads and never holds the texture
+diff --git a/src/graphics/host_gpu/renderer/image/tiler.cpp b/src/graphics/host_gpu/renderer/image/tiler.cpp
+index 36dc79c..378ebc5 100644
+--- a/src/graphics/host_gpu/renderer/image/tiler.cpp
++++ b/src/graphics/host_gpu/renderer/image/tiler.cpp
+@@ -647,7 +647,9 @@ vk::Buffer TileManager::CheckColorClear(Result metadata, uint64_t stride, uint32
+ 		m_clear_predicates = std::make_unique<Buffer>(
+ 		    m_graphics, m_scheduler, MemoryUsage::DeviceLocal, 0,
+ 		    vk::BufferUsageFlagBits::eStorageBuffer |
+-		        vk::BufferUsageFlagBits::eConditionalRenderingEXT,
++		        (m_graphics.conditional_rendering_enabled
++		             ? vk::BufferUsageFlagBits::eConditionalRenderingEXT
++		             : vk::BufferUsageFlags {}),
+ 		    uint64_t {max_slices} * ColorClearSlots * sizeof(uint32_t));
+ 	}
+ 	const auto source = BindStorage(metadata, metadata.size);

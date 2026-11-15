@@ -1,0 +1,82 @@
+From: Chokri Hammedi <52697989+blue0x1@users.noreply.github.com>
+Subject: [PATCH] fs: a per-game folder of files that replace the game's own
+
+A file at _Override/<title ID>/<path> in the working folder replaces the
+game's /app0/<path> (and /hostapp/<path>) when the game opens it. Folder
+listings and everything else stay the game's own, and the install is never
+written. Games are often on read-only drives; this lets a game's settings be
+changed anyway, for example the Unreal Engine command line file
+(uecommandline.txt) to lower Invincible VS's (PPSA30568) render resolution
+on the PS4.
+
+diff --git a/src/kernel/fileSystem.cpp b/src/kernel/fileSystem.cpp
+index dcff91f..71adcc4 100644
+--- a/src/kernel/fileSystem.cpp
++++ b/src/kernel/fileSystem.cpp
+@@ -100,6 +100,7 @@ private:
+ };
+ 
+ static MountPoints*     g_mount_points = nullptr;
++static std::filesystem::path g_app_override;
+ static FileDescriptors* g_files        = nullptr;
+ 
+ static bool IsRandomDevice(const std::string& path) {
+@@ -381,6 +382,17 @@ std::filesystem::path MountPoints::ResolvePath(const std::string& mounted_name)
+ 		}
+ 
+ 		const auto native_rel_path = Common::PathFromUtf8(rel_path);
++#if KYTY_PLATFORM != KYTY_PLATFORM_WINDOWS
++		if (!g_app_override.empty() && !rel_path.empty() &&
++		    (p.point == "/app0" || p.point == "/app0/" || p.point == "/hostapp" ||
++		     p.point == "/hostapp/")) {
++			std::error_code ec;
++			const auto      replacement = ResolvePathIgnoringCase(g_app_override / native_rel_path);
++			if (std::filesystem::is_regular_file(replacement, ec)) {
++				return replacement;
++			}
++		}
++#endif
+ 		if (Common::IsArchivePath(p.dir)) {
+ 			return p.dir / native_rel_path;
+ 		}
+@@ -428,6 +440,10 @@ void Umount(const std::string& folder_or_point) {
+ 	g_mount_points->Umount(folder_or_point);
+ }
+ 
++void SetAppOverride(const std::filesystem::path& folder) {
++	g_app_override = folder;
++}
++
+ std::filesystem::path GetRealFilename(const std::string& mounted_file_name) {
+ 
+ 	return g_mount_points->ResolvePath(mounted_file_name);
+diff --git a/src/kernel/fileSystem.h b/src/kernel/fileSystem.h
+index fd090dc..f80e41a 100644
+--- a/src/kernel/fileSystem.h
++++ b/src/kernel/fileSystem.h
+@@ -56,6 +56,9 @@ void                  Mount(const std::filesystem::path& folder, const std::stri
+ void                  Umount(const std::string& folder_or_point);
+ // Returns an empty path when the guest path has no mounted filesystem.
+ std::filesystem::path GetRealFilename(const std::string& mounted_file_name);
++// Files under `folder` replace the game's own files of the same path under /app0 (and
++// /hostapp), so a game's settings can be changed without writing to its install.
++void SetAppOverride(const std::filesystem::path& folder);
+ // Stats a resolved host path; a directory's size is its packed dirent size.
+ int StatHostPath(const std::filesystem::path& real_file_name, FileStat* sb);
+ // Returns whether d is an open file, directory or device descriptor.
+diff --git a/src/emulator.cpp b/src/emulator.cpp
+index 4058b42..5c0067e 100644
+--- a/src/emulator.cpp
++++ b/src/emulator.cpp
+@@ -86,6 +86,11 @@ static void MountSandboxDirs() {
+ 	MountOrCreateDir("_DownloadData/" + title_id, "/download0");
+ 	MountOrCreateDir("_TempData/" + title_id, "/temp0");
+ 	MountOrCreateDir("_TempData/" + title_id, "/temp");
++	// _Override/<title>/ holds replacements for the game's own files (see SetAppOverride).
++	if (std::error_code ec; std::filesystem::is_directory("_Override/" + title_id, ec)) {
++		Libs::LibKernel::FileSystem::SetAppOverride(std::filesystem::absolute("_Override/" + title_id));
++		Log::WriteToConsoleAndLog(fmt::format("Game files from _Override/{} replace the game's own.\n", title_id));
++	}
+ 
+ 	// KYTY_MOUNTS adds host folders as guest paths, for example
+ 	// "/data=/home/user/ps5-data;/mnt/usb0=/media/usb". A missing folder is created.

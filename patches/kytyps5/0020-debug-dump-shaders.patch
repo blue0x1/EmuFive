@@ -1,0 +1,77 @@
+From: Chokri Hammedi <52697989+blue0x1@users.noreply.github.com>
+Subject: [PATCH] debug: dump every shader with a dump-shaders file
+
+With a file named dump-shaders in the working folder, every shader is dumped
+as SPIR-V (and the guest's original code) to the shader log folder, including
+modules loaded from the shader store. Not for a release.
+
+diff --git a/src/graphics/host_gpu/renderer/pipeline/pipelineCache.cpp b/src/graphics/host_gpu/renderer/pipeline/pipelineCache.cpp
+index 5009d0b..e519858 100644
+--- a/src/graphics/host_gpu/renderer/pipeline/pipelineCache.cpp
++++ b/src/graphics/host_gpu/renderer/pipeline/pipelineCache.cpp
+@@ -117,8 +117,21 @@ bool ReadShaderGuestMemory(void*, uint64_t address, std::span<uint32_t> values)
+ 	       Libs::LibKernel::Memory::TryReadBufferBacking(address, values.data(), values.size_bytes());
+ }
+ 
++// Debug: a file named dump-shaders in the working folder dumps every shader, like
++// --graphics-debug-dump does, without the rest of that mode's logging.
++bool ShaderDumpRequested() {
++	static const bool requested = [] {
++		std::FILE* probe = std::fopen("dump-shaders", "r");
++		if (probe != nullptr) {
++			std::fclose(probe);
++		}
++		return probe != nullptr;
++	}();
++	return requested;
++}
++
+ void DumpShader(std::span<const uint32_t> words, const std::string& name) {
+-	if (!Config::GraphicsDebugDumpEnabled()) {
++	if (!Config::GraphicsDebugDumpEnabled() && !ShaderDumpRequested()) {
+ 		return;
+ 	}
+ 	const auto path = Config::GetShaderLogFolder() / name;
+diff --git a/src/graphics/host_gpu/renderer/pipeline/pipelineSerialization.cpp b/src/graphics/host_gpu/renderer/pipeline/pipelineSerialization.cpp
+index 0fccf60..ab73414 100644
+--- a/src/graphics/host_gpu/renderer/pipeline/pipelineSerialization.cpp
++++ b/src/graphics/host_gpu/renderer/pipeline/pipelineSerialization.cpp
+@@ -1,5 +1,6 @@
+ #include "graphics/host_gpu/renderer/pipeline/pipelineCache.h"
+ 
++#include "common/emulatorConfig.h"
+ #include "common/logging/log.h"
+ #include "common/parallelFor.h"
+ #include "common/stringUtils.h"
+@@ -9,7 +10,10 @@
+ 
+ #include <algorithm>
+ #include <chrono>
++#include <cstdio>
+ #include <cstring>
++#include <filesystem>
++#include <system_error>
+ #include <fmt/format.h>
+ #include <ranges>
+ #include <xxhash.h>
+@@ -244,6 +248,20 @@ bool PipelineCache::LoadRecord(std::span<const uint8_t>& records) {
+ 				return false;
+ 			}
+ 			module.module = CompileSPV(spirv, m_graphics.device);
++			// Debug: with a dump-shaders file, stored modules are dumped like compiled ones.
++			if (std::FILE* probe = std::fopen("dump-shaders", "r"); probe != nullptr) {
++				std::fclose(probe);
++				const auto path = Config::GetShaderLogFolder() /
++				                  fmt::format("{}_{:016x}_{:016x}.spv",
++				                              ShaderRecompiler::StageName(program->first.stage),
++				                              program->first.hash, module.id);
++				std::error_code ec;
++				std::filesystem::create_directories(path.parent_path(), ec);
++				if (std::FILE* out = std::fopen(path.c_str(), "wb"); out != nullptr) {
++					std::fwrite(spirv.data(), sizeof(uint32_t), spirv.size(), out);
++					std::fclose(out);
++				}
++			}
+ 			program->second.modules.push_back(std::move(module));
+ 			break;
+ 		}

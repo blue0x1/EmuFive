@@ -1,0 +1,29 @@
+From: Chokri Hammedi <52697989+blue0x1@users.noreply.github.com>
+Subject: [PATCH] videoout: optional 1080p output
+
+KYTY_OUTPUT_1080P reports a 1080p output to games that do not ask for
+resolution detection, so they render for 1080p instead of 4K.
+---
+--- a/src/graphics/presentation/videoOut.cpp
++++ b/src/graphics/presentation/videoOut.cpp
+@@ -28,6 +28,7 @@
+ #include <array>
+ #include <atomic>
+ #include <chrono>
++#include <cstdlib>
+ #include <fmt/format.h>
+ #include <list>
+ #include <thread>
+@@ -1699,8 +1700,11 @@
+ 	                         (attribute & 0x20000000) != 0;
+ 	ctx->mutex.Lock();
+ 	// Primary output reports 4K unless param.json Video-out Info enables resolution detection.
++	// KYTY_OUTPUT_1080P makes every game see a 1080p output, so it renders fewer pixels.
++	const bool force_1080p = std::getenv("KYTY_OUTPUT_1080P") != nullptr;
+ 	status->resolution =
+-	    ((attribute3 & 4) != 0 && driver.width < 3840 && driver.height < 2160 ? 1u : 2u);
++	    ((force_1080p || (attribute3 & 4) != 0) && driver.width < 3840 && driver.height < 2160 ? 1u
++	                                                                                          : 2u);
+ 	status->dynamicRange = hdr_allowed && driver.IsHdrSupported() ? 2u : 1u;
+ 	status->refreshRate =
+ 	    (ctx->output_mode == VIDEO_OUT_OUTPUT_MODE_119_88HZ || Config::GetVblankFrequency() >= 119
