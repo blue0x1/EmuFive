@@ -146,7 +146,7 @@ Tested games:
 | Game | Console | Result |
 |---|---|---|
 | God of War Sons of Sparta | PS4 Pro | Playable, about 40 FPS and more |
-| Hollow Knight: Silksong | PS4 Pro | Playable, 50 to 60 FPS |
+| Hollow Knight: Silksong | PS4 Pro | Playable, 60 FPS |
 | Plants vs. Zombies: Replanted | PS4 Pro | Playable, locked 60 FPS |
 | Vampire Survivors | PS4 Slim | Playable, stable 60 FPS |
 | Spider-Man 2 | | Not tested yet |
