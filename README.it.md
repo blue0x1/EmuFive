@@ -165,9 +165,10 @@ Hai provato un gioco? Apri una [issue](https://github.com/blue0x1/EmuFive/issues
 <a id="changelog"></a>
 ## Registro delle modifiche
 
-### 1.0.6 (2026-11-14)
+### 1.0.7 (2026-11-16)
 
-- Migliorato: la schermata Home usa molta meno CPU quando nessuno la usa (in 4K circa un terzo di un core, prima un core intero), quindi la PS4 resta più fresca e silenziosa.
+- Migliorato: i giochi girano più veloci. I buffer vengono caricati in blocco e l'emulatore aspetta meno la GPU. DREDGE su una PS4 Pro è passato da circa 12 a 13–16 FPS, e l'audio non gracchia più.
+- Nuovo: la schermata Home cambia la copertina del gioco in modo fluido. Scegli l'effetto (dissolvenza, scorrimento, zoom e altri 8) in Impostazioni, Aspetto, Movimento, Cambio copertina.
 
 Per aggiornare dalla 1.0.3 o precedenti, avvia l'aggiornamento una volta a mano, perché il vecchio aggiornamento software non ci riesce: attiva SSH nelle Impostazioni, collegati con `ssh ps5@<indirizzo della PS4>` (password `ps5` se non l'hai cambiata) ed esegui
 

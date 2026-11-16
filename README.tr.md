@@ -165,9 +165,10 @@ Bir oyun mu denediniz? Oyunu, konsol modelinizi ve nasıl çalıştığını yaz
 <a id="changelog"></a>
 ## Değişiklik günlüğü
 
-### 1.0.6 (2026-11-14)
+### 1.0.7 (2026-11-16)
 
-- İyileştirildi: ana ekran kullanılmadığı sürece çok daha az CPU kullanıyor (4K'da bir çekirdeğin yaklaşık üçte biri, önceden bir çekirdeğin tamamı); böylece PS4 daha serin ve sessiz çalışıyor.
+- İyileştirildi: oyunlar daha hızlı çalışıyor. Arabellekler toplu yükleniyor ve emülatör GPU'yu daha az bekliyor. DREDGE, PS4 Pro'da yaklaşık 12'den 13–16 FPS'ye çıktı ve sesi artık cızırdamıyor.
+- Yeni: ana ekran oyun kapağını akıcı biçimde değiştiriyor. Efekti (solma, kaydırma, yakınlaştırma ve 8 tane daha) Ayarlar, Görünüm, Hareket, Kapak geçişi bölümünden seçin.
 
 1.0.3 veya önceki bir sürümden güncellemek için, eski yazılım güncellemesi bunu yapamadığından güncellemeyi bir kez elle başlatın: Ayarlar'da SSH'yi açın, `ssh ps5@<PS4 adresi>` ile bağlanın (değiştirmediyseniz parola `ps5`) ve çalıştırın:
 

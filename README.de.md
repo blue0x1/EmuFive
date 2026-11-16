@@ -165,9 +165,10 @@ Ein Spiel getestet? Eröffne ein [Issue](https://github.com/blue0x1/EmuFive/issu
 <a id="changelog"></a>
 ## Änderungsprotokoll
 
-### 1.0.6 (2026-11-14)
+### 1.0.7 (2026-11-16)
 
-- Verbessert: Der Startbildschirm braucht viel weniger CPU, solange ihn niemand bedient (in 4K etwa ein Drittel eines Kerns statt eines ganzen Kerns), daher bleibt die PS4 kühler und leiser.
+- Verbessert: Spiele laufen schneller. Puffer werden gesammelt hochgeladen, und der Emulator wartet weniger auf die GPU. DREDGE auf einer PS4 Pro stieg von etwa 12 auf 13–16 FPS, und der Ton knackt nicht mehr.
+- Neu: Der Startbildschirm wechselt das Spielcover fließend. Den Effekt (Überblenden, Schieben, Zoomen und 8 weitere) wählst du unter Einstellungen, Darstellung, Bewegung, Coverwechsel.
 
 Um von 1.0.3 oder älter zu aktualisieren, starte das Update einmal von Hand, da die alte Softwareaktualisierung es nicht kann: SSH in den Einstellungen einschalten, mit `ssh ps5@<Adresse der PS4>` verbinden (Passwort `ps5`, falls nicht geändert) und ausführen:
 

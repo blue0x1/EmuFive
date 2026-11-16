@@ -165,9 +165,10 @@ Juegos probados:
 <a id="changelog"></a>
 ## Registro de cambios
 
-### 1.0.6 (2026-11-14)
+### 1.0.7 (2026-11-16)
 
-- Mejorado: la pantalla de inicio usa mucha menos CPU mientras nadie la usa (en 4K, un tercio de un núcleo; antes, un núcleo entero), así que la PS4 se calienta menos y hace menos ruido.
+- Mejorado: los juegos van más rápido. Los búferes se suben por lotes y el emulador espera menos a la GPU. DREDGE en una PS4 Pro pasó de unos 12 a 13–16 FPS, y su sonido ya no chasquea.
+- Nuevo: la pantalla de inicio cambia la portada del juego con suavidad. Elige el efecto (fundido, deslizar, zoom y 8 más) en Ajustes, Apariencia, Movimiento, Cambio de portada.
 
 Para actualizar desde la 1.0.3 o anteriores, inicia la actualización una vez a mano, porque la actualización de software antigua no puede: activa SSH en Ajustes, conéctate con `ssh ps5@<dirección de la PS4>` (contraseña `ps5` si no la cambiaste) y ejecuta
 

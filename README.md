@@ -155,9 +155,10 @@ Tested a game? Open an [issue](https://github.com/blue0x1/EmuFive/issues) with t
 
 ## Changelog
 
-### 1.0.6 (2026-11-14)
+### 1.0.7 (2026-11-16)
 
-- Improved: the home screen uses much less CPU while nobody uses it (at 4K about a third of one core, it was a whole core), so the PS4 runs cooler and quieter.
+- Improved: games run faster. Buffer uploads are batched and the emulator waits less on the GPU. DREDGE on a PS4 Pro went from about 12 to 13–16 FPS, and its sound no longer crackles.
+- New: the home screen changes the game cover smoothly. Pick the effect (fade, slide, zoom and 8 more) in Settings, Appearance, Motion, Cover change.
 
 To update from 1.0.3 or earlier, start the update once by hand, since the old Software update cannot: turn on SSH in Settings, connect with `ssh ps5@<PS4 address>` (password `ps5` unless you changed it) and run
 

@@ -165,9 +165,10 @@ Testou um jogo? Abra uma [issue](https://github.com/blue0x1/EmuFive/issues) com 
 <a id="changelog"></a>
 ## Registro de alterações
 
-### 1.0.6 (2026-11-14)
+### 1.0.7 (2026-11-16)
 
-- Melhorado: a tela inicial usa muito menos CPU enquanto ninguém a usa (em 4K, cerca de um terço de um núcleo; antes, um núcleo inteiro), então o PS4 esquenta menos e faz menos barulho.
+- Melhorado: os jogos rodam mais rápido. Os buffers são enviados em lotes e o emulador espera menos pela GPU. DREDGE em um PS4 Pro passou de cerca de 12 para 13–16 FPS, e o som não estala mais.
+- Novo: a tela inicial troca a capa do jogo com suavidade. Escolha o efeito (esmaecer, deslizar, zoom e mais 8) em Configurações, Aparência, Movimento, Troca de capa.
 
 Para atualizar a partir da 1.0.3 ou anterior, inicie a atualização uma vez à mão, pois a atualização de software antiga não consegue: ative o SSH nas Configurações, conecte com `ssh ps5@<endereço do PS4>` (senha `ps5`, se não a mudou) e execute
 
