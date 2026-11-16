@@ -3972,11 +3972,44 @@ class Home:
                 if orbs:
                     self.draw_orbs(c)
                 return
+        if self.bg_mix < 1.0 and self.bg_previous is not None:
+            # Cross-fade between two finished frames (art, veil and dim): one copy and one blend
+            # per frame instead of painting and dimming both backgrounds again.
+            old = self.background_layer(c, s, use_art, self.bg_previous)
+            new = self.background_layer(c, s, use_art, self.bg_current)
+            c.s.blit(old, (0, 0))
+            new.set_alpha(int(255 * self.bg_mix))
+            c.s.blit(new, (0, 0))
+            new.set_alpha(None)
+            if orbs:
+                self.draw_orbs(c)
+            return
         self.paint_background(c, s, use_art)
         if key is not None:
             self.bg_layer = (key, c.s.copy())
         if orbs:
             self.draw_orbs(c)
+
+    def background_layer(self, c, s, use_art, surface):
+        """One still background as a full frame, made once and kept for cross-fades."""
+        key = (c.s.get_size(), use_art, id(surface), id(self.static_bg), s["dim"], s["accent"], s["theme"], ACCENT)
+        layers = self.__dict__.setdefault("fade_layers", {})
+        entry = layers.get(key)
+        if entry is None:
+            saved = self.bg_previous, self.bg_current, self.bg_mix
+            self.bg_previous, self.bg_current, self.bg_mix = None, surface, 1.0
+            target = c.s
+            c.s = target.copy()
+            try:
+                self.paint_background(c, s, use_art)
+                layer = c.s
+            finally:
+                c.s = target
+                self.bg_previous, self.bg_current, self.bg_mix = saved
+            if len(layers) >= 4:     # The surface is kept with its layer, so its id stays unique.
+                layers.clear()
+            entry = layers[key] = (surface, layer)
+        return entry[1]
 
     def paint_background(self, c, s, use_art):
         if not use_art:
