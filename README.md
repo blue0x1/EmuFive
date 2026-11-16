@@ -100,42 +100,23 @@ Steps:
 5. In the PS4 Multiboot menu, pick **EmuFive**, then **Install to PS4** or **Install to USB drive**. It takes a few minutes.
 6. Put your games in one of the places below. A game is a folder with `eboot.bin` (and `sce_sys`), or a ZArchive (`.zar`) dump.
 
-After that, run the payload to start EmuFive: with only EmuFive installed it starts straight away, with other systems too the PS4 Multiboot menu appears first. Turn off or restart from the home screen to go back to the PS4 system. To install EmuFive again, delete `/user/home/ps5-ps4.img` over FTP and run the payload.
+After installing, run the payload to start EmuFive (with other systems installed, the PS4 Multiboot menu comes first). To reinstall, delete `/user/home/ps5-ps4.img` over FTP and run the payload. Updates: Settings, System, Software update.
 
-Updates come from the EmuFive releases: Settings, System, Software update (no reinstall needed).
+### Using it
 
-The system starts in the home screen and needs no keyboard:
-
-- The games show up as tiles, each labeled with where it is: **USB**, **PS4** or **PC**. Pick one and press Play; when it quits, the home screen comes back.
-- At the top: Wi-Fi (with an on-screen keyboard for the password) and Settings, and two tabs, **Games** and **Media** (L1 / R1). Media shows your screenshots; open one, and Square deletes it.
-- OPTIONS on a game: favorite, hide, its own settings, its trophies and how long you played it.
-- **Internet**, the tile after the games: a web browser used with the controller. The left stick (or the touchpad) moves the pointer and X clicks; the right stick scrolls; O or L1 goes back, R1 forward; L2 and R2 zoom. Triangle types an address or a search, and choosing a text box on a page opens the on-screen keyboard. OPTIONS opens the menu: bookmarks, start page, zoom, search engine (Google, DuckDuckGo or Bing), Mobile sites (lighter pages) and clearing the history and cookies. The PS button goes back to the home screen, and the same page opens next time. It is WebKitGTK showing one page at a time, about 450 MB of memory with a page of text and more with video sites; the home screen closes while it runs, and a paused game has to be closed first. Downloads, uploads, the camera, the microphone and the location are refused. Bookmarks are in `~/.config/ps5-on-ps4/browser.json`, cookies in `~/.local/share/ps5-browser`.
-- The PS button during a game pauses it and opens the quick menu: Resume, **Home** (the home screen, with the game still paused: PS or Resume goes back to it; starting another game asks first, then closes it), Close the game, volume, power.
-- Screenshots: PS + Square, or Share, also in a game. They go to `PS5-screenshots` on the USB drive (or `~/Screenshots` without one), with a small notice in the corner. To get one on your phone, open it in Media and press Triangle (Share): scan the QR code with the phone (on the same network) to open it there, then save or share it. The PS4 serves that one picture, at a random address, only while the code is on screen. QR codes come from `python3-segno`.
-- Settings, Appearance: accent color, theme (dark, midnight, light), background (the game's art, a gradient, a solid color or your own picture from the USB drive), background dim, floating orbs, animations, tile size and shape, text size and font, clock, what the top bar shows (the battery is the controller's), menu sounds, rumble, button hints, screen edges (overscan) and a screensaver.
-- Settings, Controllers: light bar color and brightness, vibration on or off and its strength, the controller's microphone on or off (with the controller on a USB cable; Linux has no controller sound over Bluetooth), swapping X and O, and a test page for every button and stick. Settings, Games: defaults for all games, game language, HDR and frame pacing. Settings, Date and time: set automatically from the internet (the default) or by hand. Settings, System: the menu language (English, Arabic, French, Turkish, Spanish, German, Italian or Portuguese of Brazil), temperature and CPU load, back up the settings to the USB drive, or reset them all.
-- Profiles (Settings, Profile, and Switch profile in the quick menu): up to 8, each with its own name, avatar, saves, trophies and play time. With more than one, "Who's playing?" opens at the start. Each profile has its own KytyPS5 folder (`~/.kytyps5/users/<ID>`, the first profile keeps `~/.kytyps5`), with the shader cache shared.
-- Notices in the top-left corner, also in a game: a screenshot was saved, a controller connected (with its connection and battery level), the controller battery is low (15%). The top bar battery is green, yellow or red by level, with a lightning bolt while charging.
-- Running out of memory: a 4 GB swap file on the system disk (`ps5-swap.service`, made once when there is room) lets a big game slow down instead of freezing the PS4, and if memory and swap still run out, the game is closed before the PS4 freezes and the home screen says why.
-- Menu languages: the translations are in `lib/ps5/translations.json`, one entry per English text. Arabic is right-aligned and drawn with DejaVu Sans; its letters are joined in `lib/ps5/i18n.py`, since SDL_ttf here does not join them.
-- The program sees the USB drive as `/mnt/usb0` and a folder of the system (`~/data`, kept between starts) as `/data`. For Snes9x PS5, ROMs go in `snes9x/roms` on the USB drive or in `~/data/snes9x/roms`.
-- If the emulator stops with an error, the home screen shows the reason.
-- `PS5_GAME` in `/etc/ps5-on-ps4.conf` runs one game straight away instead of the home screen.
-- Controllers: a DualShock 4 on a cable, or over Bluetooth after holding SHARE + PS until the light bar double-blinks.
-- Sound goes to the TV over HDMI, also when a controller on a cable brings its own sound card (`/etc/wireplumber/wireplumber.conf.d/51-ps5-hdmi.conf`).
+- **Home screen:** your games as tiles. Pick one and press Play. OPTIONS on a game: favorite, hide, its settings, trophies and play time.
+- **PS button in a game:** pause menu (Resume, Home, Close the game, volume, power).
+- **Screenshots:** PS + Square, or Share. See them in Media; Triangle shows a QR code to open one on your phone.
+- **Internet:** a web browser tile, used with the controller.
+- **Settings:** Wi-Fi, appearance, controllers, profiles (up to 8), menu language, date and time, backup.
+- **Controllers:** a DualShock 4 on a cable, or over Bluetooth (hold SHARE + PS until the light bar double-blinks).
+- **Login:** `ps5` / `ps5` over SSH or on tty2. The emulator log is `~/kytyps5.log`.
 
 ### Where games can be
 
-- **USB drive:** the `PS5` folder at the top of the drive. exFAT is best (files over 4 GB); NTFS works too.
-- **PS4 drive:** `/user/home/PS5` on the PS4, copied there with GoldHEN FTP. The system reads the PS4 drive read-only and never changes it. Not available when the system itself was installed on a USB drive.
-- **A PC:** a shared folder on Windows or Linux. In Settings, turn on **Use games from PC** and set the PC address, the shared folder and, unless it is a guest share, a username and password; then Connect. Games can be at the top of the shared folder or in a `PS5` folder in it. A network cable is faster than Wi-Fi.
-  - Windows: share the folder (Properties, Sharing). For a guest share, share it with Everyone and turn off *Password protected sharing* in Advanced sharing settings.
-  - Linux (Samba): a share with `guest ok = yes` for a guest share, or a Samba user (`smbpasswd -a`).
-  - The PS4 kernel has no SMB client, so the system uses smbnetfs (FUSE). The settings, password included, are kept in `~/.config/ps5-on-ps4/pc-share.json`, readable only by the `ps5` user.
-
-`tools/make-pad-test-rom.py` writes a tiny SNES ROM for checking a controller: blue, green while a button is held.
-
-Login: `ps5` / `ps5` on tty2 or SSH. The emulator's output is in `~/kytyps5.log` (the run before: `~/kytyps5.log.1`).
+- **USB drive:** the `PS5` folder at the top of the drive (exFAT is best; NTFS works too).
+- **PS4 drive:** `/user/home/PS5`, copied with GoldHEN FTP (not when EmuFive itself is on a USB drive).
+- **A PC:** a shared folder on Windows or Linux. In Settings, turn on **Use games from PC**, set the address, share and login, then Connect.
 
 ## Games
 

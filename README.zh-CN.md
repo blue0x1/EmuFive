@@ -108,44 +108,24 @@ EmuFive 和其他 Linux 系统一样，通过 [PS4 Multiboot](https://github.com
 5. 在 PS4 Multiboot 菜单中选择 **EmuFive**，然后选择 **Install to PS4** 或 **Install to USB drive**。需要几分钟。
 6. 把游戏放到下面列出的某个位置。一个游戏就是一个包含 `eboot.bin`（和 `sce_sys`）的文件夹，或者一个 ZArchive（`.zar`）转储。
 
-之后运行 payload 即可启动 EmuFive：如果只安装了 EmuFive，它会直接启动；如果还装了其他系统，会先出现 PS4 Multiboot 菜单。在主屏幕上关机或重启即可回到 PS4 系统。要重新安装 EmuFive，通过 FTP 删除 `/user/home/ps5-ps4.img` 再运行 payload。
+之后运行 payload 即可启动 EmuFive（如果还装了其他系统，会先出现 PS4 Multiboot 菜单）。要重装，用 FTP 删除 `/user/home/ps5-ps4.img` 再运行 payload。更新：Settings（设置）、System（系统）、Software update（软件更新）。
 
-更新来自 EmuFive 的发布页：设置（Settings）、系统（System）、软件更新（Software update）（无需重新安装）。
+### 使用
 
-系统启动后进入主屏幕，不需要键盘：
-
-- 游戏以图块显示，每个图块标明游戏所在位置：**USB**、**PS4** 或 **PC**。选中一个并按“开始”（Play）；游戏退出后会回到主屏幕。
-- 顶部：Wi-Fi（密码可用屏幕键盘输入）和设置（Settings），以及两个标签页 **游戏（Games）** 和 **媒体（Media）**（L1 / R1）。媒体中显示你的截图；打开一张，按方块（Square）键删除。
-- 在游戏上按 OPTIONS：收藏、隐藏、该游戏自己的设置、奖杯和游戏时长。
-- **Internet**，游戏后面的图块：用手柄操作的网页浏览器。左摇杆（或触摸板）移动指针，X 键点击；右摇杆滚动；O 或 L1 后退，R1 前进；L2 和 R2 缩放。三角键输入网址或搜索词，选中网页上的文本框会打开屏幕键盘。OPTIONS 打开菜单：书签、起始页、缩放、搜索引擎（Google、DuckDuckGo 或 Bing）、移动版网站（更轻量的页面），以及清除历史记录和 Cookie。PS 键返回主屏幕，下次会打开同一个页面。它是一次只显示一个页面的 WebKitGTK，打开文字页面约占 450 MB 内存，视频网站更多；它运行时主屏幕会关闭，暂停中的游戏需要先关闭。下载、上传、摄像头、麦克风和位置都会被拒绝。书签保存在 `~/.config/ps5-on-ps4/browser.json`，Cookie 保存在 `~/.local/share/ps5-browser`。
-- 游戏中按 PS 键会暂停游戏并打开快捷菜单：继续（Resume）、**主屏幕（Home）**（游戏保持暂停：按 PS 或“继续”返回游戏；启动另一个游戏时会先询问，然后关闭它）、关闭游戏、音量、电源。
-- 截图：PS + 方块，或 Share，游戏中也可以。截图保存到 USB 硬盘上的 `PS5-screenshots`（没有 USB 时保存到 `~/Screenshots`），角落会显示一个小提示。要把截图传到手机上，在媒体中打开它并按三角键（分享）：用手机（在同一网络中）扫描二维码即可在手机上打开，然后保存或分享。PS4 只提供这一张图片，使用随机地址，并且只在二维码显示期间可用。二维码由 `python3-segno` 生成。
-- 设置、外观（Appearance）：强调色、主题（深色、午夜、浅色）、背景（游戏图片、渐变、纯色或 USB 硬盘中你自己的图片）、背景变暗、漂浮光球、动画、图块大小和形状、文字大小和字体、时钟、顶部栏显示的内容（电池是手柄的电量）、菜单音效、震动、按键提示、屏幕边缘（overscan）和屏幕保护程序。
-- 设置、控制器（Controllers）：灯条颜色和亮度、震动开关及强度、手柄麦克风开关（手柄需用 USB 线连接；Linux 不支持通过蓝牙传输手柄声音）、交换 X 和 O，以及每个按键和摇杆的测试页面。设置、游戏（Games）：所有游戏的默认设置、游戏语言、HDR 和帧节奏。设置、日期和时间（Date and time）：从互联网自动设置（默认）或手动设置。设置、系统（System）：菜单语言（英语、阿拉伯语、法语、土耳其语、西班牙语、德语、意大利语或巴西葡萄牙语）、温度和 CPU 负载、把设置备份到 USB 硬盘，或全部重置。
-- 用户档案（设置、档案（Profile），以及快捷菜单中的切换档案（Switch profile））：最多 8 个，每个都有自己的名字、头像、存档、奖杯和游戏时长。有多个档案时，启动时会出现 "Who's playing?"。每个档案都有自己的 KytyPS5 文件夹（`~/.kytyps5/users/<ID>`，第一个档案仍使用 `~/.kytyps5`），着色器缓存共享。
-- 左上角的通知，游戏中也会显示：截图已保存、手柄已连接（附连接方式和电量）、手柄电量低（15%）。顶部栏的电池按电量显示为绿色、黄色或红色，充电时显示闪电图标。
-- 内存不足时：系统盘上有一个 4 GB 的 swap 文件（`ps5-swap.service`，在空间足够时创建一次），让大型游戏变慢而不是让 PS4 卡死；如果内存和 swap 仍然耗尽，游戏会在 PS4 卡死之前被关闭，主屏幕会说明原因。
-- 菜单语言：翻译在 `lib/ps5/translations.json` 中，每条英文文本一项。阿拉伯语右对齐，使用 DejaVu Sans 绘制；由于这里的 SDL_ttf 不会连接阿拉伯字母，字母连写在 `lib/ps5/i18n.py` 中完成。
-- 程序把 USB 硬盘看作 `/mnt/usb0`，把系统中的一个文件夹（`~/data`，重启后保留）看作 `/data`。对于 Snes9x PS5，ROM 放在 USB 硬盘的 `snes9x/roms` 或 `~/data/snes9x/roms` 中。
-- 如果模拟器因错误停止，主屏幕会显示原因。
-- `/etc/ps5-on-ps4.conf` 中的 `PS5_GAME` 可以直接运行一个游戏，而不显示主屏幕。
-- 手柄：用线连接的 DualShock 4，或者按住 SHARE + PS 直到灯条双闪后通过蓝牙连接。
-- 声音通过 HDMI 输出到电视，即使用线连接的手柄带来了自己的声卡也是如此（`/etc/wireplumber/wireplumber.conf.d/51-ps5-hdmi.conf`）。
+- **主屏幕：** 游戏以磁贴显示。选一个按 Play 即可。在游戏上按 OPTIONS：收藏、隐藏、单独设置、奖杯和游玩时间。
+- **游戏中按 PS 键：** 暂停菜单（继续、主屏幕、关闭游戏、音量、电源）。
+- **截图：** PS + 方块，或 Share。在 Media（媒体）中查看；三角键显示二维码，可在手机上打开。
+- **Internet：** 一个网页浏览器磁贴，用手柄操作。
+- **设置：** Wi-Fi、外观、手柄、档案（最多 8 个）、菜单语言、日期和时间、备份。
+- **手柄：** 有线 DualShock 4，或蓝牙连接（按住 SHARE + PS 直到灯条双闪）。
+- **登录：** 通过 SSH 或在 tty2 上用 `ps5` / `ps5`。模拟器日志是 `~/kytyps5.log`。
 
 ### 游戏可以放在哪里
 
-- **USB 硬盘：** 硬盘根目录下的 `PS5` 文件夹。最好使用 exFAT（支持超过 4 GB 的文件）；NTFS 也可以。
-- **PS4 硬盘：** PS4 上的 `/user/home/PS5`，用 GoldHEN 的 FTP 复制进去。系统以只读方式读取 PS4 硬盘，绝不会修改它。如果系统本身安装在 USB 硬盘上，则不可用。
-- **PC：** Windows 或 Linux 上的共享文件夹。在设置中打开 **从 PC 使用游戏（Use games from PC）**，填写 PC 地址、共享文件夹，以及用户名和密码（访客共享除外）；然后点击“连接”（Connect）。游戏可以放在共享文件夹的根目录，或其中的 `PS5` 文件夹里。网线比 Wi-Fi 更快。
-  - Windows：共享该文件夹（属性、共享）。如果要访客共享，请共享给 Everyone，并在高级共享设置中关闭 *Password protected sharing*。
-  - Linux（Samba）：访客共享使用 `guest ok = yes`，或者使用 Samba 用户（`smbpasswd -a`）。
-  - PS4 内核没有 SMB 客户端，所以系统使用 smbnetfs（FUSE）。设置（包括密码）保存在 `~/.config/ps5-on-ps4/pc-share.json` 中，只有 `ps5` 用户可以读取。
+- **USB 驱动器：** 驱动器根目录的 `PS5` 文件夹（最好是 exFAT；NTFS 也可以）。
+- **PS4 硬盘：** `/user/home/PS5`，用 GoldHEN FTP 复制进去（EmuFive 本身装在 USB 驱动器上时不可用）。
+- **电脑：** Windows 或 Linux 上的共享文件夹。在设置中打开 **Use games from PC**（使用电脑上的游戏），填写地址、共享和登录信息，然后 Connect（连接）。
 
-`tools/make-pad-test-rom.py` 会生成一个用于检查手柄的小型 SNES ROM：平时显示蓝色，按住按键时显示绿色。
-
-登录：在 tty2 或 SSH 上使用 `ps5` / `ps5`。模拟器的输出在 `~/kytyps5.log`（上一次运行：`~/kytyps5.log.1`）。
-
-<a id="games"></a>
 ## 游戏
 
 本项目不包含任何 PS5 系统软件，也不包含任何游戏。请只使用你自己拥有并亲自转储的游戏。

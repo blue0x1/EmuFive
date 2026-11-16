@@ -108,44 +108,24 @@ Schritte:
 5. Wähle im PS4-Multiboot-Menü **EmuFive**, dann **Install to PS4** oder **Install to USB drive**. Das dauert ein paar Minuten.
 6. Lege deine Spiele an einen der unten genannten Orte. Ein Spiel ist ein Ordner mit `eboot.bin` (und `sce_sys`) oder ein ZArchive-Dump (`.zar`).
 
-Danach startest du EmuFive mit dem Payload: Ist nur EmuFive installiert, startet es sofort; mit anderen Systemen erscheint zuerst das PS4-Multiboot-Menü. Schalte über den Startbildschirm aus oder neu, um zum PS4-System zurückzukehren. Um EmuFive neu zu installieren, lösche `/user/home/ps5-ps4.img` per FTP und starte den Payload.
+Danach startet die Payload EmuFive (sind weitere Systeme installiert, erscheint zuerst das PS4-Multiboot-Menü). Zum Neuinstallieren `/user/home/ps5-ps4.img` per FTP löschen und die Payload starten. Updates: Einstellungen, System, Softwareaktualisierung.
 
-Updates kommen aus den EmuFive-Releases: Einstellungen, System, Softwareaktualisierung (keine Neuinstallation nötig).
+### Bedienung
 
-Das System startet im Startbildschirm und braucht keine Tastatur:
-
-- Die Spiele erscheinen als Kacheln, jede mit ihrem Speicherort: **USB**, **PS4** oder **PC**. Wähle eines und drücke Spielen; wenn es beendet wird, kommt der Startbildschirm zurück.
-- Oben: WLAN (mit einer Bildschirmtastatur für das Passwort) und Einstellungen, sowie zwei Reiter, **Spiele** und **Medien** (L1 / R1). Medien zeigt deine Screenshots; öffne einen, und Quadrat löscht ihn.
-- OPTIONS auf einem Spiel: Favorit, verbergen, eigene Einstellungen, seine Trophäen und wie lange du es gespielt hast.
-- **Internet**, die Kachel nach den Spielen: ein Webbrowser, der mit dem Controller bedient wird. Der linke Stick (oder das Touchpad) bewegt den Zeiger und X klickt; der rechte Stick scrollt; O oder L1 geht zurück, R1 vorwärts; L2 und R2 zoomen. Dreieck tippt eine Adresse oder eine Suche, und die Auswahl eines Textfelds auf einer Seite öffnet die Bildschirmtastatur. OPTIONS öffnet das Menü: Lesezeichen, Startseite, Zoom, Suchmaschine (Google, DuckDuckGo oder Bing), mobile Seiten (leichtere Seiten) und das Löschen von Verlauf und Cookies. Die PS-Taste geht zurück zum Startbildschirm, und beim nächsten Mal öffnet sich dieselbe Seite. Es ist WebKitGTK mit einer Seite zur Zeit, etwa 450 MB Speicher bei einer Textseite und mehr bei Videoseiten; der Startbildschirm schließt sich, während er läuft, und ein pausiertes Spiel muss zuerst beendet werden. Downloads, Uploads, Kamera, Mikrofon und Standort werden abgelehnt. Lesezeichen liegen in `~/.config/ps5-on-ps4/browser.json`, Cookies in `~/.local/share/ps5-browser`.
-- Die PS-Taste während eines Spiels pausiert es und öffnet das Schnellmenü: Fortsetzen, **Startbildschirm** (der Startbildschirm, das Spiel bleibt pausiert: PS oder Fortsetzen führt zurück; ein anderes Spiel zu starten fragt zuerst und beendet es dann), Spiel beenden, Lautstärke, Strom.
-- Screenshots: PS + Quadrat oder Share, auch im Spiel. Sie landen in `PS5-screenshots` auf dem USB-Laufwerk (oder ohne eines in `~/Screenshots`), mit einem kleinen Hinweis in der Ecke. Um einen aufs Handy zu holen, öffne ihn in Medien und drücke Dreieck (Teilen): Scanne den QR-Code mit dem Handy (im selben Netzwerk), um ihn dort zu öffnen, und speichere oder teile ihn dann. Die PS4 stellt nur dieses eine Bild bereit, unter einer zufälligen Adresse, und nur solange der Code angezeigt wird. Die QR-Codes kommen von `python3-segno`.
-- Einstellungen, Darstellung: Akzentfarbe, Design (dunkel, Mitternacht, hell), Hintergrund (das Bild des Spiels, ein Farbverlauf, eine einfarbige Fläche oder dein eigenes Bild vom USB-Laufwerk), Abdunkeln des Hintergrunds, schwebende Kugeln, Animationen, Größe und Form der Kacheln, Textgröße und Schriftart, Uhr, was die obere Leiste zeigt (der Akku ist der des Controllers), Menütöne, Vibration, Tastenhinweise, Bildschirmränder (Overscan) und ein Bildschirmschoner.
-- Einstellungen, Controller: Farbe und Helligkeit der Lichtleiste, Vibration an oder aus und ihre Stärke, das Mikrofon des Controllers an oder aus (mit dem Controller am USB-Kabel; Linux hat keinen Controller-Ton über Bluetooth), X und O tauschen, und eine Testseite für jede Taste und jeden Stick. Einstellungen, Spiele: Standardwerte für alle Spiele, Spielsprache, HDR und Bildtaktung. Einstellungen, Datum und Uhrzeit: automatisch aus dem Internet (Standard) oder von Hand. Einstellungen, System: die Menüsprache (Englisch, Arabisch, Französisch, Türkisch, Spanisch, Deutsch, Italienisch oder brasilianisches Portugiesisch), Temperatur und CPU-Last, die Einstellungen auf dem USB-Laufwerk sichern oder alle zurücksetzen.
-- Profile (Einstellungen, Profil, und Profil wechseln im Schnellmenü): bis zu 8, jedes mit eigenem Namen, Avatar, Spielständen, Trophäen und Spielzeit. Mit mehr als einem öffnet sich beim Start „Wer spielt?“. Jedes Profil hat seinen eigenen KytyPS5-Ordner (`~/.kytyps5/users/<ID>`, das erste Profil behält `~/.kytyps5`), der Shader-Cache wird geteilt.
-- Hinweise in der oberen linken Ecke, auch im Spiel: ein Screenshot wurde gespeichert, ein Controller wurde verbunden (mit Verbindungsart und Akkustand), der Akku des Controllers ist schwach (15 %). Der Akku in der oberen Leiste ist je nach Stand grün, gelb oder rot, mit einem Blitz beim Laden.
-- Speicher voll: Eine 4-GB-Swap-Datei auf der Systemplatte (`ps5-swap.service`, einmal angelegt, wenn Platz ist) lässt ein großes Spiel langsamer werden, statt die PS4 einfrieren zu lassen, und wenn Speicher und Swap trotzdem ausgehen, wird das Spiel beendet, bevor die PS4 einfriert, und der Startbildschirm nennt den Grund.
-- Menüsprachen: Die Übersetzungen liegen in `lib/ps5/translations.json`, ein Eintrag pro englischem Text. Arabisch ist rechtsbündig und wird mit DejaVu Sans gezeichnet; seine Buchstaben werden in `lib/ps5/i18n.py` verbunden, da SDL_ttf sie hier nicht verbindet.
-- Das Programm sieht das USB-Laufwerk als `/mnt/usb0` und einen Ordner des Systems (`~/data`, bleibt zwischen Starts erhalten) als `/data`. Für Snes9x PS5 kommen ROMs nach `snes9x/roms` auf dem USB-Laufwerk oder nach `~/data/snes9x/roms`.
-- Wenn der Emulator mit einem Fehler stoppt, zeigt der Startbildschirm den Grund.
-- `PS5_GAME` in `/etc/ps5-on-ps4.conf` startet ein Spiel direkt statt des Startbildschirms.
-- Controller: ein DualShock 4 am Kabel oder über Bluetooth, nachdem SHARE + PS gehalten wurden, bis die Lichtleiste doppelt blinkt.
-- Der Ton geht über HDMI an den Fernseher, auch wenn ein Controller am Kabel seine eigene Soundkarte mitbringt (`/etc/wireplumber/wireplumber.conf.d/51-ps5-hdmi.conf`).
+- **Startbildschirm:** deine Spiele als Kacheln. Eines wählen und Spielen drücken. OPTIONS auf einem Spiel: Favorit, ausblenden, eigene Einstellungen, Trophäen und Spielzeit.
+- **PS-Taste im Spiel:** Pausenmenü (Fortsetzen, Home, Spiel schließen, Lautstärke, Ein/Aus).
+- **Screenshots:** PS + Quadrat oder Share. Ansehen unter Medien; Dreieck zeigt einen QR-Code, um ein Bild auf dem Handy zu öffnen.
+- **Internet:** eine Browser-Kachel, mit dem Controller bedient.
+- **Einstellungen:** WLAN, Darstellung, Controller, Profile (bis zu 8), Menüsprache, Datum und Uhrzeit, Sicherung.
+- **Controller:** ein DualShock 4 am Kabel oder per Bluetooth (SHARE + PS halten, bis die Lichtleiste doppelt blinkt).
+- **Anmeldung:** `ps5` / `ps5` per SSH oder auf tty2. Das Emulator-Log ist `~/kytyps5.log`.
 
 ### Wo Spiele liegen können
 
-- **USB-Laufwerk:** der Ordner `PS5` oben auf dem Laufwerk. exFAT ist am besten (Dateien über 4 GB); NTFS geht auch.
-- **PS4-Festplatte:** `/user/home/PS5` auf der PS4, per GoldHEN-FTP dorthin kopiert. Das System liest die PS4-Festplatte nur und ändert sie nie. Nicht verfügbar, wenn das System selbst auf einem USB-Laufwerk installiert ist.
-- **Ein PC:** ein freigegebener Ordner unter Windows oder Linux. Schalte in den Einstellungen **Spiele vom PC nutzen** ein und gib die PC-Adresse, den freigegebenen Ordner und, außer bei einer Gastfreigabe, Benutzername und Passwort an; dann Verbinden. Die Spiele können oben im freigegebenen Ordner oder in einem Ordner `PS5` darin liegen. Ein Netzwerkkabel ist schneller als WLAN.
-  - Windows: Gib den Ordner frei (Eigenschaften, Freigabe). Für eine Gastfreigabe gib ihn für Everyone frei und schalte *Password protected sharing* in den erweiterten Freigabeeinstellungen aus.
-  - Linux (Samba): eine Freigabe mit `guest ok = yes` für Gäste oder ein Samba-Benutzer (`smbpasswd -a`).
-  - Der PS4-Kernel hat keinen SMB-Client, daher nutzt das System smbnetfs (FUSE). Die Einstellungen, Passwort eingeschlossen, liegen in `~/.config/ps5-on-ps4/pc-share.json` und sind nur für den Benutzer `ps5` lesbar.
+- **USB-Laufwerk:** der Ordner `PS5` ganz oben auf dem Laufwerk (exFAT ist am besten; NTFS geht auch).
+- **PS4-Laufwerk:** `/user/home/PS5`, per GoldHEN-FTP kopiert (nicht, wenn EmuFive selbst auf einem USB-Laufwerk ist).
+- **Ein PC:** ein freigegebener Ordner unter Windows oder Linux. In den Einstellungen **Spiele vom PC verwenden** einschalten, Adresse, Freigabe und Anmeldung eintragen, dann Verbinden.
 
-`tools/make-pad-test-rom.py` schreibt ein winziges SNES-ROM zum Prüfen eines Controllers: blau, grün solange eine Taste gedrückt ist.
-
-Anmeldung: `ps5` / `ps5` auf tty2 oder per SSH. Die Ausgabe des Emulators steht in `~/kytyps5.log` (der Lauf davor: `~/kytyps5.log.1`).
-
-<a id="games"></a>
 ## Spiele
 
 Dieses Projekt enthält keine PS5-Systemsoftware und keine Spiele. Verwende nur Spiele, die du besitzt und selbst gedumpt hast.

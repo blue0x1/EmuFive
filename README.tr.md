@@ -108,44 +108,24 @@ Adımlar:
 5. PS4 Multiboot menüsünde **EmuFive**'ı, ardından **Install to PS4** veya **Install to USB drive** seçeneğini seçin. Birkaç dakika sürer.
 6. Oyunlarınızı aşağıdaki yerlerden birine koyun. Bir oyun, içinde `eboot.bin` (ve `sce_sys`) olan bir klasör veya bir ZArchive (`.zar`) dökümüdür.
 
-Bundan sonra EmuFive'ı başlatmak için payload'ı çalıştırın: yalnızca EmuFive kuruluysa hemen başlar, başka sistemler de varsa önce PS4 Multiboot menüsü gelir. PS4 sistemine dönmek için ana ekrandan kapatın veya yeniden başlatın. EmuFive'ı yeniden kurmak için FTP ile `/user/home/ps5-ps4.img` dosyasını silin ve payload'ı çalıştırın.
+Ardından EmuFive'ı başlatmak için payload'ı çalıştırın (başka sistemler de kuruluysa önce PS4 Multiboot menüsü açılır). Yeniden kurmak için FTP ile `/user/home/ps5-ps4.img` dosyasını silip payload'ı çalıştırın. Güncellemeler: Ayarlar, Sistem, Yazılım güncellemesi.
 
-Güncellemeler EmuFive sürümlerinden gelir: Ayarlar, Sistem, Yazılım güncellemesi (yeniden kurulum gerekmez).
+### Kullanım
 
-Sistem ana ekranla açılır ve klavye gerektirmez:
-
-- Oyunlar kutucuklar olarak görünür; her birinde bulunduğu yer yazar: **USB**, **PS4** veya **PC**. Birini seçip Oyna'ya basın; oyun kapanınca ana ekran geri gelir.
-- Üstte: Wi-Fi (şifre için ekran klavyesiyle) ve Ayarlar, ayrıca iki sekme, **Oyunlar** ve **Medya** (L1 / R1). Medya ekran görüntülerinizi gösterir; birini açın, Kare onu siler.
-- Bir oyunda OPTIONS: favori, gizle, oyunun kendi ayarları, kupaları ve ne kadar oynadığınız.
-- **Internet**, oyunlardan sonraki kutucuk: kontrolcüyle kullanılan bir web tarayıcısı. Sol çubuk (veya dokunmatik yüzey) işaretçiyi hareket ettirir ve X tıklar; sağ çubuk kaydırır; O veya L1 geri, R1 ileri gider; L2 ve R2 yakınlaştırır. Üçgen bir adres veya arama yazar, bir sayfadaki metin kutusunu seçmek de ekran klavyesini açar. OPTIONS menüyü açar: yer imleri, başlangıç sayfası, yakınlaştırma, arama motoru (Google, DuckDuckGo veya Bing), mobil siteler (daha hafif sayfalar) ve geçmişle çerezleri temizleme. PS tuşu ana ekrana döner ve bir dahaki sefere aynı sayfa açılır. Bir seferde tek sayfa gösteren WebKitGTK'dir; metin sayfasında yaklaşık 450 MB bellek, video sitelerinde daha fazlasını kullanır; çalışırken ana ekran kapanır ve duraklatılmış bir oyunun önce kapatılması gerekir. İndirmeler, yüklemeler, kamera, mikrofon ve konum reddedilir. Yer imleri `~/.config/ps5-on-ps4/browser.json` içinde, çerezler `~/.local/share/ps5-browser` içindedir.
-- Oyun sırasında PS tuşu oyunu duraklatır ve hızlı menüyü açar: Devam et, **Ana ekran** (oyun duraklatılmış hâlde ana ekran: PS veya Devam et oyuna döner; başka bir oyun başlatmak önce sorar, sonra onu kapatır), oyunu kapat, ses, güç.
-- Ekran görüntüleri: PS + Kare veya Share, oyun içinde de. USB sürücüdeki `PS5-screenshots` klasörüne (yoksa `~/Screenshots` içine) kaydedilir ve köşede küçük bir bildirim çıkar. Birini telefonunuza almak için Medya'da açın ve Üçgen'e (Paylaş) basın: telefonla (aynı ağda) QR kodunu tarayarak orada açın, sonra kaydedin veya paylaşın. PS4 yalnızca o tek resmi, rastgele bir adreste ve yalnızca kod ekrandayken sunar. QR kodları `python3-segno` ile oluşturulur.
-- Ayarlar, Görünüm: vurgu rengi, tema (koyu, gece yarısı, açık), arka plan (oyunun görseli, bir geçiş, düz bir renk veya USB sürücüden kendi resminiz), arka plan karartma, yüzen küreler, animasyonlar, kutucuk boyutu ve şekli, yazı boyutu ve yazı tipi, saat, üst çubukta görünenler (pil kontrolcünün pilidir), menü sesleri, titreşim, tuş ipuçları, ekran kenarları (overscan) ve bir ekran koruyucu.
-- Ayarlar, Kontrolcüler: ışık çubuğunun rengi ve parlaklığı, titreşimin açık/kapalı olması ve gücü, kontrolcü mikrofonunun açık/kapalı olması (kontrolcü USB kabloyla bağlıyken; Linux'ta Bluetooth üzerinden kontrolcü sesi yoktur), X ve O'yu değiştirme ve her tuş ile çubuk için bir test sayfası. Ayarlar, Oyunlar: tüm oyunlar için varsayılanlar, oyun dili, HDR ve kare zamanlaması. Ayarlar, Tarih ve saat: internetten otomatik (varsayılan) veya elle. Ayarlar, Sistem: menü dili (İngilizce, Arapça, Fransızca, Türkçe, İspanyolca, Almanca, İtalyanca veya Brezilya Portekizcesi), sıcaklık ve CPU yükü, ayarları USB sürücüye yedekleme veya hepsini sıfırlama.
-- Profiller (Ayarlar, Profil ve hızlı menüde Profil değiştir): en fazla 8 tane; her birinin kendi adı, avatarı, kayıtları, kupaları ve oyun süresi vardır. Birden fazla profil varsa açılışta "Kim oynuyor?" gelir. Her profilin kendi KytyPS5 klasörü vardır (`~/.kytyps5/users/<ID>`, ilk profil `~/.kytyps5` klasörünü kullanır); gölgelendirici (shader) önbelleği ortaktır.
-- Sol üst köşede bildirimler, oyun içinde de: ekran görüntüsü kaydedildi, bir kontrolcü bağlandı (bağlantı türü ve pil düzeyiyle), kontrolcü pili zayıf (%15). Üst çubuktaki pil, düzeyine göre yeşil, sarı veya kırmızıdır ve şarj olurken bir şimşek gösterir.
-- Belleğin bitmesi: sistem diskindeki 4 GB'lık bir swap dosyası (`ps5-swap.service`, yer olduğunda bir kez oluşturulur), büyük bir oyunun PS4'ü dondurmak yerine yavaşlamasını sağlar; bellek ve swap yine de biterse oyun PS4 donmadan önce kapatılır ve ana ekran nedenini söyler.
-- Menü dilleri: çeviriler `lib/ps5/translations.json` içindedir, her İngilizce metin için bir kayıt. Arapça sağa hizalıdır ve DejaVu Sans ile çizilir; buradaki SDL_ttf Arapça harfleri birleştirmediği için harfler `lib/ps5/i18n.py` içinde birleştirilir.
-- Program USB sürücüyü `/mnt/usb0`, sistemdeki bir klasörü (`~/data`, açılışlar arasında korunur) ise `/data` olarak görür. Snes9x PS5 için ROM'lar USB sürücüdeki `snes9x/roms` veya `~/data/snes9x/roms` klasörüne konur.
-- Emülatör bir hatayla durursa ana ekran nedenini gösterir.
-- `/etc/ps5-on-ps4.conf` içindeki `PS5_GAME`, ana ekran yerine doğrudan bir oyunu çalıştırır.
-- Kontrolcüler: kabloyla bağlı bir DualShock 4 ya da ışık çubuğu iki kez yanıp sönene kadar SHARE + PS basılı tutulduktan sonra Bluetooth ile.
-- Ses HDMI üzerinden TV'ye gider; kabloyla bağlı bir kontrolcü kendi ses kartını getirse bile (`/etc/wireplumber/wireplumber.conf.d/51-ps5-hdmi.conf`).
+- **Ana ekran:** oyunlarınız kutucuk olarak. Birini seçip Oyna'ya basın. Bir oyunda OPTIONS: favori, gizle, oyunun ayarları, kupaları ve oynama süresi.
+- **Oyunda PS tuşu:** duraklatma menüsü (Devam, Ana ekran, Oyunu kapat, ses, güç).
+- **Ekran görüntüleri:** PS + Kare veya Share. Medya'da görün; Üçgen, birini telefonda açmak için QR kod gösterir.
+- **İnternet:** kumandayla kullanılan bir web tarayıcısı kutucuğu.
+- **Ayarlar:** Wi-Fi, görünüm, kumandalar, profiller (en fazla 8), menü dili, tarih ve saat, yedekleme.
+- **Kumandalar:** kabloyla ya da Bluetooth ile bir DualShock 4 (ışık çubuğu iki kez yanıp sönene kadar SHARE + PS'ye basılı tutun).
+- **Giriş:** SSH ile veya tty2'de `ps5` / `ps5`. Emülatör günlüğü `~/kytyps5.log`.
 
 ### Oyunlar nerede olabilir
 
-- **USB sürücü:** sürücünün kökündeki `PS5` klasörü. En iyisi exFAT'tir (4 GB'tan büyük dosyalar); NTFS de çalışır.
-- **PS4 diski:** PS4'teki `/user/home/PS5`, oraya GoldHEN FTP ile kopyalanır. Sistem PS4 diskini salt okunur olarak okur ve asla değiştirmez. Sistemin kendisi bir USB sürücüye kuruluysa kullanılamaz.
-- **Bir PC:** Windows veya Linux'ta paylaşılan bir klasör. Ayarlar'da **PC'deki oyunları kullan** seçeneğini açın ve PC adresini, paylaşılan klasörü ve misafir paylaşımı değilse bir kullanıcı adı ile şifreyi girin; ardından Bağlan. Oyunlar paylaşılan klasörün kökünde veya içindeki bir `PS5` klasöründe olabilir. Ağ kablosu Wi-Fi'dan daha hızlıdır.
-  - Windows: klasörü paylaşın (Özellikler, Paylaşım). Misafir paylaşımı için Everyone ile paylaşın ve gelişmiş paylaşım ayarlarında *Password protected sharing* seçeneğini kapatın.
-  - Linux (Samba): misafir paylaşımı için `guest ok = yes` içeren bir paylaşım veya bir Samba kullanıcısı (`smbpasswd -a`).
-  - PS4 çekirdeğinde SMB istemcisi yoktur, bu yüzden sistem smbnetfs (FUSE) kullanır. Şifre dahil ayarlar `~/.config/ps5-on-ps4/pc-share.json` içinde tutulur ve yalnızca `ps5` kullanıcısı okuyabilir.
+- **USB sürücü:** sürücünün en üstündeki `PS5` klasörü (en iyisi exFAT; NTFS de olur).
+- **PS4 diski:** GoldHEN FTP ile kopyalanan `/user/home/PS5` (EmuFive'ın kendisi USB sürücüdeyse olmaz).
+- **Bir PC:** Windows veya Linux'ta paylaşılan bir klasör. Ayarlar'da **PC'deki oyunları kullan**'ı açın, adresi, paylaşımı ve girişi yazın, sonra Bağlan.
 
-`tools/make-pad-test-rom.py`, bir kontrolcüyü denemek için küçük bir SNES ROM'u oluşturur: mavi, bir tuşa basılı tutulurken yeşil.
-
-Giriş: tty2'de veya SSH ile `ps5` / `ps5`. Emülatörün çıktısı `~/kytyps5.log` içindedir (bir önceki çalıştırma: `~/kytyps5.log.1`).
-
-<a id="games"></a>
 ## Oyunlar
 
 Bu proje hiçbir PS5 sistem yazılımı ve hiçbir oyun içermez. Yalnızca sahip olduğunuz ve dökümünü kendiniz aldığınız oyunları kullanın.
