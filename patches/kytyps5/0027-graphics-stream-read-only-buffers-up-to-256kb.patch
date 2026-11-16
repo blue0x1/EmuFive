@@ -1,0 +1,93 @@
+From: Chokri Hammedi <52697989+blue0x1@users.noreply.github.com>
+Subject: [PATCH] graphics: stream read-only buffers up to 256 KB
+
+Read-only bindings of CPU-modified memory up to 16 KB were copied into the
+stream buffer. Larger ones went through SynchronizeBuffer, which ends the
+render pass and records two full barriers per upload, then write-protects
+the pages again so the game's next write faults. DREDGE did ~350 of those
+per frame at 12 fps.
+
+Stream bindings up to 256 KB, with a 256 MB stream ring so it does not
+fill at ~1100 draws per frame. KYTY_STREAM_MAX_KB and
+KYTY_STREAM_BUFFER_MB override both. Streamed pages stay CPU-dirty and
+unwatched; Map falls back to the normal path when the ring is full. The
+perf log counts stream uploads (KB) as "stream-upload".
+
+---
+--- a/src/common/perfTrace.h
++++ b/src/common/perfTrace.h
+@@ -31,6 +31,7 @@ enum Site : int {
+ 	WatchBufferOff,
+ 	WatchImageOn,
+ 	WatchImageOff,
++	StreamUpload,
+ 	Count
+ };
+ 
+@@ -39,7 +40,8 @@ inline constexpr std::array<const char*, Count> Names {
+     "image-upload", "image-download", "image-copy", "image-copy-mips", "image-resolve",
+     "image-via-buffer-down", "image-via-buffer-up", "image-copy-other", "draw-feedback-copy",
+     "buffer-staging-copy", "buffer-download", "buffer-copy", "clear-color",
+-    "protect-buffer", "unprotect-buffer", "protect-image", "unprotect-image"};
++    "protect-buffer", "unprotect-buffer", "protect-image", "unprotect-image",
++    "stream-upload"};
+ 
+ inline std::array<std::atomic<uint64_t>, Count> g_count {};
+ inline std::array<std::atomic<uint64_t>, Count> g_work {};
+--- a/src/graphics/host_gpu/renderer/cache/bufferCache.cpp
++++ b/src/graphics/host_gpu/renderer/cache/bufferCache.cpp
+@@ -20,6 +20,7 @@
+ 
+ #include <algorithm>
+ #include <cinttypes>
++#include <cstdlib>
+ #include <cstring>
+ #include <memory>
+ #include <utility>
+@@ -48,6 +49,18 @@ uint64_t StagingSize(const GraphicContext& graphics) {
+ 	return local < 8192 * MiB ? 128 * MiB : 512 * MiB;
+ }
+ 
++// Read-only guest buffers up to KYTY_STREAM_MAX_KB (default 256 KB) are copied into the stream
++// ring each use instead of being cached and write-watched. A bigger limit needs a bigger ring
++// (KYTY_STREAM_BUFFER_MB, default 256), or the ring fills and the cache path takes over again.
++uint64_t EnvSize(const char* name, uint64_t unit, uint64_t fallback) {
++	const char* value = std::getenv(name);
++	if (value == nullptr || *value == 0) {
++		return fallback;
++	}
++	const uint64_t parsed = std::strtoull(value, nullptr, 10);
++	return parsed != 0 ? parsed * unit : fallback;
++}
++
+ std::pair<Buffer*, uint64_t> UploadMemory(GraphicContext& graphics, CommandScheduler& scheduler,
+                                         StreamBuffer& staging, uint64_t size, uint64_t alignment,
+                                         vk::BufferUsageFlags usage, const auto& write) {
+@@ -265,7 +278,8 @@ BufferCache::BufferCache(GraphicContext& graphics, CommandScheduler& scheduler,
+                              0, AllFlags, BDA_PAGETABLE_SIZE),
+       m_memory_tracker(page_manager),
+       m_staging_buffer(graphics, scheduler, MemoryUsage::Upload, StagingSize(graphics)),
+-      m_stream_buffer(graphics, scheduler, MemoryUsage::Stream, 64 * MiB),
++      m_stream_buffer(graphics, scheduler, MemoryUsage::Stream,
++                      EnvSize("KYTY_STREAM_BUFFER_MB", MiB, 256 * MiB)),
+       m_download_buffer(graphics, scheduler, MemoryUsage::Download, 64 * MiB),
+       m_device_buffer(graphics, scheduler, MemoryUsage::DeviceLocal, 128 * MiB),
+       m_texture_cache(texture_cache) {
+@@ -517,7 +531,8 @@ std::pair<Buffer*, uint64_t> BufferCache::ObtainBuffer(uint64_t vaddr, uint64_t
+                                                        BufferId id) {
+ 	EXIT_IF(!(GuestRange {vaddr, size}.Valid()));
+ 
+-	if (!is_written && size <= CACHING_PAGESIZE &&
++	static const uint64_t stream_max = EnvSize("KYTY_STREAM_MAX_KB", 1024, 256 * 1024);
++	if (!is_written && size <= stream_max &&
+ 	    !m_memory_tracker.IsRegionGpuModified(vaddr, size) &&
+ 	    m_memory_tracker.IsRegionCpuModified(vaddr, size)) {
+ 		const auto alignment = std::max<uint64_t>(
+@@ -528,6 +543,7 @@ std::pair<Buffer*, uint64_t> BufferCache::ObtainBuffer(uint64_t vaddr, uint64_t
+ 				EXIT("BufferCache: failed to read sparse guest buffer memory\n");
+ 			}
+ 			m_stream_buffer.Commit();
++			Common::PerfTrace::Add(Common::PerfTrace::StreamUpload, size >> 10u);
+ 			return {&m_stream_buffer, offset};
+ 		}
+ 	}

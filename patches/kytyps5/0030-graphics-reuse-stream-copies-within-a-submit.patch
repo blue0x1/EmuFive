@@ -1,0 +1,118 @@
+From: Chokri Hammedi <52697989+blue0x1@users.noreply.github.com>
+Subject: [PATCH] graphics: reuse stream copies within a submit
+
+Unity binds the same small constant buffers on draw after draw, and each
+binding copied them into the stream buffer again: ~25 MB per frame in
+DREDGE. A command list's data cannot change while the GPU runs it, so
+reuse the copy of the same guest address until the next submit. Writes
+from the command stream itself (write-data, DMA copy and fill) forget
+all copies. The perf log counts reuses as "stream-reuse".
+
+---
+--- a/src/common/perfTrace.h
++++ b/src/common/perfTrace.h
+@@ -33,6 +33,7 @@ enum Site : int {
+ 	WatchImageOff,
+ 	StreamUpload,
+ 	BufferSyncBatch,
++	StreamReuse,
+ 	Count
+ };
+ 
+@@ -42,7 +43,7 @@ inline constexpr std::array<const char*, Count> Names {
+     "image-via-buffer-down", "image-via-buffer-up", "image-copy-other", "draw-feedback-copy",
+     "buffer-staging-copy", "buffer-download", "buffer-copy", "clear-color",
+     "protect-buffer", "unprotect-buffer", "protect-image", "unprotect-image",
+-    "stream-upload", "buffer-sync-batch"};
++    "stream-upload", "buffer-sync-batch", "stream-reuse"};
+ 
+ inline std::array<std::atomic<uint64_t>, Count> g_count {};
+ inline std::array<std::atomic<uint64_t>, Count> g_work {};
+--- a/src/graphics/guest_gpu/graphicsRun.cpp
++++ b/src/graphics/guest_gpu/graphicsRun.cpp
+@@ -288,6 +288,7 @@ void CommandProcessor::WriteData(uint32_t* dst, const uint32_t* src, uint32_t dw
+ 	if (dw_num == 0) {
+ 		return;
+ 	}
++	m_renderer.GetBufferCache().ForgetStreamCopies();
+ 
+ 	// Completion labels can be reused immediately; memcpy may write a destination twice.
+ 	auto* output = static_cast<volatile uint32_t*>(dst);
+--- a/src/graphics/host_gpu/renderer/cache/bufferCache.cpp
++++ b/src/graphics/host_gpu/renderer/cache/bufferCache.cpp
+@@ -537,6 +537,17 @@ std::pair<Buffer*, uint64_t> BufferCache::ObtainBuffer(uint64_t vaddr, uint64_t
+ 	    m_memory_tracker.IsRegionCpuModified(vaddr, size)) {
+ 		const auto alignment = std::max<uint64_t>(
+ 		    m_graphics.physical_device_properties.limits.minUniformBufferOffsetAlignment, 1);
++		const auto tick = m_scheduler.CurrentTick();
++		if (tick != m_stream_copies_tick) {
++			m_stream_copies.clear();
++			m_stream_copies_tick = tick;
++		}
++		if (const auto it = m_stream_copies.find(vaddr);
++		    it != m_stream_copies.end() && it->second.size >= size &&
++		    it->second.offset % alignment == 0) {
++			Common::PerfTrace::Add(Common::PerfTrace::StreamReuse, size >> 10u);
++			return {&m_stream_buffer, it->second.offset};
++		}
+ 		auto [mapped, offset] = m_stream_buffer.Map(size, alignment, false);
+ 		if (mapped != nullptr) {
+ 			if (!LibKernel::Memory::CopySparseMemory(vaddr, mapped, size)) {
+@@ -544,6 +555,7 @@ std::pair<Buffer*, uint64_t> BufferCache::ObtainBuffer(uint64_t vaddr, uint64_t
+ 			}
+ 			m_stream_buffer.Commit();
+ 			Common::PerfTrace::Add(Common::PerfTrace::StreamUpload, size >> 10u);
++			m_stream_copies[vaddr] = {size, offset};
+ 			return {&m_stream_buffer, offset};
+ 		}
+ 	}
+@@ -585,6 +597,7 @@ std::pair<Buffer*, uint64_t> BufferCache::ObtainBufferForImage(uint64_t vaddr, u
+ }
+ 
+ void BufferCache::FillBuffer(uint64_t vaddr, uint64_t size, uint32_t value, bool is_gds) {
++	ForgetStreamCopies();
+ 	if ((vaddr & 3u) != 0 || size == 0 || (size & 3u) != 0 || size > UINT64_MAX - vaddr) {
+ 		EXIT("BufferCache: fill range must be dword aligned\n");
+ 	}
+@@ -613,6 +626,7 @@ void BufferCache::FillBuffer(uint64_t vaddr, uint64_t size, uint32_t value, bool
+ 
+ void BufferCache::CopyBuffer(uint64_t dst_vaddr, uint64_t src_vaddr, uint64_t size, bool dst_gds,
+                              bool src_gds) {
++	ForgetStreamCopies();
+ 	const bool dst_memory = !dst_gds;
+ 	const bool src_memory = !src_gds;
+ 	if ((dst_memory && dst_vaddr == 0) || (src_memory && src_vaddr == 0) || size == 0 ||
+--- a/src/graphics/host_gpu/renderer/cache/bufferCache.h
++++ b/src/graphics/host_gpu/renderer/cache/bufferCache.h
+@@ -15,6 +15,7 @@
+ #include <map>
+ #include <mutex>
+ #include <span>
++#include <unordered_map>
+ #include <utility>
+ #include <vector>
+ 
+@@ -89,6 +90,8 @@ public:
+ 	// Collects CPU-modified ranges of the cached buffers in range; FlushBufferSyncs records them.
+ 	void               SynchronizeBuffersInRange(uint64_t vaddr, uint64_t size);
+ 	void               FlushBufferSyncs();
++	// The GPU command stream wrote guest memory: stream copies may be stale.
++	void               ForgetStreamCopies() { m_stream_copies.clear(); }
+ 	// Queue after the range's state change becomes visible, or a drain could consume it first.
+ 	void                   QueueBdaSync(uint64_t vaddr, uint64_t size);
+ 	[[nodiscard]] RangeSet TakeBdaSync();
+@@ -162,6 +165,14 @@ private:
+ 	std::vector<PendingSync>    m_batch_buffers;
+ 	std::vector<vk::BufferCopy> m_batch_copies;
+ 	uint64_t                    m_batch_size = 0;
++	// Stream copies made since the last submit, by guest address. A command list's data
++	// cannot change while it runs, so a repeat binding reuses the copy.
++	struct StreamCopy {
++		uint64_t size;
++		uint64_t offset;
++	};
++	std::unordered_map<uint64_t, StreamCopy> m_stream_copies;
++	uint64_t                                 m_stream_copies_tick = 0;
+ };
+ 
+ } // namespace Libs::Graphics

@@ -1,0 +1,43 @@
+From: Chokri Hammedi <52697989+blue0x1@users.noreply.github.com>
+Subject: [PATCH] graphics: read the GPU tick only when a pending operation needs it
+
+PopPendingOperations runs on every draw and read the timeline semaphore
+each time, an ioctl. DREDGE made ~1050 of them per frame, ~12% of the GPU
+thread. Read it only when the oldest pending operation was submitted and
+is not yet known to be done, at most once per call.
+
+---
+--- a/src/graphics/host_gpu/renderer/commandScheduler.cpp
++++ b/src/graphics/host_gpu/renderer/commandScheduler.cpp
+@@ -177,16 +177,28 @@ void CommandScheduler::Wait(uint64_t tick) {
+ 	}
+ }
+ 
++// Runs on every draw. Read the GPU tick from the kernel (an ioctl) only when the oldest
++// pending operation is submitted but not yet known to be done.
+ void CommandScheduler::PopPendingOperations() {
+-	m_master.Refresh();
++	bool refreshed = false;
+ 	for (;;) {
+ 		PendingOperation operation;
+ 		{
+ 			std::lock_guard lock(m_operation_mutex);
+-			if (m_pending_operations.empty() ||
+-			    !m_master.IsFree(m_pending_operations.front().tick)) {
++			if (m_pending_operations.empty()) {
+ 				return;
+ 			}
++			const auto tick = m_pending_operations.front().tick;
++			if (!m_master.IsFree(tick)) {
++				if (refreshed || tick >= m_master.CurrentTick()) {
++					return;
++				}
++				m_master.Refresh();
++				refreshed = true;
++				if (!m_master.IsFree(tick)) {
++					return;
++				}
++			}
+ 			operation = std::move(m_pending_operations.front());
+ 			m_pending_operations.pop();
+ 		}
