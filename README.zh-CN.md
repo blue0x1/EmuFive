@@ -165,10 +165,9 @@ EmuFive 和其他 Linux 系统一样，通过 [PS4 Multiboot](https://github.com
 <a id="changelog"></a>
 ## 更新日志
 
-### 1.0.7 (2026-11-16)
+### 1.0.8 (2026-11-16)
 
-- 改进：游戏运行更快。缓冲区改为批量上传，模拟器等待 GPU 的时间更少。DREDGE 在 PS4 Pro 上从约 12 FPS 提升到 13–16 FPS，声音也不再爆音。
-- 新增：主屏幕切换游戏封面时更加平滑。可在 Settings（设置）、Appearance（外观）、Motion（动效）、Cover change（封面切换）中选择效果（淡入淡出、滑动、缩放等共 11 种）。
+- 改进：使用超大缓冲区的游戏快了很多。现在只有小缓冲区会在每帧整体上传，大缓冲区重新按页跟踪。Teardown 在 PS4 Pro 上从不到 1 FPS 提升到约 2.4 FPS。Teardown 还需要 5 GB 显存：请使用 PS4 Multiboot v1.5.0-beta-5 的 `bootargs.txt`。
 
 从 1.0.3 或更早版本更新时，旧的软件更新无法完成，请手动启动一次：在设置中打开 SSH，用 `ssh ps5@<PS4 地址>` 连接（未修改时密码为 `ps5`），然后运行
 

@@ -165,10 +165,9 @@ Vous avez testé un jeu ? Ouvrez une [issue](https://github.com/blue0x1/EmuFive/
 <a id="changelog"></a>
 ## Journal des modifications
 
-### 1.0.7 (2026-11-16)
+### 1.0.8 (2026-11-16)
 
-- Amélioré : les jeux tournent plus vite. Les tampons sont envoyés par lots et l'émulateur attend moins le GPU. DREDGE sur une PS4 Pro est passé d'environ 12 à 13–16 FPS, et son son ne grésille plus.
-- Nouveau : l'écran d'accueil change la jaquette du jeu en douceur. Choisissez l'effet (fondu, glissement, zoom et 8 autres) dans Paramètres, Apparence, Mouvement, Changement de jaquette.
+- Amélioré : les jeux aux tampons très volumineux tournent bien plus vite. Seuls les petits tampons sont désormais envoyés en entier à chaque image ; les gros sont de nouveau suivis par page. Teardown sur une PS4 Pro est passé de moins de 1 à environ 2,4 FPS. Teardown a aussi besoin de 5 Go de mémoire GPU : utilisez le `bootargs.txt` de PS4 Multiboot v1.5.0-beta-5.
 
 Pour mettre à jour depuis la 1.0.3 ou avant, lancez la mise à jour une fois à la main, car l'ancienne mise à jour du logiciel n'y arrive pas : activez SSH dans les Paramètres, connectez-vous avec `ssh ps5@<adresse de la PS4>` (mot de passe `ps5` si vous ne l'avez pas changé) et lancez
 

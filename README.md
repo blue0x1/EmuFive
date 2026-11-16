@@ -155,10 +155,9 @@ Tested a game? Open an [issue](https://github.com/blue0x1/EmuFive/issues) with t
 
 ## Changelog
 
-### 1.0.7 (2026-11-16)
+### 1.0.8 (2026-11-16)
 
-- Improved: games run faster. Buffer uploads are batched and the emulator waits less on the GPU. DREDGE on a PS4 Pro went from about 12 to 13–16 FPS, and its sound no longer crackles.
-- New: the home screen changes the game cover smoothly. Pick the effect (fade, slide, zoom and 8 more) in Settings, Appearance, Motion, Cover change.
+- Improved: games with very large buffers run much faster. Only small buffers are now uploaded whole each frame; large ones are tracked by page again. Teardown on a PS4 Pro went from under 1 FPS to about 2.4 FPS. Teardown also needs 5 GB of GPU memory: use the `bootargs.txt` of PS4 Multiboot v1.5.0-beta-5.
 
 To update from 1.0.3 or earlier, start the update once by hand, since the old Software update cannot: turn on SSH in Settings, connect with `ssh ps5@<PS4 address>` (password `ps5` unless you changed it) and run
 

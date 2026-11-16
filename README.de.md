@@ -165,10 +165,9 @@ Ein Spiel getestet? Eröffne ein [Issue](https://github.com/blue0x1/EmuFive/issu
 <a id="changelog"></a>
 ## Änderungsprotokoll
 
-### 1.0.7 (2026-11-16)
+### 1.0.8 (2026-11-16)
 
-- Verbessert: Spiele laufen schneller. Puffer werden gesammelt hochgeladen, und der Emulator wartet weniger auf die GPU. DREDGE auf einer PS4 Pro stieg von etwa 12 auf 13–16 FPS, und der Ton knackt nicht mehr.
-- Neu: Der Startbildschirm wechselt das Spielcover fließend. Den Effekt (Überblenden, Schieben, Zoomen und 8 weitere) wählst du unter Einstellungen, Darstellung, Bewegung, Coverwechsel.
+- Verbessert: Spiele mit sehr großen Puffern laufen deutlich schneller. Nur kleine Puffer werden jetzt in jedem Frame ganz hochgeladen; große werden wieder seitenweise verfolgt. Teardown auf einer PS4 Pro stieg von unter 1 auf etwa 2,4 FPS. Teardown braucht außerdem 5 GB GPU-Speicher: Nimm die `bootargs.txt` von PS4 Multiboot v1.5.0-beta-5.
 
 Um von 1.0.3 oder älter zu aktualisieren, starte das Update einmal von Hand, da die alte Softwareaktualisierung es nicht kann: SSH in den Einstellungen einschalten, mit `ssh ps5@<Adresse der PS4>` verbinden (Passwort `ps5`, falls nicht geändert) und ausführen:
 

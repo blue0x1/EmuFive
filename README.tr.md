@@ -165,10 +165,9 @@ Bir oyun mu denediniz? Oyunu, konsol modelinizi ve nasıl çalıştığını yaz
 <a id="changelog"></a>
 ## Değişiklik günlüğü
 
-### 1.0.7 (2026-11-16)
+### 1.0.8 (2026-11-16)
 
-- İyileştirildi: oyunlar daha hızlı çalışıyor. Arabellekler toplu yükleniyor ve emülatör GPU'yu daha az bekliyor. DREDGE, PS4 Pro'da yaklaşık 12'den 13–16 FPS'ye çıktı ve sesi artık cızırdamıyor.
-- Yeni: ana ekran oyun kapağını akıcı biçimde değiştiriyor. Efekti (solma, kaydırma, yakınlaştırma ve 8 tane daha) Ayarlar, Görünüm, Hareket, Kapak geçişi bölümünden seçin.
+- İyileştirildi: çok büyük arabellekli oyunlar çok daha hızlı. Artık her karede yalnızca küçük arabellekler tümüyle yükleniyor; büyükler yeniden sayfa sayfa izleniyor. Teardown, PS4 Pro'da 1 FPS'nin altından yaklaşık 2,4 FPS'ye çıktı. Teardown ayrıca 5 GB GPU belleği istiyor: PS4 Multiboot v1.5.0-beta-5'in `bootargs.txt` dosyasını kullanın.
 
 1.0.3 veya önceki bir sürümden güncellemek için, eski yazılım güncellemesi bunu yapamadığından güncellemeyi bir kez elle başlatın: Ayarlar'da SSH'yi açın, `ssh ps5@<PS4 adresi>` ile bağlanın (değiştirmediyseniz parola `ps5`) ve çalıştırın:
 
