@@ -182,6 +182,12 @@ sudo systemd-run --unit=emufive-update --collect /opt/ps5-on-ps4/bin/ps5-update 
 - [Mesa](https://mesa3d.org)，以及 fail0verflow、DionKill 和 striker91n 的 PS4 GPU 补丁
 - PS4 Linux 内核开发者（[sony-jaguar-devs/ps4-linux](https://github.com/sony-jaguar-devs/ps4-linux)）
 
+## 支持
+
+如果 EmuFive 对你有用，可以通过比特币捐赠支持它的开发：
+
+BTC: `bc1q7w5ns9vsguseppllpy609yhwrtq3v56g94mjde`
+
 ## 许可证
 
 Copyright (C) 2026 [Chokri Hammedi (blue0x1)](https://github.com/blue0x1)。
