@@ -1377,6 +1377,11 @@ class SettingsScreen(RowList):
             Row("header", "Motion"),
             self.setting_choice("Animations", "animations", [("full", "Full"), ("reduced", "Reduced"),
                                                               ("off", "Off")]),
+            self.setting_choice("Cover change", "cover_transition",
+                                [("fade", "Crossfade"), ("slide", "Slide"), ("zoom", "Zoom"),
+                                 ("wipe", "Soft wipe"), ("dark", "Dip to dark"), ("parallax", "Parallax"),
+                                 ("blinds", "Blinds"), ("doors", "Doors"), ("push", "Push up"),
+                                 ("iris", "Iris"), ("pixelate", "Pixelate")]),
             Row("header", "Game tiles"),
             self.setting_choice("Tile size", "tile_size", [("small", "Small"), ("medium", "Medium"),
                                                             ("large", "Large")], reload=True),
@@ -3688,6 +3693,8 @@ class Home:
 
     def select(self, index, sound=True):
         index = max(0, min(self.items() - 1, index))
+        if index != self.selected:
+            self.bg_direction = 1 if index > self.selected else -1
         if sound and index != self.selected:
             self.sounds.play("move")
             self.input.rumble()
@@ -3977,10 +3984,7 @@ class Home:
             # per frame instead of painting and dimming both backgrounds again.
             old = self.background_layer(c, s, use_art, self.bg_previous)
             new = self.background_layer(c, s, use_art, self.bg_current)
-            c.s.blit(old, (0, 0))
-            new.set_alpha(int(255 * self.bg_mix))
-            c.s.blit(new, (0, 0))
-            new.set_alpha(None)
+            self.paint_transition(c, old, new, self.bg_mix, s["cover_transition"])
             if orbs:
                 self.draw_orbs(c)
             return
@@ -3989,6 +3993,99 @@ class Home:
             self.bg_layer = (key, c.s.copy())
         if orbs:
             self.draw_orbs(c)
+
+    def paint_transition(self, c, old, new, mix, style):
+        """One frame of the cover change from frame old to frame new (mix 0 to 1). Every style
+        only moves, crops or fades the two finished frames, so it stays cheap on the PS4's CPU."""
+        w, h = c.s.get_size()
+        d = getattr(self, "bg_direction", 1)          # 1: moved right, -1: moved left.
+        t = mix * mix * (3 - 2 * mix)                   # Ease in and out.
+        base = ui.mix(ACCENT, (6, 6, 14), 0.86)
+        if style == "slide":
+            c.s.blit(old, (int(-d * t * w), 0))
+            c.s.blit(new, (int(d * (1 - t) * w), 0))
+        elif style == "zoom":
+            c.s.blit(old, (0, 0))
+            scale = 1.0 + 0.08 * (1 - t)
+            zw, zh = int(w * scale), int(h * scale)
+            grown = pygame.transform.scale(new, (zw, zh))
+            grown.set_alpha(int(255 * t))
+            c.s.blit(grown, ((w - zw) // 2, (h - zh) // 2))
+        elif style == "wipe":
+            band = max(8, w // 12)                       # The soft edge, in 4 steps.
+            edge = int(t * (w + band))
+            c.s.blit(old, (0, 0))
+            if d > 0:                                    # Sweeps from the right.
+                start = w - edge
+                c.s.blit(new, (start + band, 0), (start + band, 0, w, h))
+                for i in range(4):
+                    x = start + i * band // 4
+                    new.set_alpha(int(255 * (i + 1) / 5))
+                    c.s.blit(new, (x, 0), (x, 0, band // 4 + 1, h))
+            else:                                        # Sweeps from the left.
+                c.s.blit(new, (0, 0), (0, 0, max(0, edge - band), h))
+                for i in range(4):
+                    x = edge - band + i * band // 4
+                    new.set_alpha(int(255 * (4 - i) / 5))
+                    c.s.blit(new, (x, 0), (x, 0, band // 4 + 1, h))
+            new.set_alpha(None)
+        elif style == "dark":
+            c.s.fill((0, 0, 0))
+            layer, alpha = (old, 1 - 2 * mix) if mix < 0.5 else (new, 2 * mix - 1)
+            layer.set_alpha(int(255 * alpha))
+            c.s.blit(layer, (0, 0))
+            layer.set_alpha(None)
+        elif style == "parallax":
+            c.s.fill(base)
+            old.set_alpha(int(255 * (1 - t)))
+            c.s.blit(old, (int(-d * 0.35 * t * w), 0))
+            new.set_alpha(int(255 * t))
+            c.s.blit(new, (int(d * 0.25 * (1 - t) * w), 0))
+            old.set_alpha(None)
+            new.set_alpha(None)
+        elif style == "blinds":
+            c.s.blit(old, (0, 0))
+            count = 10
+            strip = -(-w // count)
+            for i in range(count):
+                order = i if d > 0 else count - 1 - i
+                p = min(1.0, max(0.0, mix * 1.8 - order * 0.08))
+                p = p * p * (3 - 2 * p)
+                x = i * strip
+                c.s.blit(new, (x, 0), (x, 0, int(strip * p) + 1 if p > 0 else 0, h))
+        elif style == "doors":
+            c.s.blit(new, (0, 0))
+            half = w // 2
+            shift = int(t * half)
+            c.s.blit(old, (-shift, 0), (0, 0, half, h))
+            c.s.blit(old, (half + shift, 0), (half, 0, w - half, h))
+        elif style == "push":
+            c.s.blit(old, (0, int(-d * t * h)))
+            c.s.blit(new, (0, int(d * (1 - t) * h)))
+        elif style == "iris":
+            c.s.blit(old, (0, 0))
+            cx, cy = w // 2, h // 2
+            r = t * math.hypot(cx, cy)
+            step = 2
+            for y in range(max(0, int(cy - r)), min(h, int(cy + r) + 1), step):
+                dy = y - cy
+                half = math.sqrt(max(0.0, r * r - dy * dy))
+                if half >= 1:
+                    x0 = max(0, int(cx - half))
+                    c.s.blit(new, (x0, y), (x0, y, min(w, int(cx + half)) - x0, step))
+        elif style == "pixelate":
+            layer, p = (old, mix * 2) if mix < 0.5 else (new, 2 - mix * 2)
+            block = 1 + int(p * p * 31)                  # 1 to 32 pixels per block.
+            if block <= 1:
+                c.s.blit(layer, (0, 0))
+            else:
+                small = pygame.transform.scale(layer, (max(1, w // block), max(1, h // block)))
+                c.s.blit(pygame.transform.scale(small, (w, h)), (0, 0))
+        else:                                            # Crossfade.
+            c.s.blit(old, (0, 0))
+            new.set_alpha(int(255 * mix))
+            c.s.blit(new, (0, 0))
+            new.set_alpha(None)
 
     def background_layer(self, c, s, use_art, surface):
         """One still background as a full frame, made once and kept for cross-fades."""

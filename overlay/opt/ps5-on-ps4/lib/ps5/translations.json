@@ -5335,5 +5335,113 @@
 "de": "EmuFive {a} ist erschienen, aber das Release hat noch keine Update-Dateien ({b} und die .sha256), daher kann es nicht installiert werden.",
 "it": "EmuFive {a} è uscito, ma la release non ha ancora i file di aggiornamento ({b} e il suo .sha256), quindi non si può installare.",
 "pt": "EmuFive {a} foi lançado, mas a versão ainda não tem os arquivos de atualização ({b} e o .sha256), então não pode ser instalado."
+},
+"Cover change": {
+"ar": "تغيير الغلاف",
+"fr": "Changement de jaquette",
+"tr": "Kapak geçişi",
+"es": "Cambio de portada",
+"de": "Coverwechsel",
+"it": "Cambio copertina",
+"pt": "Troca de capa"
+},
+"Crossfade": {
+"ar": "تلاشٍ متداخل",
+"fr": "Fondu enchaîné",
+"tr": "Çapraz geçiş",
+"es": "Fundido cruzado",
+"de": "Überblenden",
+"it": "Dissolvenza incrociata",
+"pt": "Transição suave"
+},
+"Slide": {
+"ar": "انزلاق",
+"fr": "Glissement",
+"tr": "Kaydırma",
+"es": "Deslizar",
+"de": "Schieben",
+"it": "Scorrimento",
+"pt": "Deslizar"
+},
+"Zoom": {
+"ar": "تكبير",
+"fr": "Zoom",
+"tr": "Yakınlaştırma",
+"es": "Zoom",
+"de": "Zoom",
+"it": "Zoom",
+"pt": "Zoom"
+},
+"Soft wipe": {
+"ar": "مسح ناعم",
+"fr": "Balayage doux",
+"tr": "Yumuşak silme",
+"es": "Barrido suave",
+"de": "Weiches Wischen",
+"it": "Tendina morbida",
+"pt": "Varredura suave"
+},
+"Dip to dark": {
+"ar": "تعتيم ثم ظهور",
+"fr": "Fondu au noir",
+"tr": "Karartarak geçiş",
+"es": "Fundido a negro",
+"de": "Abblenden",
+"it": "Dissolvenza al nero",
+"pt": "Escurecer"
+},
+"Parallax": {
+"ar": "منظور متحرك",
+"fr": "Parallaxe",
+"tr": "Paralaks",
+"es": "Paralaje",
+"de": "Parallaxe",
+"it": "Parallasse",
+"pt": "Paralaxe"
+},
+"Blinds": {
+"ar": "ستائر",
+"fr": "Stores",
+"tr": "Panjur",
+"es": "Persianas",
+"de": "Jalousie",
+"it": "Veneziane",
+"pt": "Persianas"
+},
+"Doors": {
+"ar": "أبواب",
+"fr": "Portes",
+"tr": "Kapılar",
+"es": "Puertas",
+"de": "Türen",
+"it": "Porte",
+"pt": "Portas"
+},
+"Push up": {
+"ar": "دفع للأعلى",
+"fr": "Poussée vers le haut",
+"tr": "Yukarı it",
+"es": "Empujar arriba",
+"de": "Nach oben schieben",
+"it": "Spinta in alto",
+"pt": "Empurrar para cima"
+},
+"Iris": {
+"ar": "دائرة",
+"fr": "Iris",
+"tr": "İris",
+"es": "Iris",
+"de": "Iris",
+"it": "Iride",
+"pt": "Íris"
+},
+"Pixelate": {
+"ar": "بكسلة",
+"fr": "Pixellisation",
+"tr": "Pikselleştir",
+"es": "Pixelar",
+"de": "Verpixeln",
+"it": "Pixel",
+"pt": "Pixelizar"
 }
 }

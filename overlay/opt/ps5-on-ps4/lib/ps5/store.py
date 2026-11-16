@@ -35,6 +35,7 @@ DEFAULT_SETTINGS = {
     "orb_speed": "normal",     # slow, normal, fast
     "orb_color": "white",      # white, accent, gold
     "animations": "full",      # full, reduced, off
+    "cover_transition": "fade",  # fade, slide, zoom, wipe, dark, parallax, blinds, doors, push, iris, pixelate
     "tile_size": "medium",     # small, medium, large
     "tile_shape": "rounded",   # rounded, square, circle
     "source_labels": True,
