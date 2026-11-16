@@ -172,9 +172,9 @@ It installs every update you are missing (from 1.0.0 or 1.0.1 that includes 1.0.
 - [Mesa](https://mesa3d.org), and the PS4 GPU patches by fail0verflow, DionKill and striker91n
 - The PS4 Linux kernel developers ([rmuxnet/linux](https://gitlab.com/rmuxnet/linux))
   
-## Support
+## Support the project
 
-If EmuFive is useful to you, you can support its development with a Bitcoin donation:
+If EmuFive is useful to you, you can support the project with Bitcoin:
 
 BTC: `bc1q7w5ns9vsguseppllpy609yhwrtq3v56g94mjde`
 

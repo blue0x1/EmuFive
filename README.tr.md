@@ -182,9 +182,9 @@ Eksik tüm güncellemeleri kurar (1.0.0 veya 1.0.1'den buna 1.0.2'nin yaklaşık
 - [Mesa](https://mesa3d.org) ve fail0verflow, DionKill ile striker91n'nin PS4 GPU yamaları
 - PS4 Linux çekirdeği geliştiricileri ([sony-jaguar-devs/ps4-linux](https://github.com/sony-jaguar-devs/ps4-linux))
 
-## Destek
+## Projeye destek olun
 
-EmuFive işinize yarıyorsa, geliştirilmesini Bitcoin bağışıyla destekleyebilirsiniz:
+EmuFive işinize yarıyorsa, projeyi Bitcoin ile destekleyebilirsiniz:
 
 BTC: `bc1q7w5ns9vsguseppllpy609yhwrtq3v56g94mjde`
 

@@ -182,9 +182,9 @@ Es installiert alle fehlenden Updates (von 1.0.0 oder 1.0.1 aus gehören die Bro
 - [Mesa](https://mesa3d.org) und die PS4-GPU-Patches von fail0verflow, DionKill und striker91n
 - Die Entwickler des PS4-Linux-Kernels ([sony-jaguar-devs/ps4-linux](https://github.com/sony-jaguar-devs/ps4-linux))
 
-## Unterstützen
+## Das Projekt unterstützen
 
-Wenn dir EmuFive nützt, kannst du die Entwicklung mit einer Bitcoin-Spende unterstützen:
+Wenn dir EmuFive nützt, kannst du das Projekt mit Bitcoin unterstützen:
 
 BTC: `bc1q7w5ns9vsguseppllpy609yhwrtq3v56g94mjde`
 

@@ -192,9 +192,9 @@ sudo systemd-run --unit=emufive-update --collect /opt/ps5-on-ps4/bin/ps5-update 
 - [Mesa](https://mesa3d.org)، ورقع معالج رسوميات PS4 من fail0verflow وDionKill وstriker91n
 - مطوّرو نواة Linux لـ PS4 ‏([sony-jaguar-devs/ps4-linux](https://github.com/sony-jaguar-devs/ps4-linux))
 
-## الدعم
+## ادعم المشروع
 
-إذا كان EmuFive مفيدًا لك، يمكنك دعم تطويره بالتبرع بعملة البيتكوين:
+إذا كان EmuFive مفيدًا لك، يمكنك دعم المشروع بعملة البيتكوين:
 
 BTC: `bc1q7w5ns9vsguseppllpy609yhwrtq3v56g94mjde`
 

@@ -182,9 +182,9 @@ Ela instala todas as atualizações que faltam (a partir da 1.0.0 ou 1.0.1 isso 
 - [Mesa](https://mesa3d.org), e os patches de GPU do PS4 de fail0verflow, DionKill e striker91n
 - Os desenvolvedores do kernel Linux para PS4 ([sony-jaguar-devs/ps4-linux](https://github.com/sony-jaguar-devs/ps4-linux))
 
-## Apoie
+## Apoie o projeto
 
-Se o EmuFive é útil para você, pode apoiar o desenvolvimento com uma doação em Bitcoin:
+Se o EmuFive é útil para você, pode apoiar o projeto com Bitcoin:
 
 BTC: `bc1q7w5ns9vsguseppllpy609yhwrtq3v56g94mjde`
 
