@@ -1,0 +1,24 @@
+From: Chokri Hammedi <52697989+blue0x1@users.noreply.github.com>
+Subject: [PATCH] graphics: only small buffers stay write-enabled
+
+Patch 0031 keeps buffers the CPU rewrites every frame write-enabled and
+uploads them whole at each address-read sync. Teardown rewrites buffers of
+hundreds of MB, so that became about 3.4 GB of uploads per frame (0.4 FPS).
+Only buffers up to 4 MB (KYTY_HOT_MAX_KB) are treated that way now;
+larger ones keep page-level dirty tracking and upload only changed pages.
+---
+--- a/src/graphics/host_gpu/renderer/cache/bufferCache.cpp
++++ b/src/graphics/host_gpu/renderer/cache/bufferCache.cpp
+@@ -822,7 +822,11 @@
+             m_batch_copies.emplace_back(m_batch_size, buffer.Offset(address), bytes);
+             m_batch_size += bytes;
+ 		};
+-		const bool hot = m_synced_last_frame.contains(buffer.CpuAddress());
++		// Only small buffers: a hot buffer is uploaded whole at every sync, which for a buffer of
++		// hundreds of MB (Teardown's world) is gigabytes per frame. Large ones keep page tracking.
++		static const uint64_t hot_max = EnvSize("KYTY_HOT_MAX_KB", 1024, 4 * 1024 * 1024);
++		const bool            hot     = buffer.Size() <= hot_max &&
++		                               m_synced_last_frame.contains(buffer.CpuAddress());
+ 		if (hot) {
+ 			m_memory_tracker.ForEachUploadRange<false>(start, finish - start, false, add,
+ 			                                           []() noexcept {});
