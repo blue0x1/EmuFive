@@ -134,6 +134,7 @@ Games that work:
 | Vampire Survivors | PS4 Slim | 1.0.4 | Playable, stable 60 FPS |
 | My Little Puppy | PS4 Slim | 1.0.6 | Runs, 3–15 FPS (20–25 in empty areas) |
 | DREDGE | PS4 Pro | 1.0.8 | Playable |
+| Animal Well | PS4 Pro | 1.0.9 | Playable, 42–44 FPS |
 | Teardown | PS4 Pro | 1.0.9 | Runs, 9–12 FPS in game (about 20 in light scenes) with GPU-shared memory |
 | Invincible VS | PS4 Pro | 1.0.9 | Starts, 4–5 FPS; not playable yet |
 

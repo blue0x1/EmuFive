@@ -142,6 +142,7 @@ Jeux qui fonctionnent :
 | Vampire Survivors | PS4 Slim | 1.0.4 | Jouable, 60 IPS stables |
 | My Little Puppy | PS4 Slim | 1.0.6 | Tourne, 3–15 IPS (20–25 dans les zones vides) |
 | DREDGE | PS4 Pro | 1.0.8 | Jouable |
+| Animal Well | PS4 Pro | 1.0.9 | Jouable, 42–44 IPS |
 | Teardown | PS4 Pro | 1.0.9 | Tourne, 9–12 IPS en jeu (environ 20 dans les scènes légères) avec la mémoire partagée avec le GPU |
 | Invincible VS | PS4 Pro | 1.0.9 | Démarre, 4–5 IPS ; pas encore jouable |
 

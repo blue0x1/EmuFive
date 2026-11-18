@@ -142,6 +142,7 @@ Bu proje hiçbir PS5 sistem yazılımı ve hiçbir oyun içermez. Yalnızca sahi
 | Vampire Survivors | PS4 Slim | 1.0.4 | Oynanabilir, kararlı 60 FPS |
 | My Little Puppy | PS4 Slim | 1.0.6 | Çalışıyor, 3–15 FPS (boş alanlarda 20–25) |
 | DREDGE | PS4 Pro | 1.0.8 | Oynanabilir |
+| Animal Well | PS4 Pro | 1.0.9 | Oynanabilir, 42–44 FPS |
 | Teardown | PS4 Pro | 1.0.9 | Çalışıyor, oyunda 9–12 FPS (hafif sahnelerde yaklaşık 20), GPU ile paylaşılan bellekle |
 | Invincible VS | PS4 Pro | 1.0.9 | Açılıyor, 4–5 FPS; henüz oynanamıyor |
 

@@ -142,6 +142,7 @@ EmuFive 和其他 Linux 系统一样，通过 [PS4 Multiboot](https://github.com
 | Vampire Survivors | PS4 Slim | 1.0.4 | 可玩，稳定 60 FPS |
 | My Little Puppy | PS4 Slim | 1.0.6 | 可运行，3–15 FPS（空旷区域 20–25） |
 | DREDGE | PS4 Pro | 1.0.8 | 可玩 |
+| Animal Well | PS4 Pro | 1.0.9 | 可玩，42–44 FPS |
 | Teardown | PS4 Pro | 1.0.9 | 可运行，游戏中 9–12 FPS（轻量场景约 20），使用 GPU 共享内存 |
 | Invincible VS | PS4 Pro | 1.0.9 | 可启动，4–5 FPS；暂不可玩 |
 

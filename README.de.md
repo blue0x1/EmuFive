@@ -142,6 +142,7 @@ Spiele, die laufen:
 | Vampire Survivors | PS4 Slim | 1.0.4 | Spielbar, stabile 60 FPS |
 | My Little Puppy | PS4 Slim | 1.0.6 | Läuft, 3–15 FPS (20–25 in leeren Bereichen) |
 | DREDGE | PS4 Pro | 1.0.8 | Spielbar |
+| Animal Well | PS4 Pro | 1.0.9 | Spielbar, 42–44 FPS |
 | Teardown | PS4 Pro | 1.0.9 | Läuft, 9–12 FPS im Spiel (etwa 20 in leichten Szenen) mit GPU-geteiltem Speicher |
 | Invincible VS | PS4 Pro | 1.0.9 | Startet, 4–5 FPS; noch nicht spielbar |
 

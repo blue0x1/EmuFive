@@ -152,6 +152,7 @@ scripts/build-rootfs.sh    # out/ps5-ps4-rootfs.tar.xz
 | Vampire Survivors | PS4 Slim | 1.0.4 | قابلة للعب، 60 إطاراً مستقرة |
 | My Little Puppy | PS4 Slim | 1.0.6 | تعمل، 3–15 إطاراً (20–25 في المناطق الفارغة) |
 | DREDGE | PS4 Pro | 1.0.8 | قابلة للعب |
+| Animal Well | PS4 Pro | 1.0.9 | قابلة للعب، 42–44 إطاراً في الثانية |
 | Teardown | PS4 Pro | 1.0.9 | تعمل، 9–12 إطاراً داخل اللعبة (حوالي 20 في المشاهد الخفيفة) مع الذاكرة المشتركة مع المعالج الرسومي |
 | Invincible VS | PS4 Pro | 1.0.9 | تبدأ، 4–5 إطارات؛ غير قابلة للعب بعد |
 
