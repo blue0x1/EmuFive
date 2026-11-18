@@ -158,6 +158,7 @@ Spiele, die noch nicht laufen (eine neuere Version kann sie beheben):
 | Hello Neighbor | PS4 Pro | 1.0.4 | Stoppt beim Start (Mesh-Shader) |
 | Need for Speed Unbound | PS4 Slim | 1.0.6 | Stürzt beim Start ab (nicht unterstützte Tiefenkopie) |
 | V Rising | PS4 Pro | 1.0.8 | Stürzt beim Start ab |
+| Serious Sam: Siberian Mayhem | PS4 Slim | 1.0.9 | Beendet sich beim Start (Online-Dienste) |
 
 Ein Spiel getestet? Eröffne ein [Issue](https://github.com/blue0x1/EmuFive/issues) mit dem Spiel, seiner Title-ID, deinem Konsolenmodell, der EmuFive-Version und wie es lief. Auch Spiele, die nicht laufen, helfen (zum Beispiel „startet nicht“ oder „stürzt im Menü ab“): Sie kommen in die Tabelle, damit andere nicht dasselbe Spiel versuchen.
 

@@ -158,6 +158,7 @@ Jogos que ainda não funcionam (uma versão mais nova pode corrigi-los):
 | Hello Neighbor | PS4 Pro | 1.0.4 | Para ao iniciar (mesh shaders) |
 | Need for Speed Unbound | PS4 Slim | 1.0.6 | Fecha ao iniciar (cópia de profundidade não suportada) |
 | V Rising | PS4 Pro | 1.0.8 | Fecha ao iniciar |
+| Serious Sam: Siberian Mayhem | PS4 Slim | 1.0.9 | Fecha ao iniciar (serviços online) |
 
 Testou um jogo? Abra uma [issue](https://github.com/blue0x1/EmuFive/issues) com o jogo, o ID do título, o modelo do seu console, a versão do EmuFive e como ele rodou. Jogos que não funcionam também ajudam (por exemplo "não inicia" ou "fecha no menu"): eles entram na tabela, para que outros não tentem o mesmo jogo.
 
