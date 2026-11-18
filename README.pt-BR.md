@@ -106,6 +106,8 @@ Passos:
 
    > **Tenha paciência:** depois que o payload inicia, a TV pode mostrar **"No signal" ou uma tela preta por 1 a 2 minutos** enquanto o Linux inicia. Isso é normal.
 
+   > **Tela preta depois do menu do PS4 Multiboot?** Algumas TVs preferem um modo que o PS4 não consegue enviar. Adicione `emufive.mode=1920x1080@60` à linha em `/data/linux/boot/bootargs.txt` (mantenha também `video=HDMI-A-1:1920x1080@60D`) e execute o payload de novo.
+
 5. No menu do PS4 Multiboot, escolha **EmuFive** e depois **Install to PS4** ou **Install to USB drive**. Leva alguns minutos.
 6. Coloque seus jogos em um dos lugares abaixo. Um jogo é uma pasta com `eboot.bin` (e `sce_sys`), ou um dump ZArchive (`.zar`). Arquivos de pacote (`.pkg`, fpkg) não podem ser instalados nem executados: extraia o jogo primeiro.
 
@@ -145,6 +147,8 @@ Jogos que funcionam:
 | Animal Well | PS4 Pro | 1.0.9 | Jogável, 42–44 FPS |
 | Teardown | PS4 Pro | 1.0.9 | Roda, 9–12 FPS no jogo (cerca de 20 em cenas leves) com memória compartilhada com a GPU |
 | Invincible VS | PS4 Pro | 1.0.9 | Inicia, 4–5 FPS; ainda não jogável |
+| Blue Prince | PS4 Pro | 1.0.10 | Jogável, cerca de 25 FPS |
+| Wytchwood | PS4 Pro | 1.0.10 | Jogável, 30 FPS estáveis |
 
 Jogos que ainda não funcionam (uma versão mais nova pode corrigi-los):
 
@@ -159,6 +163,12 @@ Testou um jogo? Abra uma [issue](https://github.com/blue0x1/EmuFive/issues) com 
 
 <a id="changelog"></a>
 ## Registro de alterações
+
+### 1.0.10 (2026-11-18)
+
+- Corrigido: traços brancos e pequenos blocos de pixels antigos em jogos 3D (Blue Prince). As limpezas rápidas de cor e a compressão de profundidade e MSAA da GPU do PS4 deixavam blocos de 8×8 pixels quando um jogo lia uma imagem de volta; o EmuFive agora as desativa.
+- Corrigido: ruído na tela inteira perto de objetos com que se pode interagir (Wytchwood). Uma nova máscara de tela inteira que o jogo lê antes de desenhá-la tinha bytes restantes de outras imagens; agora ela começa cheia.
+- Novo: `emufive.mode=1920x1080@60` no `bootargs.txt` define o modo de tela do EmuFive. O EmuFive usava o modo preferido da TV, que algumas TVs oferecem mesmo que o PS4 não consiga enviá-lo (tela preta depois do menu do PS4 Multiboot).
 
 ### 1.0.9 (2026-11-18)
 

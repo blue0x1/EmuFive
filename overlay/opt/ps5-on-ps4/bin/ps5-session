@@ -71,6 +71,19 @@ run_game() {  # path
     esac
 }
 
+# X takes the TV's preferred mode, not the kernel's video= one. Some TVs prefer a mode the
+# PS4 can't send (black screen), so emufive.mode=WIDTHxHEIGHT[@HZ] in bootargs.txt picks one.
+mode="$(tr ' ' '\n' < /proc/cmdline | sed -n 's/^emufive\.mode=//p' | tail -n 1)"
+if [ -n "$mode" ]; then
+    output="$(xrandr --query 2>/dev/null | awk '$2 == "connected" { print $1; exit }')"
+    size="${mode%%@*}"
+    rate=""
+    case "$mode" in *@*) rate="--rate ${mode#*@}" ;; esac
+    # shellcheck disable=SC2086
+    [ -n "$output" ] && xrandr --output "$output" --mode "$size" $rate 2>&1 \
+        | sed 's/^/emufive.mode: /'
+fi
+
 xset s off -dpms 2>/dev/null
 # The EmuFive screen behind every window, seen while a game closes, the home screen starts
 # again or the PS4 turns off (instead of black): a dark color now, the picture once drawn.

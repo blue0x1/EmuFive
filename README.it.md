@@ -106,6 +106,8 @@ Passi:
 
    > **Abbi pazienza:** dopo l'avvio del payload, la TV può mostrare **"No signal" o uno schermo nero per 1 o 2 minuti** mentre Linux si avvia. È normale.
 
+   > **Schermo nero dopo il menu di PS4 Multiboot?** Alcune TV preferiscono una modalità che la PS4 non può inviare. Aggiungi `emufive.mode=1920x1080@60` alla riga in `/data/linux/boot/bootargs.txt` (lascia anche `video=HDMI-A-1:1920x1080@60D`) ed esegui di nuovo il payload.
+
 5. Nel menu di PS4 Multiboot, scegli **EmuFive**, poi **Install to PS4** o **Install to USB drive**. Ci vogliono alcuni minuti.
 6. Metti i tuoi giochi in uno dei posti qui sotto. Un gioco è una cartella con `eboot.bin` (e `sce_sys`), oppure un dump ZArchive (`.zar`). I file pacchetto (`.pkg`, fpkg) non si possono installare né avviare: estrai prima il gioco.
 
@@ -145,6 +147,8 @@ Giochi che funzionano:
 | Animal Well | PS4 Pro | 1.0.9 | Giocabile, 42–44 FPS |
 | Teardown | PS4 Pro | 1.0.9 | Funziona, 9–12 FPS in gioco (circa 20 nelle scene leggere) con la memoria condivisa con la GPU |
 | Invincible VS | PS4 Pro | 1.0.9 | Si avvia, 4–5 FPS; non ancora giocabile |
+| Blue Prince | PS4 Pro | 1.0.10 | Giocabile, circa 25 FPS |
+| Wytchwood | PS4 Pro | 1.0.10 | Giocabile, 30 FPS stabili |
 
 Giochi che non funzionano ancora (una versione più nuova può risolverli):
 
@@ -159,6 +163,12 @@ Hai provato un gioco? Apri una [issue](https://github.com/blue0x1/EmuFive/issues
 
 <a id="changelog"></a>
 ## Registro delle modifiche
+
+### 1.0.10 (2026-11-18)
+
+- Corretto: trattini bianchi e piccoli blocchi di pixel vecchi nei giochi 3D (Blue Prince). Le pulizie rapide del colore e la compressione di profondità e MSAA della GPU della PS4 lasciavano blocchi di 8×8 pixel quando un gioco rileggeva un'immagine; ora EmuFive le disattiva.
+- Corretto: rumore su tutto lo schermo vicino agli oggetti con cui si può interagire (Wytchwood). Una nuova maschera a schermo intero che il gioco legge prima di disegnarla conteneva byte rimasti da altre immagini; ora parte piena.
+- Nuovo: `emufive.mode=1920x1080@60` in `bootargs.txt` imposta la modalità dello schermo di EmuFive. EmuFive usava la modalità preferita della TV, che alcune TV offrono anche se la PS4 non può inviarla (schermo nero dopo il menu di PS4 Multiboot).
 
 ### 1.0.9 (2026-11-18)
 

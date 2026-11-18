@@ -106,6 +106,8 @@ Adımlar:
 
    > **Sabırlı olun:** payload başladıktan sonra Linux açılırken TV **1 ila 2 dakika boyunca "No signal" ya da siyah ekran** gösterebilir. Bu normaldir.
 
+   > **PS4 Multiboot menüsünden sonra siyah ekran mı?** Bazı TV'ler PS4'ün gönderemediği bir modu tercih eder. `/data/linux/boot/bootargs.txt` içindeki satıra `emufive.mode=1920x1080@60` ekleyin (`video=HDMI-A-1:1920x1080@60D` de kalsın) ve payload'u yeniden çalıştırın.
+
 5. PS4 Multiboot menüsünde **EmuFive**'ı, ardından **Install to PS4** veya **Install to USB drive** seçeneğini seçin. Birkaç dakika sürer.
 6. Oyunlarınızı aşağıdaki yerlerden birine koyun. Bir oyun, içinde `eboot.bin` (ve `sce_sys`) olan bir klasör veya bir ZArchive (`.zar`) dökümüdür. Paket dosyaları (`.pkg`, fpkg) kurulamaz ve çalıştırılamaz: önce oyunu çıkarın.
 
@@ -145,6 +147,8 @@ Bu proje hiçbir PS5 sistem yazılımı ve hiçbir oyun içermez. Yalnızca sahi
 | Animal Well | PS4 Pro | 1.0.9 | Oynanabilir, 42–44 FPS |
 | Teardown | PS4 Pro | 1.0.9 | Çalışıyor, oyunda 9–12 FPS (hafif sahnelerde yaklaşık 20), GPU ile paylaşılan bellekle |
 | Invincible VS | PS4 Pro | 1.0.9 | Açılıyor, 4–5 FPS; henüz oynanamıyor |
+| Blue Prince | PS4 Pro | 1.0.10 | Oynanabilir, yaklaşık 25 FPS |
+| Wytchwood | PS4 Pro | 1.0.10 | Oynanabilir, kararlı 30 FPS |
 
 Henüz çalışmayan oyunlar (daha yeni bir sürüm düzeltebilir):
 
@@ -159,6 +163,12 @@ Bir oyun mu denediniz? Oyunu, oyun kimliğini, konsol modelinizi, EmuFive sürü
 
 <a id="changelog"></a>
 ## Değişiklik günlüğü
+
+### 1.0.10 (2026-11-18)
+
+- Düzeltildi: 3D oyunlarda beyaz çizgiler ve eski piksellerden küçük bloklar (Blue Prince). PS4 GPU'sunun hızlı renk temizlemeleri ile derinlik ve MSAA sıkıştırması, bir oyun bir görüntüyü geri okuduğunda 8×8 piksellik bloklar bırakıyordu; EmuFive artık bunları kapatıyor.
+- Düzeltildi: etkileşime girilebilen nesnelerin yakınında tüm ekranı kaplayan parazit (Wytchwood). Oyunun çizmeden önce okuduğu yeni bir tam ekran maske, başka görüntülerden kalan baytları içeriyordu; artık dolu başlıyor.
+- Yeni: `bootargs.txt` içindeki `emufive.mode=1920x1080@60`, EmuFive'ın ekran modunu belirler. EmuFive, TV'nin tercih ettiği modu kullanıyordu; bazı TV'ler bu modu PS4 gönderemese de sunuyor (PS4 Multiboot menüsünden sonra siyah ekran).
 
 ### 1.0.9 (2026-11-18)
 

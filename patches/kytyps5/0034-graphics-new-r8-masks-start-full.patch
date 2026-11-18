@@ -1,0 +1,37 @@
+From: Chokri Hammedi <52697989+blue0x1@users.noreply.github.com>
+Subject: [PATCH] graphics: new full-screen R8 color targets start at 1.0, not stale memory
+
+A render target that reuses memory of earlier ones was uploaded from guest memory, which
+holds stale bytes: the GPU-written targets there never went back to guest memory.
+Wytchwood (PPSA05721) reads its interaction mask before drawing into it, so the whole
+screen turned to noise near objects; starting the mask at 0 drew white outlines instead.
+New full-screen R8 color targets with no CPU or buffer writes now start at 1.0.
+---
+diff --git a/src/graphics/host_gpu/renderer/cache/textureCache.cpp b/src/graphics/host_gpu/renderer/cache/textureCache.cpp
+index 20121558..3a91b50a 100644
+--- a/src/graphics/host_gpu/renderer/cache/textureCache.cpp
++++ b/src/graphics/host_gpu/renderer/cache/textureCache.cpp
+@@ -988,6 +988,23 @@ void TextureCache::InitializeImage(ImageId id) {
+ 		return;
+ 	}
+ 	const bool upload = image.IsBufferModified() || image.IsCpuDirty();
++	// EmuFive: a new full-screen R8 color target over guest memory no CPU or buffer write
++	// filled holds bytes left by other render targets, which only ever lived on the host GPU.
++	// Wytchwood (PPSA05721) reads its interaction mask before drawing into it: those bytes
++	// cover the screen in noise, and 0 draws outlines; 1.0 shows the scene as on the console.
++	if (upload && !image.IsBufferModified() && image.IsDefinitelyCpuDirty() &&
++	    image.usage.render_target && !image.depth_id && image.info.samples == 1 &&
++	    image.info.pixel_format == vk::Format::eR8Unorm && image.info.IsTiled() &&
++	    image.info.extent.width >= 1024 && image.info.extent.height >= 512) {
++		image.RefreshComplete();
++		vk::ClearValue full {};
++		full.color.float32[0] = 1.0f;
++		ClearImage(m_scheduler.Current(), id, image.backing.format,
++		           {vk::ImageAspectFlagBits::eColor, 0, image.info.resources.levels, 0,
++		            image.backing.layers},
++		           full);
++		return;
++	}
+ 	if (upload) {
+ 		const auto [source, source_offset] =
+ 		    m_buffer_cache.ObtainBufferForImage(image.info.data.address, image.info.data.size);

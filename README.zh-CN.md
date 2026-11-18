@@ -106,6 +106,8 @@ EmuFive 和其他 Linux 系统一样，通过 [PS4 Multiboot](https://github.com
 
    > **请耐心等待：** payload 启动后，Linux 启动期间电视可能会 **显示 "No signal" 或黑屏 1 到 2 分钟**。这是正常的。
 
+   > **PS4 Multiboot 菜单之后黑屏？** 有些电视首选 PS4 无法输出的模式。在 `/data/linux/boot/bootargs.txt` 的那一行中加入 `emufive.mode=1920x1080@60`（同时保留 `video=HDMI-A-1:1920x1080@60D`），然后再次运行 payload。
+
 5. 在 PS4 Multiboot 菜单中选择 **EmuFive**，然后选择 **Install to PS4** 或 **Install to USB drive**。需要几分钟。
 6. 把游戏放到下面列出的某个位置。一个游戏就是一个包含 `eboot.bin`（和 `sce_sys`）的文件夹，或者一个 ZArchive（`.zar`）转储。安装包文件（`.pkg`、fpkg）无法安装或运行：请先解包游戏。
 
@@ -145,6 +147,8 @@ EmuFive 和其他 Linux 系统一样，通过 [PS4 Multiboot](https://github.com
 | Animal Well | PS4 Pro | 1.0.9 | 可玩，42–44 FPS |
 | Teardown | PS4 Pro | 1.0.9 | 可运行，游戏中 9–12 FPS（轻量场景约 20），使用 GPU 共享内存 |
 | Invincible VS | PS4 Pro | 1.0.9 | 可启动，4–5 FPS；暂不可玩 |
+| Blue Prince | PS4 Pro | 1.0.10 | 可玩，约 25 FPS |
+| Wytchwood | PS4 Pro | 1.0.10 | 可玩，稳定 30 FPS |
 
 暂时无法运行的游戏（新版本可能会修复）：
 
@@ -159,6 +163,12 @@ EmuFive 和其他 Linux 系统一样，通过 [PS4 Multiboot](https://github.com
 
 <a id="changelog"></a>
 ## 更新日志
+
+### 1.0.10 (2026-11-18)
+
+- 修复：3D 游戏中的白色短线和小块旧像素（Blue Prince）。PS4 GPU 的颜色快速清除以及深度和 MSAA 压缩会在游戏读回图像时留下 8×8 像素的块；EmuFive 现在会关闭它们。
+- 修复：靠近可互动物体时全屏出现噪点（Wytchwood）。游戏在绘制之前就读取一个新的全屏遮罩，其中残留着其他图像的字节；现在它以全满状态开始。
+- 新增：`bootargs.txt` 中的 `emufive.mode=1920x1080@60` 用于设置 EmuFive 的屏幕模式。EmuFive 之前使用电视的首选模式，而有些电视提供的这个模式 PS4 无法输出（PS4 Multiboot 菜单之后黑屏）。
 
 ### 1.0.9 (2026-11-18)
 
