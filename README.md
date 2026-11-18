@@ -104,9 +104,10 @@ After installing, run the payload to start EmuFive (with other systems installed
 
 ### Using it
 
-- **Home screen:** your games as tiles. Pick one and press Play. OPTIONS on a game: favorite, hide, its settings, trophies and play time.
+- **Home screen:** your games as tiles. Pick one and press Play. OPTIONS on a game: favorite, hide, its settings, trophies, play time and game info.
 - **PS button in a game:** pause menu (Resume, Home, Close the game, volume, power).
 - **Screenshots:** PS + Square, or Share. See them in Media; Triangle shows a QR code to open one on your phone.
+- **Video clips:** PS + Triangle starts recording, and PS + Triangle again stops it (up to 60 minutes). Clips play in Media and are shared to your phone like screenshots. Where they are saved (the PS4 or a USB drive) and their quality (720p or 1080p) are in Settings > Storage.
 - **Internet:** a web browser tile, used with the controller.
 - **Settings:** Wi-Fi, appearance, controllers, profiles (up to 8), menu language, date and time, backup.
 - **Controllers:** a DualShock 4 on a cable, or over Bluetooth (hold SHARE + PS until the light bar double-blinks).
