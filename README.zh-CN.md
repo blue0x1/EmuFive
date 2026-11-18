@@ -106,15 +106,16 @@ EmuFive 和其他 Linux 系统一样，通过 [PS4 Multiboot](https://github.com
    > **请耐心等待：** payload 启动后，Linux 启动期间电视可能会 **显示 "No signal" 或黑屏 1 到 2 分钟**。这是正常的。
 
 5. 在 PS4 Multiboot 菜单中选择 **EmuFive**，然后选择 **Install to PS4** 或 **Install to USB drive**。需要几分钟。
-6. 把游戏放到下面列出的某个位置。一个游戏就是一个包含 `eboot.bin`（和 `sce_sys`）的文件夹，或者一个 ZArchive（`.zar`）转储。
+6. 把游戏放到下面列出的某个位置。一个游戏就是一个包含 `eboot.bin`（和 `sce_sys`）的文件夹，或者一个 ZArchive（`.zar`）转储。安装包文件（`.pkg`、fpkg）无法安装或运行：请先解包游戏。
 
 之后运行 payload 即可启动 EmuFive（如果还装了其他系统，会先出现 PS4 Multiboot 菜单）。要重装，用 FTP 删除 `/user/home/ps5-ps4.img` 再运行 payload。更新：Settings（设置）、System（系统）、Software update（软件更新）。
 
 ### 使用
 
-- **主屏幕：** 游戏以磁贴显示。选一个按 Play 即可。在游戏上按 OPTIONS：收藏、隐藏、单独设置、奖杯和游玩时间。
+- **主屏幕：** 游戏以磁贴显示。选一个按 Play 即可。在游戏上按 OPTIONS：收藏、隐藏、单独设置、奖杯、游玩时间和游戏信息。
 - **游戏中按 PS 键：** 暂停菜单（继续、主屏幕、关闭游戏、音量、电源）。
 - **截图：** PS + 方块，或 Share。在 Media（媒体）中查看；三角键显示二维码，可在手机上打开。
+- **视频片段：** PS + 三角键开始录制，再按一次 PS + 三角键停止（最长 60 分钟）。片段可在 Media（媒体）中播放，并像截图一样分享到手机。保存位置（PS4 或 USB 驱动器）和画质（720p 或 1080p）在 设置 > 存储 中设置。
 - **Internet：** 一个网页浏览器磁贴，用手柄操作。
 - **设置：** Wi-Fi、外观、手柄、档案（最多 8 个）、菜单语言、日期和时间、备份。
 - **手柄：** 有线 DualShock 4，或蓝牙连接（按住 SHARE + PS 直到灯条双闪）。
@@ -130,20 +131,40 @@ EmuFive 和其他 Linux 系统一样，通过 [PS4 Multiboot](https://github.com
 
 本项目不包含任何 PS5 系统软件，也不包含任何游戏。请只使用你自己拥有并亲自转储的游戏。
 
-已测试的游戏：
+可以运行的游戏：
 
-| 游戏 | 主机 | 结果 |
-|---|---|---|
-| God of War Sons of Sparta | PS4 Pro | 可玩，约 40 FPS 及以上 |
-| Hollow Knight: Silksong | PS4 Pro | 可玩，50 到 60 FPS |
-| Plants vs. Zombies: Replanted | PS4 Pro | 可玩，锁定 60 FPS |
-| Vampire Survivors | PS4 Slim | 可玩，稳定 60 FPS |
-| Spider-Man 2 | | 尚未测试 |
+| 游戏 | 主机 | EmuFive | 结果 |
+|---|---|---|---|
+| God of War Sons of Sparta | PS4 Pro | 1.0.0 | 可玩，约 40 FPS 及以上 |
+| Hollow Knight: Silksong | PS4 Pro | 1.0.1 | 可玩，60 FPS |
+| Plants vs. Zombies: Replanted | PS4 Pro | 1.0.4 | 可玩，锁定 60 FPS |
+| Vampire Survivors | PS4 Slim | 1.0.4 | 可玩，稳定 60 FPS |
+| My Little Puppy | PS4 Slim | 1.0.6 | 可运行，3–15 FPS（空旷区域 20–25） |
+| DREDGE | PS4 Pro | 1.0.8 | 可玩 |
+| Teardown | PS4 Pro | 1.0.9 | 可运行，游戏中 9–12 FPS（轻量场景约 20），使用 GPU 共享内存 |
+| Invincible VS | PS4 Pro | 1.0.9 | 可启动，4–5 FPS；暂不可玩 |
 
-测试过某个游戏？请开一个 [issue](https://github.com/blue0x1/EmuFive/issues)，写明游戏、主机型号和运行情况。
+暂时无法运行的游戏（新版本可能会修复）：
+
+| 游戏 | 主机 | EmuFive | 结果 |
+|---|---|---|---|
+| DRAGON BALL: Sparking! ZERO | PS4 Pro | 1.0.4 | 第一个启动画面后停止（网格着色器） |
+| Hello Neighbor | PS4 Pro | 1.0.4 | 启动时停止（网格着色器） |
+| Need for Speed Unbound | PS4 Slim | 1.0.6 | 启动时崩溃（不支持的深度复制） |
+| V Rising | PS4 Pro | 1.0.8 | 启动时崩溃 |
+
+测试过某个游戏？请开一个 [issue](https://github.com/blue0x1/EmuFive/issues)，写明游戏、游戏 ID、主机型号、EmuFive 版本和运行情况。无法运行的游戏也很有用（例如“无法启动”或“在菜单崩溃”）：它们会写进表格，免得别人再试同一个游戏。
 
 <a id="changelog"></a>
 ## 更新日志
+
+### 1.0.9 (2026-11-18)
+
+- 改进：启用 GPU 共享游戏内存后，3D 游戏快很多（设置 > 游戏，默认开启）。游戏内存放在 PS4 GPU 直接读写的位置，缓冲区不再被复制、逐页跟踪或回读。PS4 Pro 上的 Teardown：菜单场景从 2.1 提升到 7 FPS，游戏中 9–12 FPS（轻量场景约 20）。如果某个游戏卡住或内存不足，请关闭它。
+- 修复：Teardown 在主菜单的崩溃（它从着色器写入 GPU 命令）、长时间游玩中的两个崩溃，以及 Invincible VS 的卡死。
+- 新增：视频片段。PS + 三角键开始和停止录制，游戏中也可以（720p 或 1080p，30 FPS，带声音）。保存在 PS4（`~/Videos`），或在 设置 > 存储 中选择后，保存到 USB 驱动器的 `PS5-videos`。Media（媒体）中可以查看和播放，分享会像截图一样发送到手机。PS4 的视频编码器在 Linux 下无法使用，所以由 CPU 编码：720p 约占一个核心。
+- 新增：游戏菜单中的游戏信息（主屏幕上按 OPTIONS）：游戏 ID、内容 ID、地区、版本、年龄分级、所需系统软件、SDK、在硬盘上的大小等。
+- 更新会为视频片段安装 ffmpeg（通过 apt 下载）。更新后 PS4 会要求重启。
 
 ### 1.0.8 (2026-11-16)
 

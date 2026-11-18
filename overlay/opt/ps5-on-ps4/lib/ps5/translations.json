@@ -5443,5 +5443,455 @@
 "de": "Verpixeln",
 "it": "Pixel",
 "pt": "Pixelizar"
+},
+"Game info": {
+"ar": "معلومات اللعبة",
+"fr": "Infos sur le jeu",
+"tr": "Oyun bilgisi",
+"es": "Información del juego",
+"de": "Spielinfo",
+"it": "Info sul gioco",
+"pt": "Informações do jogo"
+},
+"On this PS4": {
+"ar": "على هذا الـ PS4",
+"fr": "Sur cette PS4",
+"tr": "Bu PS4'te",
+"es": "En esta PS4",
+"de": "Auf dieser PS4",
+"it": "Su questa PS4",
+"pt": "Neste PS4"
+},
+"Title": {
+"ar": "العنوان",
+"fr": "Titre",
+"tr": "Başlık",
+"es": "Título",
+"de": "Titel",
+"it": "Titolo",
+"pt": "Título"
+},
+"Title ID": {
+"ar": "معرّف اللعبة",
+"fr": "ID du titre",
+"tr": "Oyun kimliği",
+"es": "ID del título",
+"de": "Titel-ID",
+"it": "ID del titolo",
+"pt": "ID do título"
+},
+"Content ID": {
+"ar": "معرّف المحتوى",
+"fr": "ID du contenu",
+"tr": "İçerik kimliği",
+"es": "ID del contenido",
+"de": "Inhalts-ID",
+"it": "ID del contenuto",
+"pt": "ID do conteúdo"
+},
+"Region": {
+"ar": "المنطقة",
+"fr": "Région",
+"tr": "Bölge",
+"es": "Región",
+"de": "Region",
+"it": "Regione",
+"pt": "Região"
+},
+"Publisher code": {
+"ar": "رمز الناشر",
+"fr": "Code de l'éditeur",
+"tr": "Yayıncı kodu",
+"es": "Código del editor",
+"de": "Publisher-Code",
+"it": "Codice dell'editore",
+"pt": "Código da editora"
+},
+"Version": {
+"ar": "الإصدار",
+"fr": "Version",
+"tr": "Sürüm",
+"es": "Versión",
+"de": "Version",
+"it": "Versione",
+"pt": "Versão"
+},
+"Master version": {
+"ar": "الإصدار الرئيسي",
+"fr": "Version master",
+"tr": "Ana sürüm",
+"es": "Versión maestra",
+"de": "Master-Version",
+"it": "Versione master",
+"pt": "Versão master"
+},
+"Age rating": {
+"ar": "التصنيف العمري",
+"fr": "Classification par âge",
+"tr": "Yaş sınırı",
+"es": "Clasificación por edad",
+"de": "Altersfreigabe",
+"it": "Classificazione per età",
+"pt": "Classificação etária"
+},
+"Needs system software": {
+"ar": "يتطلب برنامج النظام",
+"fr": "Logiciel système requis",
+"tr": "Gereken sistem yazılımı",
+"es": "Requiere el software del sistema",
+"de": "Benötigt Systemsoftware",
+"it": "Richiede il software di sistema",
+"pt": "Requer o software do sistema"
+},
+"Made with SDK": {
+"ar": "صُنعت بـ SDK",
+"fr": "Créé avec le SDK",
+"tr": "Kullanılan SDK",
+"es": "Hecho con el SDK",
+"de": "Erstellt mit SDK",
+"it": "Creato con l'SDK",
+"pt": "Feito com o SDK"
+},
+"Package made": {
+"ar": "تاريخ إنشاء الحزمة",
+"fr": "Paquet créé le",
+"tr": "Paket tarihi",
+"es": "Paquete creado",
+"de": "Paket erstellt",
+"it": "Pacchetto creato",
+"pt": "Pacote criado"
+},
+"DRM": {
+"ar": "إدارة الحقوق الرقمية",
+"fr": "DRM",
+"tr": "DRM",
+"es": "DRM",
+"de": "DRM",
+"it": "DRM",
+"pt": "DRM"
+},
+"Location": {
+"ar": "الموقع",
+"fr": "Emplacement",
+"tr": "Konum",
+"es": "Ubicación",
+"de": "Ort",
+"it": "Posizione",
+"pt": "Local"
+},
+"Folder": {
+"ar": "المجلد",
+"fr": "Dossier",
+"tr": "Klasör",
+"es": "Carpeta",
+"de": "Ordner",
+"it": "Cartella",
+"pt": "Pasta"
+},
+"Size": {
+"ar": "الحجم",
+"fr": "Taille",
+"tr": "Boyut",
+"es": "Tamaño",
+"de": "Größe",
+"it": "Dimensione",
+"pt": "Tamanho"
+},
+"Measuring…": {
+"ar": "جارٍ القياس…",
+"fr": "Mesure…",
+"tr": "Ölçülüyor…",
+"es": "Midiendo…",
+"de": "Wird gemessen…",
+"it": "Misurazione…",
+"pt": "Medindo…"
+},
+"Unknown": {
+"ar": "غير معروف",
+"fr": "Inconnu",
+"tr": "Bilinmiyor",
+"es": "Desconocido",
+"de": "Unbekannt",
+"it": "Sconosciuto",
+"pt": "Desconhecido"
+},
+"Yes": {
+"ar": "نعم",
+"fr": "Oui",
+"tr": "Evet",
+"es": "Sí",
+"de": "Ja",
+"it": "Sì",
+"pt": "Sim"
+},
+"No": {
+"ar": "لا",
+"fr": "Non",
+"tr": "Hayır",
+"es": "No",
+"de": "Nein",
+"it": "No",
+"pt": "Não"
+},
+"Americas": {
+"ar": "الأمريكتان",
+"fr": "Amériques",
+"tr": "Amerika",
+"es": "América",
+"de": "Amerika",
+"it": "Americhe",
+"pt": "Américas"
+},
+"Japan": {
+"ar": "اليابان",
+"fr": "Japon",
+"tr": "Japonya",
+"es": "Japón",
+"de": "Japan",
+"it": "Giappone",
+"pt": "Japão"
+},
+"Korea": {
+"ar": "كوريا",
+"fr": "Corée",
+"tr": "Kore",
+"es": "Corea",
+"de": "Korea",
+"it": "Corea",
+"pt": "Coreia"
+},
+"Internal": {
+"ar": "داخلي",
+"fr": "Interne",
+"tr": "Dahili",
+"es": "Interno",
+"de": "Intern",
+"it": "Interno",
+"pt": "Interno"
+},
+"Videos": {
+"ar": "الفيديوهات",
+"fr": "Vidéos",
+"tr": "Videolar",
+"es": "Vídeos",
+"de": "Videos",
+"it": "Video",
+"pt": "Vídeos"
+},
+"Video": {
+"ar": "فيديو",
+"fr": "Vidéo",
+"tr": "Video",
+"es": "Vídeo",
+"de": "Video",
+"it": "Video",
+"pt": "Vídeo"
+},
+"Save videos to": {
+"ar": "حفظ الفيديوهات في",
+"fr": "Enregistrer les vidéos sur",
+"tr": "Videoları kaydet",
+"es": "Guardar los vídeos en",
+"de": "Videos speichern auf",
+"it": "Salva i video su",
+"pt": "Salvar vídeos em"
+},
+"PS4 (~/Videos)": {
+"ar": "PS4 (~/Videos)",
+"fr": "PS4 (~/Videos)",
+"tr": "PS4 (~/Videos)",
+"es": "PS4 (~/Videos)",
+"de": "PS4 (~/Videos)",
+"it": "PS4 (~/Videos)",
+"pt": "PS4 (~/Videos)"
+},
+"USB drive (PS5-videos)": {
+"ar": "وحدة USB (PS5-videos)",
+"fr": "Clé USB (PS5-videos)",
+"tr": "USB sürücü (PS5-videos)",
+"es": "Unidad USB (PS5-videos)",
+"de": "USB-Laufwerk (PS5-videos)",
+"it": "Unità USB (PS5-videos)",
+"pt": "Unidade USB (PS5-videos)"
+},
+"Video quality": {
+"ar": "جودة الفيديو",
+"fr": "Qualité vidéo",
+"tr": "Video kalitesi",
+"es": "Calidad de vídeo",
+"de": "Videoqualität",
+"it": "Qualità video",
+"pt": "Qualidade do vídeo"
+},
+"720p, lighter for games": {
+"ar": "720p، أخف على الألعاب",
+"fr": "720p, plus léger pour les jeux",
+"tr": "720p, oyunlar için daha hafif",
+"es": "720p, más ligero para los juegos",
+"de": "720p, leichter für Spiele",
+"it": "720p, più leggero per i giochi",
+"pt": "720p, mais leve para os jogos"
+},
+"1080p, uses more CPU": {
+"ar": "1080p، يستهلك المعالج أكثر",
+"fr": "1080p, utilise plus le processeur",
+"tr": "1080p, daha fazla CPU kullanır",
+"es": "1080p, usa más CPU",
+"de": "1080p, braucht mehr CPU",
+"it": "1080p, usa più CPU",
+"pt": "1080p, usa mais CPU"
+},
+"PS + Triangle starts and stops a video, in a game too. Without a USB drive videos are saved on the PS4.": {
+"ar": "PS + المثلث يبدأ الفيديو ويوقفه، داخل اللعبة أيضاً. بدون وحدة USB تُحفظ الفيديوهات على الـ PS4.",
+"fr": "PS + Triangle démarre et arrête une vidéo, en jeu aussi. Sans clé USB, les vidéos sont enregistrées sur la PS4.",
+"tr": "PS + Üçgen bir videoyu başlatır ve durdurur, oyunda da. USB sürücü yoksa videolar PS4'e kaydedilir.",
+"es": "PS + Triángulo inicia y detiene un vídeo, también en un juego. Sin unidad USB, los vídeos se guardan en la PS4.",
+"de": "PS + Dreieck startet und stoppt ein Video, auch im Spiel. Ohne USB-Laufwerk werden Videos auf der PS4 gespeichert.",
+"it": "PS + Triangolo avvia e ferma un video, anche in gioco. Senza unità USB i video vengono salvati sulla PS4.",
+"pt": "PS + Triângulo inicia e para um vídeo, também em um jogo. Sem unidade USB, os vídeos são salvos no PS4."
+},
+"Recording started": {
+"ar": "بدأ التسجيل",
+"fr": "Enregistrement démarré",
+"tr": "Kayıt başladı",
+"es": "Grabación iniciada",
+"de": "Aufnahme gestartet",
+"it": "Registrazione avviata",
+"pt": "Gravação iniciada"
+},
+"Video saved": {
+"ar": "تم حفظ الفيديو",
+"fr": "Vidéo enregistrée",
+"tr": "Video kaydedildi",
+"es": "Vídeo guardado",
+"de": "Video gespeichert",
+"it": "Video salvato",
+"pt": "Vídeo salvo"
+},
+"Recording failed": {
+"ar": "فشل التسجيل",
+"fr": "Échec de l'enregistrement",
+"tr": "Kayıt başarısız",
+"es": "La grabación falló",
+"de": "Aufnahme fehlgeschlagen",
+"it": "Registrazione non riuscita",
+"pt": "Falha na gravação"
+},
+"The screen could not be recorded.": {
+"ar": "تعذّر تسجيل الشاشة.",
+"fr": "L'écran n'a pas pu être enregistré.",
+"tr": "Ekran kaydedilemedi.",
+"es": "No se pudo grabar la pantalla.",
+"de": "Der Bildschirm konnte nicht aufgenommen werden.",
+"it": "Impossibile registrare lo schermo.",
+"pt": "Não foi possível gravar a tela."
+},
+"PS + Triangle stops it": {
+"ar": "PS + المثلث لإيقافه",
+"fr": "PS + Triangle pour l'arrêter",
+"tr": "Durdurmak için PS + Üçgen",
+"es": "PS + Triángulo lo detiene",
+"de": "PS + Dreieck stoppt sie",
+"it": "PS + Triangolo la ferma",
+"pt": "PS + Triângulo para parar"
+},
+"PS5-videos on the USB drive": {
+"ar": "PS5-videos على وحدة USB",
+"fr": "PS5-videos sur la clé USB",
+"tr": "USB sürücüde PS5-videos",
+"es": "PS5-videos en la unidad USB",
+"de": "PS5-videos auf dem USB-Laufwerk",
+"it": "PS5-videos sull'unità USB",
+"pt": "PS5-videos na unidade USB"
+},
+"{a} (no USB drive)": {
+"ar": "{a} (لا توجد وحدة USB)",
+"fr": "{a} (pas de clé USB)",
+"tr": "{a} (USB sürücü yok)",
+"es": "{a} (sin unidad USB)",
+"de": "{a} (kein USB-Laufwerk)",
+"it": "{a} (nessuna unità USB)",
+"pt": "{a} (sem unidade USB)"
+},
+"No screenshots or videos yet": {
+"ar": "لا توجد لقطات شاشة أو فيديوهات بعد",
+"fr": "Pas encore de captures ni de vidéos",
+"tr": "Henüz ekran görüntüsü veya video yok",
+"es": "Aún no hay capturas ni vídeos",
+"de": "Noch keine Screenshots oder Videos",
+"it": "Ancora nessuno screenshot o video",
+"pt": "Ainda não há capturas nem vídeos"
+},
+"Press PS + Square, or Share, for a screenshot, in a game too.": {
+"ar": "اضغط PS + المربع، أو Share، لالتقاط صورة للشاشة، داخل اللعبة أيضاً.",
+"fr": "Appuyez sur PS + Carré, ou Share, pour une capture d'écran, en jeu aussi.",
+"tr": "Ekran görüntüsü için PS + Kare'ye veya Share'e basın, oyunda da.",
+"es": "Pulsa PS + Cuadrado, o Share, para una captura, también en un juego.",
+"de": "Drücke PS + Quadrat oder Share für einen Screenshot, auch im Spiel.",
+"it": "Premi PS + Quadrato, o Share, per uno screenshot, anche in gioco.",
+"pt": "Pressione PS + Quadrado, ou Share, para uma captura de tela, também em um jogo."
+},
+"PS + Triangle starts and stops a video.": {
+"ar": "PS + المثلث يبدأ الفيديو ويوقفه.",
+"fr": "PS + Triangle démarre et arrête une vidéo.",
+"tr": "PS + Üçgen bir videoyu başlatır ve durdurur.",
+"es": "PS + Triángulo inicia y detiene un vídeo.",
+"de": "PS + Dreieck startet und stoppt ein Video.",
+"it": "PS + Triangolo avvia e ferma un video.",
+"pt": "PS + Triângulo inicia e para um vídeo."
+},
+"Screenshots and videos": {
+"ar": "لقطات الشاشة والفيديوهات",
+"fr": "Captures et vidéos",
+"tr": "Ekran görüntüleri ve videolar",
+"es": "Capturas y vídeos",
+"de": "Screenshots und Videos",
+"it": "Screenshot e video",
+"pt": "Capturas e vídeos"
+},
+"Save or share the video": {
+"ar": "احفظ الفيديو أو شاركه",
+"fr": "Enregistrer ou partager la vidéo",
+"tr": "Videoyu kaydet veya paylaş",
+"es": "Guarda o comparte el vídeo",
+"de": "Video speichern oder teilen",
+"it": "Salva o condividi il video",
+"pt": "Salve ou compartilhe o vídeo"
+},
+"Delete this video? It cannot be brought back.": {
+"ar": "حذف هذا الفيديو؟ لا يمكن استعادته.",
+"fr": "Supprimer cette vidéo ? Elle ne pourra pas être récupérée.",
+"tr": "Bu video silinsin mi? Geri getirilemez.",
+"es": "¿Eliminar este vídeo? No se puede recuperar.",
+"de": "Dieses Video löschen? Es kann nicht wiederhergestellt werden.",
+"it": "Eliminare questo video? Non potrà essere recuperato.",
+"pt": "Excluir este vídeo? Ele não poderá ser recuperado."
+},
+"Pause": {
+"ar": "إيقاف مؤقت",
+"fr": "Pause",
+"tr": "Duraklat",
+"es": "Pausa",
+"de": "Pause",
+"it": "Pausa",
+"pt": "Pausar"
+},
+"GPU-shared game memory": {
+"ar": "ذاكرة الألعاب المشتركة مع المعالج الرسومي",
+"fr": "Mémoire de jeu partagée avec le GPU",
+"tr": "GPU ile paylaşılan oyun belleği",
+"es": "Memoria de juego compartida con la GPU",
+"de": "Mit der GPU geteilter Spielspeicher",
+"it": "Memoria di gioco condivisa con la GPU",
+"pt": "Memória de jogo compartilhada com a GPU"
+},
+"Games keep their memory where the GPU reads and writes it, so less is copied. Much faster in 3D games like Teardown. Turn it off if a game hangs or runs out of memory. It is used from the next game you start.": {
+"ar": "تبقى ذاكرة الألعاب حيث يقرأ المعالج الرسومي ويكتب، فيُنسخ أقل. أسرع بكثير في ألعاب ثلاثية الأبعاد مثل Teardown. أوقفه إذا تجمدت لعبة أو نفدت ذاكرتها. يُستخدم من اللعبة التالية التي تشغلها.",
+"fr": "Les jeux gardent leur mémoire là où le GPU la lit et l'écrit, donc moins de copies. Beaucoup plus rapide dans les jeux 3D comme Teardown. Désactivez-le si un jeu se bloque ou manque de mémoire. Pris en compte au prochain jeu lancé.",
+"tr": "Oyunlar belleklerini GPU'nun okuyup yazdığı yerde tutar, böylece daha az kopyalanır. Teardown gibi 3D oyunlarda çok daha hızlı. Bir oyun donarsa veya belleği biterse kapatın. Başlattığınız bir sonraki oyundan itibaren kullanılır.",
+"es": "Los juegos mantienen su memoria donde la GPU la lee y escribe, así se copia menos. Mucho más rápido en juegos 3D como Teardown. Desactívalo si un juego se cuelga o se queda sin memoria. Se usa desde el próximo juego que inicies.",
+"de": "Spiele behalten ihren Speicher dort, wo die GPU ihn liest und schreibt, so wird weniger kopiert. Viel schneller in 3D-Spielen wie Teardown. Schalte es aus, wenn ein Spiel hängt oder der Speicher ausgeht. Gilt ab dem nächsten Spiel, das du startest.",
+"it": "I giochi tengono la memoria dove la GPU la legge e la scrive, così si copia meno. Molto più veloce nei giochi 3D come Teardown. Disattivalo se un gioco si blocca o esaurisce la memoria. Vale dal prossimo gioco che avvii.",
+"pt": "Os jogos mantêm a memória onde a GPU a lê e escreve, então menos é copiado. Muito mais rápido em jogos 3D como Teardown. Desative se um jogo travar ou ficar sem memória. Vale a partir do próximo jogo que você iniciar."
 }
 }

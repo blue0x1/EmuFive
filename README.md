@@ -149,11 +149,13 @@ Tested a game? Open an [issue](https://github.com/blue0x1/EmuFive/issues) with t
 
 ## Changelog
 
-### Next (test build)
+### 1.0.9 (2026-11-18)
 
-- New, on by default: GPU-shared guest memory (Settings > Games > GPU-shared game memory). Game memory is put in memory the PS4's GPU reads and writes in place, so buffers are no longer copied, tracked page by page, or read back. Teardown on a PS4 Pro: menu scene from 2.1 to 7 FPS, in game 9–12 FPS.
-- Video clips: PS + Triangle starts and stops recording, in a game too (720p or 1080p at 30 FPS, with sound). They are saved on the PS4 (`~/Videos`) or, if set in Settings > Storage, in `PS5-videos` on the USB drive. Media shows and plays them, and Share sends them to a phone like screenshots. The PS4's video encoder can't be used under Linux, so the CPU encodes: about one core for 720p.
-- A game's menu (OPTIONS on the home screen) has Game info: title ID, content ID, region, version, age rating, required system software, SDK, size on the drive and more.
+- Improved: 3D games run much faster with GPU-shared game memory (Settings > Games, on by default). Game memory is put where the PS4's GPU reads and writes it in place, so buffers are no longer copied, tracked page by page, or read back. Teardown on a PS4 Pro: menu scene from 2.1 to 7 FPS, in game 9–12 FPS (about 20 in light scenes). Turn it off for a game that hangs or runs out of memory.
+- Fixed: Teardown's crash in the main menu (it writes GPU commands from shaders), two crashes in long sessions, and a hang in Invincible VS.
+- New: video clips. PS + Triangle starts and stops recording, in a game too (720p or 1080p at 30 FPS, with sound). They are saved on the PS4 (`~/Videos`) or, if set in Settings > Storage, in `PS5-videos` on the USB drive. Media shows and plays them, and Share sends them to a phone like screenshots. The PS4's video encoder can't be used under Linux, so the CPU encodes: about one core for 720p.
+- New: Game info in a game's menu (OPTIONS on the home screen): title ID, content ID, region, version, age rating, required system software, SDK, size on the drive and more.
+- The update installs ffmpeg for video clips (downloaded with apt). The PS4 asks to restart after the update.
 
 ### 1.0.8 (2026-11-16)
 

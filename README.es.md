@@ -106,15 +106,16 @@ Pasos:
    > **Ten paciencia:** después de iniciar el payload, la TV puede mostrar **"No signal" o una pantalla negra durante 1 o 2 minutos** mientras arranca Linux. Es normal.
 
 5. En el menú de PS4 Multiboot, elige **EmuFive** y luego **Install to PS4** o **Install to USB drive**. Tarda unos minutos.
-6. Pon tus juegos en uno de los lugares de abajo. Un juego es una carpeta con `eboot.bin` (y `sce_sys`), o un volcado ZArchive (`.zar`).
+6. Pon tus juegos en uno de los lugares de abajo. Un juego es una carpeta con `eboot.bin` (y `sce_sys`), o un volcado ZArchive (`.zar`). Los archivos de paquete (`.pkg`, fpkg) no se pueden instalar ni ejecutar: primero extrae el juego.
 
 Después, ejecuta el payload para iniciar EmuFive (con otros sistemas instalados, primero aparece el menú de PS4 Multiboot). Para reinstalar, borra `/user/home/ps5-ps4.img` por FTP y ejecuta el payload. Actualizaciones: Ajustes, Sistema, Actualización de software.
 
 ### Uso
 
-- **Pantalla de inicio:** tus juegos como mosaicos. Elige uno y pulsa Jugar. OPTIONS sobre un juego: favorito, ocultar, sus ajustes, trofeos y tiempo de juego.
+- **Pantalla de inicio:** tus juegos como mosaicos. Elige uno y pulsa Jugar. OPTIONS sobre un juego: favorito, ocultar, sus ajustes, trofeos, tiempo de juego e información del juego.
 - **Botón PS en un juego:** menú de pausa (Reanudar, Inicio, Cerrar el juego, volumen, apagado).
 - **Capturas:** PS + Cuadrado, o Share. Míralas en Multimedia; Triángulo muestra un código QR para abrir una en el móvil.
+- **Clips de vídeo:** PS + Triángulo empieza a grabar, y PS + Triángulo otra vez lo detiene (hasta 60 minutos). Los clips se reproducen en Multimedia y se comparten al móvil como las capturas. Dónde se guardan (la PS4 o una unidad USB) y su calidad (720p o 1080p) están en Ajustes > Almacenamiento.
 - **Internet:** un mosaico de navegador web, usado con el mando.
 - **Ajustes:** Wi-Fi, apariencia, mandos, perfiles (hasta 8), idioma del menú, fecha y hora, copia de seguridad.
 - **Mandos:** un DualShock 4 con cable, o por Bluetooth (mantén SHARE + PS hasta que la barra de luz parpadee dos veces).
@@ -130,20 +131,40 @@ Después, ejecuta el payload para iniciar EmuFive (con otros sistemas instalados
 
 Este proyecto no contiene software de sistema de PS5 ni juegos. Usa solo juegos que tengas y que hayas volcado tú mismo.
 
-Juegos probados:
+Juegos que funcionan:
 
-| Juego | Consola | Resultado |
-|---|---|---|
-| God of War Sons of Sparta | PS4 Pro | Jugable, unos 40 FPS o más |
-| Hollow Knight: Silksong | PS4 Pro | Jugable, de 50 a 60 FPS |
-| Plants vs. Zombies: Replanted | PS4 Pro | Jugable, 60 FPS fijos |
-| Vampire Survivors | PS4 Slim | Jugable, 60 FPS estables |
-| Spider-Man 2 | | Aún no probado |
+| Juego | Consola | EmuFive | Resultado |
+|---|---|---|---|
+| God of War Sons of Sparta | PS4 Pro | 1.0.0 | Jugable, unos 40 FPS o más |
+| Hollow Knight: Silksong | PS4 Pro | 1.0.1 | Jugable, 60 FPS |
+| Plants vs. Zombies: Replanted | PS4 Pro | 1.0.4 | Jugable, 60 FPS fijos |
+| Vampire Survivors | PS4 Slim | 1.0.4 | Jugable, 60 FPS estables |
+| My Little Puppy | PS4 Slim | 1.0.6 | Funciona, 3–15 FPS (20–25 en zonas vacías) |
+| DREDGE | PS4 Pro | 1.0.8 | Jugable |
+| Teardown | PS4 Pro | 1.0.9 | Funciona, 9–12 FPS en el juego (unos 20 en escenas ligeras) con memoria compartida con la GPU |
+| Invincible VS | PS4 Pro | 1.0.9 | Arranca, 4–5 FPS; aún no es jugable |
 
-¿Probaste un juego? Abre un [issue](https://github.com/blue0x1/EmuFive/issues) con el juego, el modelo de tu consola y cómo funcionó.
+Juegos que aún no funcionan (una versión más nueva puede arreglarlos):
+
+| Juego | Consola | EmuFive | Resultado |
+|---|---|---|---|
+| DRAGON BALL: Sparking! ZERO | PS4 Pro | 1.0.4 | Se detiene tras la primera pantalla de inicio (mesh shaders) |
+| Hello Neighbor | PS4 Pro | 1.0.4 | Se detiene al arrancar (mesh shaders) |
+| Need for Speed Unbound | PS4 Slim | 1.0.6 | Se cierra al arrancar (copia de profundidad no soportada) |
+| V Rising | PS4 Pro | 1.0.8 | Se cierra al arrancar |
+
+¿Probaste un juego? Abre un [issue](https://github.com/blue0x1/EmuFive/issues) con el juego, su ID de título, el modelo de tu consola, la versión de EmuFive y cómo funcionó. Los juegos que no funcionan también sirven (por ejemplo «no arranca» o «se cierra en el menú»): van a la tabla, para que otros no prueben el mismo juego.
 
 <a id="changelog"></a>
 ## Registro de cambios
+
+### 1.0.9 (2026-11-18)
+
+- Mejorado: los juegos 3D van mucho más rápido con la memoria de juego compartida con la GPU (Ajustes > Juegos, activada por defecto). La memoria del juego se pone donde la GPU de la PS4 la lee y escribe directamente, así los búferes ya no se copian, ni se siguen página a página, ni se vuelven a leer. Teardown en una PS4 Pro: escena del menú de 2,1 a 7 FPS, en el juego 9–12 FPS (unos 20 en escenas ligeras). Desactívala para un juego que se cuelgue o se quede sin memoria.
+- Corregido: el cierre de Teardown en el menú principal (escribe comandos de GPU desde shaders), dos cierres en sesiones largas y un bloqueo en Invincible VS.
+- Nuevo: clips de vídeo. PS + Triángulo inicia y detiene la grabación, también en un juego (720p o 1080p a 30 FPS, con sonido). Se guardan en la PS4 (`~/Videos`) o, si se elige en Ajustes > Almacenamiento, en `PS5-videos` en la unidad USB. Multimedia los muestra y reproduce, y Compartir los envía al móvil como las capturas. El codificador de vídeo de la PS4 no se puede usar en Linux, así que codifica la CPU: más o menos un núcleo para 720p.
+- Nuevo: información del juego en el menú de un juego (OPTIONS en la pantalla de inicio): ID del título, ID del contenido, región, versión, clasificación por edad, software del sistema requerido, SDK, tamaño en la unidad y más.
+- La actualización instala ffmpeg para los clips de vídeo (descargado con apt). La PS4 pide reiniciar después de la actualización.
 
 ### 1.0.8 (2026-11-16)
 

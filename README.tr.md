@@ -106,15 +106,16 @@ Adımlar:
    > **Sabırlı olun:** payload başladıktan sonra Linux açılırken TV **1 ila 2 dakika boyunca "No signal" ya da siyah ekran** gösterebilir. Bu normaldir.
 
 5. PS4 Multiboot menüsünde **EmuFive**'ı, ardından **Install to PS4** veya **Install to USB drive** seçeneğini seçin. Birkaç dakika sürer.
-6. Oyunlarınızı aşağıdaki yerlerden birine koyun. Bir oyun, içinde `eboot.bin` (ve `sce_sys`) olan bir klasör veya bir ZArchive (`.zar`) dökümüdür.
+6. Oyunlarınızı aşağıdaki yerlerden birine koyun. Bir oyun, içinde `eboot.bin` (ve `sce_sys`) olan bir klasör veya bir ZArchive (`.zar`) dökümüdür. Paket dosyaları (`.pkg`, fpkg) kurulamaz ve çalıştırılamaz: önce oyunu çıkarın.
 
 Ardından EmuFive'ı başlatmak için payload'ı çalıştırın (başka sistemler de kuruluysa önce PS4 Multiboot menüsü açılır). Yeniden kurmak için FTP ile `/user/home/ps5-ps4.img` dosyasını silip payload'ı çalıştırın. Güncellemeler: Ayarlar, Sistem, Yazılım güncellemesi.
 
 ### Kullanım
 
-- **Ana ekran:** oyunlarınız kutucuk olarak. Birini seçip Oyna'ya basın. Bir oyunda OPTIONS: favori, gizle, oyunun ayarları, kupaları ve oynama süresi.
+- **Ana ekran:** oyunlarınız kutucuk olarak. Birini seçip Oyna'ya basın. Bir oyunda OPTIONS: favori, gizle, oyunun ayarları, kupaları, oynama süresi ve oyun bilgisi.
 - **Oyunda PS tuşu:** duraklatma menüsü (Devam, Ana ekran, Oyunu kapat, ses, güç).
 - **Ekran görüntüleri:** PS + Kare veya Share. Medya'da görün; Üçgen, birini telefonda açmak için QR kod gösterir.
+- **Video klipler:** PS + Üçgen kaydı başlatır, tekrar PS + Üçgen durdurur (en fazla 60 dakika). Klipler Medya'da oynatılır ve ekran görüntüleri gibi telefona paylaşılır. Nereye kaydedileceği (PS4 veya bir USB sürücü) ve kalitesi (720p veya 1080p) Ayarlar > Depolama'dadır.
 - **İnternet:** kumandayla kullanılan bir web tarayıcısı kutucuğu.
 - **Ayarlar:** Wi-Fi, görünüm, kumandalar, profiller (en fazla 8), menü dili, tarih ve saat, yedekleme.
 - **Kumandalar:** kabloyla ya da Bluetooth ile bir DualShock 4 (ışık çubuğu iki kez yanıp sönene kadar SHARE + PS'ye basılı tutun).
@@ -130,20 +131,40 @@ Ardından EmuFive'ı başlatmak için payload'ı çalıştırın (başka sisteml
 
 Bu proje hiçbir PS5 sistem yazılımı ve hiçbir oyun içermez. Yalnızca sahip olduğunuz ve dökümünü kendiniz aldığınız oyunları kullanın.
 
-Denenen oyunlar:
+Çalışan oyunlar:
 
-| Oyun | Konsol | Sonuç |
-|---|---|---|
-| God of War Sons of Sparta | PS4 Pro | Oynanabilir, yaklaşık 40 FPS ve üzeri |
-| Hollow Knight: Silksong | PS4 Pro | Oynanabilir, 50 ile 60 FPS arası |
-| Plants vs. Zombies: Replanted | PS4 Pro | Oynanabilir, sabit 60 FPS |
-| Vampire Survivors | PS4 Slim | Oynanabilir, kararlı 60 FPS |
-| Spider-Man 2 | | Henüz denenmedi |
+| Oyun | Konsol | EmuFive | Sonuç |
+|---|---|---|---|
+| God of War Sons of Sparta | PS4 Pro | 1.0.0 | Oynanabilir, yaklaşık 40 FPS ve üstü |
+| Hollow Knight: Silksong | PS4 Pro | 1.0.1 | Oynanabilir, 60 FPS |
+| Plants vs. Zombies: Replanted | PS4 Pro | 1.0.4 | Oynanabilir, sabit 60 FPS |
+| Vampire Survivors | PS4 Slim | 1.0.4 | Oynanabilir, kararlı 60 FPS |
+| My Little Puppy | PS4 Slim | 1.0.6 | Çalışıyor, 3–15 FPS (boş alanlarda 20–25) |
+| DREDGE | PS4 Pro | 1.0.8 | Oynanabilir |
+| Teardown | PS4 Pro | 1.0.9 | Çalışıyor, oyunda 9–12 FPS (hafif sahnelerde yaklaşık 20), GPU ile paylaşılan bellekle |
+| Invincible VS | PS4 Pro | 1.0.9 | Açılıyor, 4–5 FPS; henüz oynanamıyor |
 
-Bir oyun mu denediniz? Oyunu, konsol modelinizi ve nasıl çalıştığını yazarak bir [issue](https://github.com/blue0x1/EmuFive/issues) açın.
+Henüz çalışmayan oyunlar (daha yeni bir sürüm düzeltebilir):
+
+| Oyun | Konsol | EmuFive | Sonuç |
+|---|---|---|---|
+| DRAGON BALL: Sparking! ZERO | PS4 Pro | 1.0.4 | İlk açılış ekranından sonra duruyor (mesh shader) |
+| Hello Neighbor | PS4 Pro | 1.0.4 | Açılışta duruyor (mesh shader) |
+| Need for Speed Unbound | PS4 Slim | 1.0.6 | Açılışta çöküyor (desteklenmeyen derinlik kopyası) |
+| V Rising | PS4 Pro | 1.0.8 | Açılışta çöküyor |
+
+Bir oyun mu denediniz? Oyunu, oyun kimliğini, konsol modelinizi, EmuFive sürümünü ve nasıl çalıştığını yazarak bir [issue](https://github.com/blue0x1/EmuFive/issues) açın. Çalışmayan oyunlar da işe yarar (örneğin "açılmıyor" veya "menüde çöküyor"): tabloya eklenirler, böylece başkaları aynı oyunu denemez.
 
 <a id="changelog"></a>
 ## Değişiklik günlüğü
+
+### 1.0.9 (2026-11-18)
+
+- İyileştirildi: 3D oyunlar GPU ile paylaşılan oyun belleğiyle çok daha hızlı çalışıyor (Ayarlar > Oyunlar, varsayılan olarak açık). Oyun belleği, PS4'ün GPU'sunun doğrudan okuyup yazdığı yere konur; böylece tamponlar artık kopyalanmaz, sayfa sayfa izlenmez ve geri okunmaz. PS4 Pro'da Teardown: menü sahnesi 2,1'den 7 FPS'ye, oyunda 9–12 FPS (hafif sahnelerde yaklaşık 20). Donan veya belleği biten bir oyun için kapatın.
+- Düzeltildi: Teardown'un ana menüdeki çökmesi (shader'lardan GPU komutları yazıyor), uzun oturumlardaki iki çökme ve Invincible VS'teki bir donma.
+- Yeni: video klipler. PS + Üçgen kaydı başlatır ve durdurur, oyunda da (30 FPS'de 720p veya 1080p, sesli). PS4'e (`~/Videos`) veya Ayarlar > Depolama'da seçilmişse USB sürücüdeki `PS5-videos` klasörüne kaydedilir. Medya bunları gösterir ve oynatır, Paylaş da ekran görüntüleri gibi telefona gönderir. PS4'ün video kodlayıcısı Linux'ta kullanılamıyor, bu yüzden kodlamayı CPU yapar: 720p için yaklaşık bir çekirdek.
+- Yeni: bir oyunun menüsünde oyun bilgisi (ana ekranda OPTIONS): oyun kimliği, içerik kimliği, bölge, sürüm, yaş sınırı, gereken sistem yazılımı, SDK, sürücüdeki boyut ve daha fazlası.
+- Güncelleme video klipler için ffmpeg kurar (apt ile indirilir). Güncellemeden sonra PS4 yeniden başlatmak ister.
 
 ### 1.0.8 (2026-11-16)
 

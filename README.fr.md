@@ -106,15 +106,16 @@ Il vous faut :
    > **Soyez patient :** après le lancement du payload, la TV peut afficher **« No signal » ou un écran noir pendant 1 à 2 minutes** pendant que Linux démarre. C'est normal.
 
 5. Dans le menu de PS4 Multiboot, choisissez **EmuFive**, puis **Install to PS4** ou **Install to USB drive**. Cela prend quelques minutes.
-6. Placez vos jeux à l'un des endroits ci-dessous. Un jeu est un dossier avec `eboot.bin` (et `sce_sys`), ou un dump ZArchive (`.zar`).
+6. Placez vos jeux à l'un des endroits ci-dessous. Un jeu est un dossier avec `eboot.bin` (et `sce_sys`), ou un dump ZArchive (`.zar`). Les fichiers paquet (`.pkg`, fpkg) ne peuvent pas être installés ni lancés : extrayez d'abord le jeu.
 
 Ensuite, lancez le payload pour démarrer EmuFive (si d'autres systèmes sont installés, le menu de PS4 Multiboot apparaît d'abord). Pour réinstaller, supprimez `/user/home/ps5-ps4.img` par FTP et lancez le payload. Mises à jour : Paramètres, Système, Mise à jour logicielle.
 
 ### Utilisation
 
-- **Écran d'accueil :** vos jeux en tuiles. Choisissez-en un et appuyez sur Jouer. OPTIONS sur un jeu : favori, masquer, ses paramètres, trophées et temps de jeu.
+- **Écran d'accueil :** vos jeux en tuiles. Choisissez-en un et appuyez sur Jouer. OPTIONS sur un jeu : favori, masquer, ses paramètres, trophées, temps de jeu et infos sur le jeu.
 - **Touche PS en jeu :** menu de pause (Reprendre, Accueil, Fermer le jeu, volume, alimentation).
 - **Captures d'écran :** PS + Carré, ou Share. Voyez-les dans Médias ; Triangle affiche un QR code pour en ouvrir une sur votre téléphone.
+- **Clips vidéo :** PS + Triangle lance l'enregistrement, et PS + Triangle à nouveau l'arrête (jusqu'à 60 minutes). Les clips se lisent dans Médias et se partagent vers votre téléphone comme les captures. L'emplacement (la PS4 ou une clé USB) et la qualité (720p ou 1080p) se règlent dans Paramètres > Stockage.
 - **Internet :** une tuile de navigateur web, utilisée à la manette.
 - **Paramètres :** Wi-Fi, apparence, manettes, profils (jusqu'à 8), langue du menu, date et heure, sauvegarde.
 - **Manettes :** une DualShock 4 par câble, ou en Bluetooth (maintenez SHARE + PS jusqu'à ce que la barre lumineuse clignote deux fois).
@@ -130,20 +131,40 @@ Ensuite, lancez le payload pour démarrer EmuFive (si d'autres systèmes sont in
 
 Ce projet ne contient aucun logiciel système PS5 ni aucun jeu. N'utilisez que des jeux que vous possédez et que vous avez dumpés vous-même.
 
-Jeux testés :
+Jeux qui fonctionnent :
 
-| Jeu | Console | Résultat |
-|---|---|---|
-| God of War Sons of Sparta | PS4 Pro | Jouable, environ 40 FPS et plus |
-| Hollow Knight: Silksong | PS4 Pro | Jouable, de 50 à 60 FPS |
-| Plants vs. Zombies: Replanted | PS4 Pro | Jouable, 60 FPS constants |
-| Vampire Survivors | PS4 Slim | Jouable, 60 FPS stables |
-| Spider-Man 2 | | Pas encore testé |
+| Jeu | Console | EmuFive | Résultat |
+|---|---|---|---|
+| God of War Sons of Sparta | PS4 Pro | 1.0.0 | Jouable, environ 40 IPS et plus |
+| Hollow Knight: Silksong | PS4 Pro | 1.0.1 | Jouable, 60 IPS |
+| Plants vs. Zombies: Replanted | PS4 Pro | 1.0.4 | Jouable, 60 IPS verrouillés |
+| Vampire Survivors | PS4 Slim | 1.0.4 | Jouable, 60 IPS stables |
+| My Little Puppy | PS4 Slim | 1.0.6 | Tourne, 3–15 IPS (20–25 dans les zones vides) |
+| DREDGE | PS4 Pro | 1.0.8 | Jouable |
+| Teardown | PS4 Pro | 1.0.9 | Tourne, 9–12 IPS en jeu (environ 20 dans les scènes légères) avec la mémoire partagée avec le GPU |
+| Invincible VS | PS4 Pro | 1.0.9 | Démarre, 4–5 IPS ; pas encore jouable |
 
-Vous avez testé un jeu ? Ouvrez une [issue](https://github.com/blue0x1/EmuFive/issues) avec le jeu, le modèle de votre console et comment il a tourné.
+Jeux qui ne fonctionnent pas encore (une version plus récente peut les corriger) :
+
+| Jeu | Console | EmuFive | Résultat |
+|---|---|---|---|
+| DRAGON BALL: Sparking! ZERO | PS4 Pro | 1.0.4 | S'arrête après le premier écran de démarrage (mesh shaders) |
+| Hello Neighbor | PS4 Pro | 1.0.4 | S'arrête au démarrage (mesh shaders) |
+| Need for Speed Unbound | PS4 Slim | 1.0.6 | Plante au démarrage (copie de profondeur non prise en charge) |
+| V Rising | PS4 Pro | 1.0.8 | Plante au démarrage |
+
+Vous avez testé un jeu ? Ouvrez une [issue](https://github.com/blue0x1/EmuFive/issues) avec le jeu, son ID de titre, le modèle de votre console, la version d'EmuFive et comment il a tourné. Les jeux qui ne fonctionnent pas sont utiles aussi (par exemple « ne démarre pas » ou « plante dans le menu ») : ils vont dans le tableau, pour que d'autres n'essaient pas le même jeu.
 
 <a id="changelog"></a>
 ## Journal des modifications
+
+### 1.0.9 (2026-11-18)
+
+- Amélioré : les jeux 3D tournent bien plus vite avec la mémoire de jeu partagée avec le GPU (Paramètres > Jeux, activée par défaut). La mémoire du jeu est placée là où le GPU de la PS4 la lit et l'écrit directement, donc les tampons ne sont plus copiés, suivis page par page ni relus. Teardown sur une PS4 Pro : scène du menu de 2,1 à 7 IPS, en jeu 9–12 IPS (environ 20 dans les scènes légères). Désactivez-la pour un jeu qui se bloque ou manque de mémoire.
+- Corrigé : le plantage de Teardown dans le menu principal (il écrit des commandes GPU depuis des shaders), deux plantages lors de longues sessions et un blocage dans Invincible VS.
+- Nouveau : clips vidéo. PS + Triangle lance et arrête l'enregistrement, en jeu aussi (720p ou 1080p à 30 IPS, avec le son). Ils sont enregistrés sur la PS4 (`~/Videos`) ou, si c'est réglé dans Paramètres > Stockage, dans `PS5-videos` sur la clé USB. Médias les affiche et les lit, et Partager les envoie vers un téléphone comme les captures. L'encodeur vidéo de la PS4 n'est pas utilisable sous Linux, donc c'est le processeur qui encode : environ un cœur en 720p.
+- Nouveau : infos sur le jeu dans le menu d'un jeu (OPTIONS sur l'écran d'accueil) : ID du titre, ID du contenu, région, version, classification par âge, logiciel système requis, SDK, taille sur le disque et plus.
+- La mise à jour installe ffmpeg pour les clips vidéo (téléchargé avec apt). La PS4 demande à redémarrer après la mise à jour.
 
 ### 1.0.8 (2026-11-16)
 
