@@ -171,25 +171,13 @@ Juegos que aún no funcionan (una versión más nueva puede arreglarlos):
 - Corregido: ruido en toda la pantalla cerca de los objetos con los que se puede interactuar (Wytchwood). Una nueva máscara de pantalla completa que el juego lee antes de dibujarla contenía bytes sobrantes de otras imágenes; ahora empieza llena.
 - Nuevo: `emufive.mode=1920x1080@60` en `bootargs.txt` fija el modo de pantalla de EmuFive. EmuFive usaba el modo preferido de la TV, que algunas TV ofrecen aunque la PS4 no puede enviarlo (pantalla negra después del menú de PS4 Multiboot).
 
-### 1.0.9 (2026-11-18)
-
-- Mejorado: los juegos 3D van mucho más rápido con la memoria de juego compartida con la GPU (Ajustes > Juegos, activada por defecto). La memoria del juego se pone donde la GPU de la PS4 la lee y escribe directamente, así los búferes ya no se copian, ni se siguen página a página, ni se vuelven a leer. Teardown en una PS4 Pro: escena del menú de 2,1 a 7 FPS, en el juego 9–12 FPS (unos 20 en escenas ligeras). Desactívala para un juego que se cuelgue o se quede sin memoria.
-- Corregido: el cierre de Teardown en el menú principal (escribe comandos de GPU desde shaders), dos cierres en sesiones largas y un bloqueo en Invincible VS.
-- Nuevo: clips de vídeo. PS + Triángulo inicia y detiene la grabación, también en un juego (720p o 1080p a 30 FPS, con sonido). Se guardan en la PS4 (`~/Videos`) o, si se elige en Ajustes > Almacenamiento, en `PS5-videos` en la unidad USB. Multimedia los muestra y reproduce, y Compartir los envía al móvil como las capturas. El codificador de vídeo de la PS4 no se puede usar en Linux, así que codifica la CPU: más o menos un núcleo para 720p.
-- Nuevo: información del juego en el menú de un juego (OPTIONS en la pantalla de inicio): ID del título, ID del contenido, región, versión, clasificación por edad, software del sistema requerido, SDK, tamaño en la unidad y más.
-- La actualización instala ffmpeg para los clips de vídeo (descargado con apt). La PS4 pide reiniciar después de la actualización.
-
-### 1.0.8 (2026-11-16)
-
-- Mejorado: los juegos con búferes muy grandes van mucho más rápido. Ahora solo los búferes pequeños se suben enteros en cada fotograma; los grandes vuelven a seguirse por páginas. Teardown en una PS4 Pro pasó de menos de 1 a unos 2,4 FPS. Teardown también necesita 5 GB de memoria de GPU: usa el `bootargs.txt` de PS4 Multiboot v1.5.0-beta-5.
-
 Para actualizar desde la 1.0.3 o anteriores, inicia la actualización una vez a mano, porque la actualización de software antigua no puede: activa SSH en Ajustes, conéctate con `ssh ps5@<dirección de la PS4>` (contraseña `ps5` si no la cambiaste) y ejecuta
 
 ```bash
 sudo systemd-run --unit=emufive-update --collect /opt/ps5-on-ps4/bin/ps5-update install
 ```
 
-Instala todas las actualizaciones que faltan (desde la 1.0.0 o la 1.0.1 eso incluye los paquetes del navegador de la 1.0.2, unos 110 MB); después reinicia desde la pantalla de inicio. Desde la 1.0.4, la actualización de software en Ajustes funciona. Las instalaciones nuevas usan el `ps5-ps4-rootfs.tar.xz` de la versión 1.0.6.
+Instala todas las actualizaciones que faltan (desde la 1.0.0 o la 1.0.1 eso incluye los paquetes del navegador de la 1.0.2, unos 110 MB); después reinicia desde la pantalla de inicio. Desde la 1.0.4, la actualización de software en Ajustes funciona. Las instalaciones nuevas usan el `ps5-ps4-rootfs.tar.xz` de la versión 1.0.10.
 
 ## Estructura del proyecto
 

@@ -171,25 +171,13 @@ Bir oyun mu denediniz? Oyunu, oyun kimliğini, konsol modelinizi, EmuFive sürü
 - Düzeltildi: etkileşime girilebilen nesnelerin yakınında tüm ekranı kaplayan parazit (Wytchwood). Oyunun çizmeden önce okuduğu yeni bir tam ekran maske, başka görüntülerden kalan baytları içeriyordu; artık dolu başlıyor.
 - Yeni: `bootargs.txt` içindeki `emufive.mode=1920x1080@60`, EmuFive'ın ekran modunu belirler. EmuFive, TV'nin tercih ettiği modu kullanıyordu; bazı TV'ler bu modu PS4 gönderemese de sunuyor (PS4 Multiboot menüsünden sonra siyah ekran).
 
-### 1.0.9 (2026-11-18)
-
-- İyileştirildi: 3D oyunlar GPU ile paylaşılan oyun belleğiyle çok daha hızlı çalışıyor (Ayarlar > Oyunlar, varsayılan olarak açık). Oyun belleği, PS4'ün GPU'sunun doğrudan okuyup yazdığı yere konur; böylece tamponlar artık kopyalanmaz, sayfa sayfa izlenmez ve geri okunmaz. PS4 Pro'da Teardown: menü sahnesi 2,1'den 7 FPS'ye, oyunda 9–12 FPS (hafif sahnelerde yaklaşık 20). Donan veya belleği biten bir oyun için kapatın.
-- Düzeltildi: Teardown'un ana menüdeki çökmesi (shader'lardan GPU komutları yazıyor), uzun oturumlardaki iki çökme ve Invincible VS'teki bir donma.
-- Yeni: video klipler. PS + Üçgen kaydı başlatır ve durdurur, oyunda da (30 FPS'de 720p veya 1080p, sesli). PS4'e (`~/Videos`) veya Ayarlar > Depolama'da seçilmişse USB sürücüdeki `PS5-videos` klasörüne kaydedilir. Medya bunları gösterir ve oynatır, Paylaş da ekran görüntüleri gibi telefona gönderir. PS4'ün video kodlayıcısı Linux'ta kullanılamıyor, bu yüzden kodlamayı CPU yapar: 720p için yaklaşık bir çekirdek.
-- Yeni: bir oyunun menüsünde oyun bilgisi (ana ekranda OPTIONS): oyun kimliği, içerik kimliği, bölge, sürüm, yaş sınırı, gereken sistem yazılımı, SDK, sürücüdeki boyut ve daha fazlası.
-- Güncelleme video klipler için ffmpeg kurar (apt ile indirilir). Güncellemeden sonra PS4 yeniden başlatmak ister.
-
-### 1.0.8 (2026-11-16)
-
-- İyileştirildi: çok büyük arabellekli oyunlar çok daha hızlı. Artık her karede yalnızca küçük arabellekler tümüyle yükleniyor; büyükler yeniden sayfa sayfa izleniyor. Teardown, PS4 Pro'da 1 FPS'nin altından yaklaşık 2,4 FPS'ye çıktı. Teardown ayrıca 5 GB GPU belleği istiyor: PS4 Multiboot v1.5.0-beta-5'in `bootargs.txt` dosyasını kullanın.
-
 1.0.3 veya önceki bir sürümden güncellemek için, eski yazılım güncellemesi bunu yapamadığından güncellemeyi bir kez elle başlatın: Ayarlar'da SSH'yi açın, `ssh ps5@<PS4 adresi>` ile bağlanın (değiştirmediyseniz parola `ps5`) ve çalıştırın:
 
 ```bash
 sudo systemd-run --unit=emufive-update --collect /opt/ps5-on-ps4/bin/ps5-update install
 ```
 
-Eksik tüm güncellemeleri kurar (1.0.0 veya 1.0.1'den buna 1.0.2'nin yaklaşık 110 MB'lık tarayıcı paketleri dahildir); ardından ana ekrandan yeniden başlatın. 1.0.4'ten itibaren Ayarlar'daki yazılım güncellemesi çalışır. Yeni kurulumlar 1.0.6 sürümündeki `ps5-ps4-rootfs.tar.xz` dosyasını kullanır.
+Eksik tüm güncellemeleri kurar (1.0.0 veya 1.0.1'den buna 1.0.2'nin yaklaşık 110 MB'lık tarayıcı paketleri dahildir); ardından ana ekrandan yeniden başlatın. 1.0.4'ten itibaren Ayarlar'daki yazılım güncellemesi çalışır. Yeni kurulumlar 1.0.10 sürümündeki `ps5-ps4-rootfs.tar.xz` dosyasını kullanır.
 
 ## Proje yapısı
 

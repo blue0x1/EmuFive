@@ -162,25 +162,13 @@ Tested a game? Open an [issue](https://github.com/blue0x1/EmuFive/issues) with t
 - Fixed: full-screen noise near objects you can interact with (Wytchwood). A new full-screen mask the game reads before drawing it held leftover bytes from other images; it now starts full.
 - New: `emufive.mode=1920x1080@60` in `bootargs.txt` sets EmuFive's screen mode. EmuFive used the TV's preferred mode, which some TVs offer although the PS4 can't send it (black screen after the PS4 Multiboot menu).
 
-### 1.0.9 (2026-11-18)
-
-- Improved: 3D games run much faster with GPU-shared game memory (Settings > Games, on by default). Game memory is put where the PS4's GPU reads and writes it in place, so buffers are no longer copied, tracked page by page, or read back. Teardown on a PS4 Pro: menu scene from 2.1 to 7 FPS, in game 9–12 FPS (about 20 in light scenes). Turn it off for a game that hangs or runs out of memory.
-- Fixed: Teardown's crash in the main menu (it writes GPU commands from shaders), two crashes in long sessions, and a hang in Invincible VS.
-- New: video clips. PS + Triangle starts and stops recording, in a game too (720p or 1080p at 30 FPS, with sound). They are saved on the PS4 (`~/Videos`) or, if set in Settings > Storage, in `PS5-videos` on the USB drive. Media shows and plays them, and Share sends them to a phone like screenshots. The PS4's video encoder can't be used under Linux, so the CPU encodes: about one core for 720p.
-- New: Game info in a game's menu (OPTIONS on the home screen): title ID, content ID, region, version, age rating, required system software, SDK, size on the drive and more.
-- The update installs ffmpeg for video clips (downloaded with apt). The PS4 asks to restart after the update.
-
-### 1.0.8 (2026-11-16)
-
-- Improved: games with very large buffers run much faster. Only small buffers are now uploaded whole each frame; large ones are tracked by page again. Teardown on a PS4 Pro went from under 1 FPS to about 2.4 FPS. Teardown also needs 5 GB of GPU memory: use the `bootargs.txt` of PS4 Multiboot v1.5.0-beta-5.
-
 To update from 1.0.3 or earlier, start the update once by hand, since the old Software update cannot: turn on SSH in Settings, connect with `ssh ps5@<PS4 address>` (password `ps5` unless you changed it) and run
 
 ```bash
 sudo systemd-run --unit=emufive-update --collect /opt/ps5-on-ps4/bin/ps5-update install
 ```
 
-It installs every update you are missing (from 1.0.0 or 1.0.1 that includes 1.0.2's browser packages, about 110 MB), then restart from the home screen. From 1.0.4 on, Software update in Settings works. New installs use the `ps5-ps4-rootfs.tar.xz` of the 1.0.6 release.
+It installs every update you are missing (from 1.0.0 or 1.0.1 that includes 1.0.2's browser packages, about 110 MB), then restart from the home screen. From 1.0.4 on, Software update in Settings works. New installs use the `ps5-ps4-rootfs.tar.xz` of the 1.0.10 release.
 
 ## Project layout
 
