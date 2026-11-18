@@ -1,0 +1,125 @@
+#!/usr/bin/env python3
+# Copyright (C) 2026 Chokri Hammedi (blue0x1) <https://github.com/blue0x1>
+# Records the screen and the sound to an MP4 clip, until it gets SIGINT or SIGTERM. Started by
+# ps5-guide (PS + Triangle).
+#
+#   ps5-record OUT.mp4 [--quality 720p|1080p] [--max-minutes N]
+#
+# The PS4's video encoder (VCE) cannot be used under Linux, so the CPU encodes it: x264 at its
+# fastest preset, 30 frames a second, at a lower priority than the game (about one of the eight
+# cores for 720p). The screen comes from X (x11grab), the sound from what the HDMI output plays.
+# It stops by itself when the drive has less than 300 MB left, or after --max-minutes.
+#
+# When it ends it prints "SAVED <seconds>" or "FAILED <why>" and makes the clip's thumbnail.
+import argparse
+import os
+import shutil
+import signal
+import subprocess
+import sys
+import time
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "lib"))
+from ps5 import store, system  # noqa: E402
+
+MIN_FREE = 300 << 20
+
+
+def ffmpeg_args(out, quality, seconds, sound):
+    _, width, height, rate = store.VIDEO_QUALITIES.get(quality, store.VIDEO_QUALITIES["720p"])
+    args = ["ffmpeg", "-hide_banner", "-loglevel", "error", "-nostdin", "-y",
+            "-thread_queue_size", "512", "-f", "x11grab", "-draw_mouse", "0", "-framerate", "30",
+            "-i", os.environ.get("DISPLAY", ":0")]
+    if sound:
+        args += ["-thread_queue_size", "1024", "-f", "pulse", "-i", "@DEFAULT_MONITOR@"]
+    args += ["-t", str(seconds),
+             "-vf", f"scale={width}:{height}:flags=fast_bilinear,format=yuv420p",
+             "-c:v", "libx264", "-preset", "ultrafast", "-crf", "23", "-maxrate", rate,
+             "-bufsize", str(int(rate[:-1]) * 2) + "M", "-g", "60", "-threads", "2"]
+    if sound:
+        args += ["-c:a", "aac", "-b:a", "160k"]
+    return args + ["-movflags", "+faststart", "-f", "mp4", out]
+
+
+def thumbnail(path):
+    seconds = system.video_seconds(path) or 0
+    at = "1" if seconds > 2 else "0"
+    subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-nostdin", "-y", "-ss", at, "-i", path,
+                    "-frames:v", "1", "-vf", "scale=640:-2", system.video_thumb(path)],
+                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=30)
+    return seconds
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("out")
+    parser.add_argument("--quality", default="720p")
+    parser.add_argument("--max-minutes", type=int, default=60)
+    args = parser.parse_args()
+    if shutil.which("ffmpeg") is None:
+        print("FAILED Recording needs the ffmpeg package.", flush=True)
+        return 1
+    os.makedirs(os.path.dirname(args.out), exist_ok=True)
+    try:
+        os.nice(5)              # The game comes first.
+    except OSError:
+        pass
+    stop = {"asked": False}
+
+    def ask_stop(*_):
+        stop["asked"] = True
+
+    signal.signal(signal.SIGINT, ask_stop)
+    signal.signal(signal.SIGTERM, ask_stop)
+
+    # Recorded under a hidden name (Media does not list it) and renamed when it is done.
+    folder, name = os.path.split(args.out)
+    part = os.path.join(folder, "." + name + ".part")
+    from ps5 import capture
+    dot = capture.DotWindow()
+    child = None
+    try:
+        for sound in (True, False):
+            child = subprocess.Popen(ffmpeg_args(part, args.quality, args.max_minutes * 60, sound),
+                                     stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+            started = time.monotonic()
+            # Without a sound server ffmpeg stops at once: then record the picture only.
+            while child.poll() is None and time.monotonic() - started < 2 and not stop["asked"]:
+                time.sleep(0.1)
+            if child.poll() is None or stop["asked"]:
+                break
+        last_check = 0.0
+        while child.poll() is None:
+            if stop["asked"]:
+                child.send_signal(signal.SIGINT)     # ffmpeg finishes the file.
+                try:
+                    child.wait(20)
+                except subprocess.TimeoutExpired:
+                    child.kill()
+                break
+            now = time.monotonic()
+            if now - last_check > 5:
+                last_check = now
+                dot.raise_again()
+                if shutil.disk_usage(folder).free < MIN_FREE:
+                    stop["asked"] = True
+                    continue
+            time.sleep(0.2)
+        error = child.stderr.read().decode(errors="replace").strip() if child.stderr else ""
+    finally:
+        dot.close()
+    if not os.path.exists(part) or os.path.getsize(part) < 1024:
+        try:
+            os.remove(part)
+        except OSError:
+            pass
+        print("FAILED " + (error.splitlines()[-1] if error else "The screen could not be recorded."), flush=True)
+        return 1
+    os.replace(part, args.out)
+    seconds = thumbnail(args.out)
+    print(f"SAVED {seconds:.0f}", flush=True)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

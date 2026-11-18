@@ -98,7 +98,7 @@ Steps:
    > **Be patient:** after the payload starts, the TV can show **"No signal" or a black screen for 1 to 2 minutes** while Linux starts. This is normal.
 
 5. In the PS4 Multiboot menu, pick **EmuFive**, then **Install to PS4** or **Install to USB drive**. It takes a few minutes.
-6. Put your games in one of the places below. A game is a folder with `eboot.bin` (and `sce_sys`), or a ZArchive (`.zar`) dump.
+6. Put your games in one of the places below. A game is a folder with `eboot.bin` (and `sce_sys`), or a ZArchive (`.zar`) dump. Package files (`.pkg`, fpkg) can't be installed or run: extract the game first.
 
 After installing, run the payload to start EmuFive (with other systems installed, the PS4 Multiboot menu comes first). To reinstall, delete `/user/home/ps5-ps4.img` over FTP and run the payload. Updates: Settings, System, Software update.
 
@@ -122,19 +122,37 @@ After installing, run the payload to start EmuFive (with other systems installed
 
 This project contains no PS5 system software and no games. Use only games you own and dumped yourself.
 
-Tested games:
+Games that work:
 
-| Game | Console | Result |
-|---|---|---|
-| God of War Sons of Sparta | PS4 Pro | Playable, about 40 FPS and more |
-| Hollow Knight: Silksong | PS4 Pro | Playable, 60 FPS |
-| Plants vs. Zombies: Replanted | PS4 Pro | Playable, locked 60 FPS |
-| Vampire Survivors | PS4 Slim | Playable, stable 60 FPS |
-| Spider-Man 2 | | Not tested yet |
+| Game | Console | EmuFive | Result |
+|---|---|---|---|
+| God of War Sons of Sparta | PS4 Pro | 1.0.0 | Playable, about 40 FPS and more |
+| Hollow Knight: Silksong | PS4 Pro | 1.0.1 | Playable, 60 FPS |
+| Plants vs. Zombies: Replanted | PS4 Pro | 1.0.4 | Playable, locked 60 FPS |
+| Vampire Survivors | PS4 Slim | 1.0.4 | Playable, stable 60 FPS |
+| My Little Puppy | PS4 Slim | 1.0.6 | Runs, 3–15 FPS (20–25 in empty areas) |
+| DREDGE | PS4 Pro | 1.0.8 | Playable |
+| Teardown | PS4 Pro | 1.0.9 | Runs, 9–12 FPS in game (about 20 in light scenes) with GPU-shared memory |
+| Invincible VS | PS4 Pro | 1.0.9 | Starts, 4–5 FPS; not playable yet |
 
-Tested a game? Open an [issue](https://github.com/blue0x1/EmuFive/issues) with the game, your console model and how it ran.
+Games that don't work yet (a newer version may fix them):
+
+| Game | Console | EmuFive | Result |
+|---|---|---|---|
+| DRAGON BALL: Sparking! ZERO | PS4 Pro | 1.0.4 | Stops after the first splash screen (mesh shaders) |
+| Hello Neighbor | PS4 Pro | 1.0.4 | Stops at start (mesh shaders) |
+| Need for Speed Unbound | PS4 Slim | 1.0.6 | Crashes at start (unsupported depth copy) |
+| V Rising | PS4 Pro | 1.0.8 | Crashes at start |
+
+Tested a game? Open an [issue](https://github.com/blue0x1/EmuFive/issues) with the game, its title ID, your console model, the EmuFive version and how it ran. Games that don't work are useful too (for example "doesn't start" or "crashes in the menu"): they go in the table, so others don't try the same game.
 
 ## Changelog
+
+### Next (test build)
+
+- New, on by default: GPU-shared guest memory (Settings > Games > GPU-shared game memory). Game memory is put in memory the PS4's GPU reads and writes in place, so buffers are no longer copied, tracked page by page, or read back. Teardown on a PS4 Pro: menu scene from 2.1 to 7 FPS, in game 9–12 FPS.
+- Video clips: PS + Triangle starts and stops recording, in a game too (720p or 1080p at 30 FPS, with sound). They are saved on the PS4 (`~/Videos`) or, if set in Settings > Storage, in `PS5-videos` on the USB drive. Media shows and plays them, and Share sends them to a phone like screenshots. The PS4's video encoder can't be used under Linux, so the CPU encodes: about one core for 720p.
+- A game's menu (OPTIONS on the home screen) has Game info: title ID, content ID, region, version, age rating, required system software, SDK, size on the drive and more.
 
 ### 1.0.8 (2026-11-16)
 

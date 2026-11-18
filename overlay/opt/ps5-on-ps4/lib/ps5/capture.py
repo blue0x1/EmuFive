@@ -59,6 +59,37 @@ def _x11():
     return x11
 
 
+class DotWindow:
+    """The 1x1 window (see above), kept up while a clip is recorded."""
+
+    def __init__(self, display=b":0"):
+        self.x11 = _x11()
+        self.d = self.x11.XOpenDisplay(display)
+        self.dot = None
+        if self.d:
+            root = self.x11.XDefaultRootWindow(self.d)
+            swa = _XSetWindowAttributes()
+            swa.override_redirect = 1
+            self.dot = self.x11.XCreateWindow(self.d, root, 0, 0, 1, 1, 0, 0, 1, None, (1 << 9) | (1 << 1),
+                                              ctypes.byref(swa))
+            self.x11.XMapRaised(self.d, self.dot)
+            self.x11.XSync(self.d, 0)
+
+    def raise_again(self):
+        """A game's new full-screen window may cover it: put it on top again."""
+        if self.dot:
+            self.x11.XMapRaised(self.d, self.dot)
+            self.x11.XSync(self.d, 0)
+
+    def close(self):
+        if self.d:
+            if self.dot:
+                self.x11.XDestroyWindow(self.d, self.dot)
+                self.x11.XSync(self.d, 0)
+            self.x11.XCloseDisplay(self.d)
+            self.d = None
+
+
 def capture(path, display=b":0"):
     """Saves the screen as a PNG at `path`. Returns True on success."""
     x11 = _x11()

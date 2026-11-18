@@ -931,9 +931,121 @@ def screenshots():
 def delete_screenshot(path):
     try:
         os.remove(path)
-        return True
     except OSError:
         return False
+    if is_video(path):
+        try:
+            os.remove(video_thumb(path))
+        except OSError:
+            pass
+    return True
+
+
+# Video clips (PS + Triangle, ps5-record): ~/Videos, or PS5-videos on the USB drive when Settings >
+# Storage says so (and one is plugged in). Each clip has a hidden thumbnail beside it.
+
+LOCAL_VIDEOS = os.path.expanduser("~/Videos")
+USB_VIDEOS = USB_MOUNT + "/PS5-videos"
+VIDEO_EXTENSIONS = (".mp4",)
+
+
+def is_video(path):
+    return path.lower().endswith(VIDEO_EXTENSIONS)
+
+
+def video_thumb(path):
+    folder, name = os.path.split(path)
+    return os.path.join(folder, "." + os.path.splitext(name)[0] + ".jpg")
+
+
+def video_dir(location):
+    """Where new clips go: (folder, on the USB drive). `location` is "internal" or "usb"; without a
+    USB drive they go to the PS4 anyway."""
+    if location == "usb" and mounted(USB_MOUNT):
+        return USB_VIDEOS, True
+    return LOCAL_VIDEOS, False
+
+
+def videos():
+    found = []
+    for folder in (USB_VIDEOS, LOCAL_VIDEOS):
+        for ext in VIDEO_EXTENSIONS:
+            found += glob.glob(os.path.join(folder, "**", "*" + ext), recursive=True)
+    return found
+
+
+def media_files():
+    """Screenshots and clips, newest first: [path]."""
+    found = screenshots() + videos()
+    return sorted(found, key=lambda p: os.path.getmtime(p) if os.path.exists(p) else 0, reverse=True)
+
+
+def video_seconds(path):
+    """A clip's length in seconds (ffprobe), or None."""
+    code, out, _ = run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of",
+                        "default=nw=1:nk=1", path], timeout=10)
+    try:
+        return float(out.strip()) if code == 0 else None
+    except ValueError:
+        return None
+
+
+# --------------------------------------------------------------------------------------------
+# A game's details for its menu, from sce_sys/param.json.
+
+REGIONS = {"UP": "Americas", "EP": "Europe", "JP": "Japan", "HP": "Asia", "KP": "Korea", "IP": "Internal"}
+
+
+def system_version(value):
+    """0x1360000000000000 -> 13.60."""
+    try:
+        number = int(str(value), 16) if str(value).lower().startswith("0x") else int(value)
+    except (TypeError, ValueError):
+        return ""
+    text = f"{number:016x}"
+    return f"{int(text[0:2])}.{text[2:4]}" if number else ""
+
+
+def game_details(game):
+    """[(label, value)] that the game's param.json has."""
+    try:
+        with open(os.path.join(game.path, "sce_sys", "param.json"), encoding="utf-8") as f:
+            param = json.load(f)
+    except (OSError, ValueError):
+        param = {}
+    rows = [("Title", game.title), ("Title ID", game.title_id)]
+    content = str(param.get("contentId", ""))
+    rows.append(("Content ID", content))
+    if content[:2] in REGIONS:
+        rows.append(("Region", REGIONS[content[:2]]))
+    if content[2:6].isdigit():
+        rows.append(("Publisher code", content[:6]))
+    rows.append(("Version", str(param.get("contentVersion", ""))))
+    rows.append(("Master version", str(param.get("masterVersion", ""))))
+    age = param.get("ageLevel", {})
+    if isinstance(age, dict) and age:
+        level = age.get("US", age.get("default"))
+        if level is not None:
+            rows.append(("Age rating", f"{level}+"))
+    rows.append(("Needs system software", system_version(param.get("requiredSystemSoftwareVersion"))))
+    rows.append(("Made with SDK", system_version(param.get("sdkVersion"))))
+    created = (param.get("pubtools") or {}).get("creationDate", "") if isinstance(param.get("pubtools"), dict) else ""
+    rows.append(("Package made", str(created)[:10]))
+    rows.append(("DRM", str(param.get("applicationDrmType", "")).capitalize()))
+    trophies = os.path.join(game.path, "sce_sys", "trophy2")
+    rows.append(("Trophies", "Yes" if os.path.isdir(trophies) else "No"))
+    rows.append(("Location", game.source_name))
+    rows.append(("Folder", game.path))
+    return [(label, value) for label, value in rows if value]
+
+
+def folder_size(path):
+    """Bytes in a folder (du), or None. Slow for a big game: call it off the main thread."""
+    code, out, _ = run(["du", "-sb", path], timeout=120)
+    try:
+        return int(out.split()[0]) if code == 0 else None
+    except (ValueError, IndexError):
+        return None
 
 
 # --------------------------------------------------------------------------------------------
@@ -1224,6 +1336,9 @@ class ShareServer:
     def __init__(self, path, page_title="Screenshot", download="Download", accent=(124, 110, 255), palette=None):
         import secrets
         self.path = path
+        # A clip: the page plays it; its thumbnail stands for the picture.
+        self.video = is_video(path)
+        self.picture = video_thumb(path) if self.video else path
         self.accent = accent
         # Two colors of the screenshot itself (vivid, deep) for the card's glow and border.
         self.palette = palette or ((124, 110, 255), (20, 18, 46))
@@ -1259,14 +1374,62 @@ class ShareServer:
                     self.send(200, share.page(name).encode("utf-8"), "text/html; charset=utf-8")
                 elif self.path == f"/{share.token}/picture.png":
                     try:
-                        with open(share.path, "rb") as f:
+                        with open(share.picture, "rb") as f:
                             data = f.read()
                     except OSError:
                         self.send(404, b"Gone", "text/plain")
                         return
-                    self.send(200, data, "image/png")
+                    self.send(200, data, "image/jpeg" if share.video else "image/png")
+                elif share.video and self.path == f"/{share.token}/video.mp4":
+                    self.send_video()
                 else:
                     self.send(404, b"Not found", "text/plain")
+
+            def send_video(self):
+                """The clip, with byte ranges (phones' players ask for them)."""
+                try:
+                    f = open(share.path, "rb")
+                except OSError:
+                    self.send(404, b"Gone", "text/plain")
+                    return
+                with f:
+                    size = os.fstat(f.fileno()).st_size
+                    start, end = 0, size - 1
+                    wanted = self.headers.get("Range", "")
+                    if wanted.startswith("bytes="):
+                        first, _, last = wanted[6:].split(",")[0].partition("-")
+                        try:
+                            if first:
+                                start = int(first)
+                                end = min(int(last), size - 1) if last else size - 1
+                            elif last:
+                                start = max(0, size - int(last))
+                        except ValueError:
+                            start, end = 0, size - 1
+                        if start > end or start >= size:
+                            self.send_response(416)
+                            self.send_header("Content-Range", f"bytes */{size}")
+                            self.end_headers()
+                            return
+                        self.send_response(206)
+                        self.send_header("Content-Range", f"bytes {start}-{end}/{size}")
+                    else:
+                        self.send_response(200)
+                    self.send_header("Content-Type", "video/mp4")
+                    self.send_header("Accept-Ranges", "bytes")
+                    self.send_header("Content-Length", str(end - start + 1))
+                    self.end_headers()
+                    f.seek(start)
+                    left = end - start + 1
+                    try:
+                        while left > 0:
+                            chunk = f.read(min(left, 1 << 20))
+                            if not chunk:
+                                break
+                            self.wfile.write(chunk)
+                            left -= len(chunk)
+                    except (BrokenPipeError, ConnectionResetError):
+                        pass
 
         for port in SHARE_PORTS:
             try:
@@ -1287,6 +1450,12 @@ class ShareServer:
         slowly breathing glow."""
         import html
         title, download, file = html.escape(self.page_title), html.escape(self.download), html.escape(name)
+        if self.video:
+            media = ('<video src="video.mp4" poster="picture.png" controls playsinline preload="metadata">'
+                     '</video>')
+            target = "video.mp4"
+        else:
+            media, target = f'<img src="picture.png" alt="{title}">', "picture.png"
         (vr, vg, vb), (dr, dg, db) = self.palette
         # The button takes the picture's vivid color too; dark text when that color is light.
         r, g, b = vr, vg, vb
@@ -1327,7 +1496,7 @@ h1 {{ font-size: 1.15rem; font-weight: 600; margin: 4px 2px 0; opacity: .9; lett
   box-shadow: 0 24px 60px -12px var(--vivid-soft), 0 10px 30px rgba(0,0,0,.55);
 }}
 .card .frame {{ position: relative; border-radius: 20px; overflow: hidden; background: #000; }}
-.card img {{ display: block; width: 100%; height: auto; }}
+.card img, .card video {{ display: block; width: 100%; height: auto; }}
 .card .frame::after {{
   content: ""; position: absolute; inset: 0; pointer-events: none;
   background: linear-gradient(125deg, rgba(255,255,255,.22) 0%, rgba(255,255,255,.06) 22%,
@@ -1354,8 +1523,8 @@ h1 {{ font-size: 1.15rem; font-weight: 600; margin: 4px 2px 0; opacity: .9; lett
 </style></head>
 <body><main>
 <h1>{title}</h1>
-<div class="stage"><div class="card"><div class="frame"><img src="picture.png" alt="{title}"></div></div></div>
-<a class="download" href="picture.png" download="{file}">
+<div class="stage"><div class="card"><div class="frame">{media}</div></div></div>
+<a class="download" href="{target}" download="{file}">
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"
 stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"/><path d="m6.5 10.5 5.5 5.5 5.5-5.5"/>
 <path d="M5 20h14"/></svg>{download}</a>

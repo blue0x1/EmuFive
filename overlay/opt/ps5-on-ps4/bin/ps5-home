@@ -1693,6 +1693,13 @@ class SettingsScreen(RowList):
             rows.append(Row("info", "Copy games there with GoldHEN FTP from your PC."))
         else:
             rows.append(Row("info", "Not open: this system was started from a USB drive."))
+        rows.append(Row("header", "Videos"))
+        rows.append(self.setting_choice("Save videos to", "video_location",
+                                        [("internal", "PS4 (~/Videos)"), ("usb", "USB drive (PS5-videos)")]))
+        rows.append(self.setting_choice("Video quality", "video_quality",
+                                        [(k, v[0]) for k, v in store.VIDEO_QUALITIES.items()]))
+        rows.append(Row("info", "PS + Triangle starts and stops a video, in a game too. Without a USB drive "
+                                "videos are saved on the PS4."))
         rows.append(Row("header", "PC share"))
         state, message, count = h.pc.status()
         games = f"{count} game" + ("s" if count != 1 else "")
@@ -1721,6 +1728,11 @@ class SettingsScreen(RowList):
             Row("toggle", "Show FPS counter in games", h.settings["fps_counter"],
                 ok=lambda: h.settings.set(fps_counter=not h.settings["fps_counter"])),
             Row("info", "The FPS counter shows the game's frames per second in the bottom-left corner. "
+                        "It is used from the next game you start."),
+            Row("toggle", "GPU-shared game memory", h.settings["gpu_shared_memory"],
+                ok=lambda: h.settings.set(gpu_shared_memory=not h.settings["gpu_shared_memory"])),
+            Row("info", "Games keep their memory where the GPU reads and writes it, so less is copied. "
+                        "Much faster in 3D games like Teardown. Turn it off if a game hangs or runs out of memory. "
                         "It is used from the next game you start."),
             Row("info", "Press OPTIONS on a game for favorites, hiding it and its own settings."),
             Row("info", "Favorites come first and have a star."),
@@ -2534,6 +2546,7 @@ class GameMenu(RowList):
                 [("Close", lambda: h.finish("CLOSE")), ("Cancel", None)]))))
         if os.path.isdir(os.path.join(g.path, "sce_sys", "trophy2")):
             rows.append(Row("action", "Trophies", ok=lambda: h.push(TrophyList(h, g))))
+        rows.append(Row("action", "Game info", ok=lambda: h.push(GameInfo(h, g))))
         rows.append(Row("info", "Play time", system.play_time_text(entry.get("play_seconds", 0))))
         rows += [Row("toggle", "Favorite", entry.get("favorite", False), ok=lambda: self.flip("favorite")),
                 Row("toggle", "Hide from the home screen", entry.get("hidden", False),
@@ -2578,6 +2591,47 @@ class GameMenu(RowList):
 
     def hints(self):
         return [("cross", "Select"), ("circle", "Back")]
+
+
+class GameInfo(GameMenu):
+    """A game's details (its param.json) and its size on the drive, from its menu (OPTIONS on the home screen)."""
+    WIDTH = 640
+
+    def __init__(self, home, game):
+        super().__init__(home, game)
+        self.details = system.game_details(game)
+        self.size = None            # Bytes, measured in the background (a big game takes a while).
+        self.measured = False
+
+        def measure():
+            self.size = system.folder_size(game.path)
+            self.measured = True
+
+        threading.Thread(target=measure, daemon=True).start()
+
+    def rows(self):
+        h = self.home
+        entry = h.games_store.get(self.game.key)
+        size = (system.size_text(self.size) if self.size is not None else
+                "Unknown" if self.measured else "Measuring…")
+        rows = [Row("header", "Game info")]
+        # Buttons with nothing to do, so a long list scrolls.
+        rows += [Row("button", label, value) for label, value in self.details[:2]]
+        rows.append(Row("button", "Size", size))
+        rows += [Row("button", label, value) for label, value in self.details[2:]]
+        rows.append(Row("header", "On this PS4"))
+        rows.append(Row("button", "Play time", system.play_time_text(entry.get("play_seconds", 0))))
+        return rows
+
+    def act(self, action):
+        if action in (BACK, OPTIONS, OK):
+            self.home.sounds.play("back")
+            self.close()
+        else:
+            self.act_rows(action)
+
+    def hints(self):
+        return [("circle", "Back")]
 
 
 # --------------------------------------------------------------------------------------------
@@ -3054,7 +3108,7 @@ class ControllerTest(Modal):
 
 
 # --------------------------------------------------------------------------------------------
-# Media: the screenshots, on the home screen's Media tab, and a full-screen viewer.
+# Media: the screenshots and videos, on the home screen's Media tab, and a full-screen viewer.
 
 class MediaView:
     COLS = 4
@@ -3074,7 +3128,7 @@ class MediaView:
         h = self.home
         if h.t - self.scanned > 3.0:
             self.scanned = h.t
-            self.paths = system.screenshots()
+            self.paths = system.media_files()
             self.index = min(self.index, max(0, len(self.paths) - 1))
 
     def thumb(self, path):
@@ -3087,7 +3141,7 @@ class MediaView:
 
         def work():
             try:
-                picture = pygame.image.load(path)
+                picture = pygame.image.load(system.video_thumb(path) if system.is_video(path) else path)
                 small = pygame.transform.smoothscale(picture, (px(self.THUMB_W), px(self.THUMB_H)))
             except (pygame.error, OSError):
                 small = False
@@ -3129,12 +3183,12 @@ class MediaView:
         h = self.home
         y0 = ROW_Y
         if not self.paths:
-            c.text("No screenshots yet", 40, ROW_X, y0 + 40, ART_TEXT, True, shadow=True)
-            c.text("Press PS + Square, or Share, to take one, in a game too.", 18, ROW_X + 2, y0 + 100,
+            c.text("No screenshots or videos yet", 40, ROW_X, y0 + 40, ART_TEXT, True, shadow=True)
+            c.text("Press PS + Square, or Share, for a screenshot, in a game too.", 18, ROW_X + 2, y0 + 100,
                    ART_SOFT, shadow=True)
-            c.text("They are saved in PS5-screenshots on the USB drive.", 18, ROW_X + 2, y0 + 128, ART_SOFT, shadow=True)
+            c.text("PS + Triangle starts and stops a video.", 18, ROW_X + 2, y0 + 128, ART_SOFT, shadow=True)
             return
-        c.text(f"Screenshots  ·  {len(self.paths)}", 18, ROW_X, y0 - 6, ART_SOFT, True, shadow=True)
+        c.text(f"Screenshots and videos  ·  {len(self.paths)}", 18, ROW_X, y0 - 6, ART_SOFT, True, shadow=True)
         row = self.index // self.COLS
         if row < self.top_row:
             self.top_row = row
@@ -3150,10 +3204,116 @@ class MediaView:
                 c.blit(thumb, x, y)
             else:
                 c.rect(KEY, x, y, self.THUMB_W, self.THUMB_H, 10)
+            if system.is_video(self.paths[n]):
+                draw_play_badge(c, x + self.THUMB_W / 2, y + self.THUMB_H / 2, 22)
             if n == self.index and h.focus == "tiles" and not h.modals:
                 c.rect(ART_TEXT, x - 5, y - 5, self.THUMB_W + 10, self.THUMB_H + 10, 12, 3)
             name = os.path.basename(os.path.dirname(self.paths[n]))
             c.text(c.t.fit(name, 13, self.THUMB_W), 13, x, y + self.THUMB_H + 8, ART_SOFT, shadow=True)
+
+
+def draw_play_badge(c, x, y, radius):
+    """A round play button: on video thumbnails and a stopped video."""
+    c.circle((0, 0, 0, 150), x, y, radius)
+    c.circle((255, 255, 255, 200), x, y, radius, max(1, radius // 10))
+    r = radius * 0.45
+    c.polygon((255, 255, 255), [(x - r * 0.6, y - r), (x - r * 0.6, y + r), (x + r, y)])
+
+
+class VideoPlayer:
+    """Plays a clip in the viewer: ffmpeg decodes the picture into a pipe (at the clip's size; it is
+    scaled to the screen), ffplay plays the sound. Frames come on time by the clock; late ones are
+    skipped."""
+
+    def __init__(self, path):
+        import subprocess
+        self.path = path
+        self.size = self.probe(path)
+        self.frame = None           # The newest due frame (bytes), and its number.
+        self.number = -1
+        self.done = False
+        self.paused = False
+        self.lock = threading.Lock()
+        w, hgt = self.size
+        self.decoder = subprocess.Popen(
+            ["ffmpeg", "-hide_banner", "-loglevel", "error", "-nostdin", "-i", path, "-f", "rawvideo",
+             "-pix_fmt", "rgb24", "-r", "30", "-"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+            bufsize=w * hgt * 3 * 2)
+        self.sound = subprocess.Popen(["ffplay", "-nodisp", "-autoexit", "-loglevel", "quiet", path],
+                                      stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                                      stderr=subprocess.DEVNULL)
+        self.start = time.monotonic()
+        self.paused_at = None
+        threading.Thread(target=self.read, daemon=True).start()
+
+    @staticmethod
+    def probe(path):
+        code, out, _ = system.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries",
+                                   "stream=width,height", "-of", "csv=p=0", path], timeout=10)
+        try:
+            w, hgt = (int(v) for v in out.strip().split(",")[:2])
+            return w, hgt
+        except ValueError:
+            return 1280, 720
+
+    def read(self):
+        w, hgt = self.size
+        size = w * hgt * 3
+        n = 0
+        while True:
+            data = self.decoder.stdout.read(size)
+            if len(data) < size:
+                break
+            while True:
+                with self.lock:
+                    start, paused = self.start, self.paused
+                if self.done:
+                    return
+                wait = start + n / 30 - time.monotonic()
+                if paused or wait > 0:
+                    time.sleep(0.01 if paused else min(wait, 0.05))
+                    continue
+                break
+            with self.lock:
+                self.frame, self.number = data, n
+            n += 1
+        self.done = True
+
+    def toggle_pause(self):
+        import signal as sig
+        with self.lock:
+            if self.done:
+                return
+            self.paused = not self.paused
+            if self.paused:
+                self.paused_at = time.monotonic()
+            else:
+                self.start += time.monotonic() - self.paused_at
+        for process in (self.decoder, self.sound):
+            try:
+                process.send_signal(sig.SIGSTOP if self.paused else sig.SIGCONT)
+            except OSError:
+                pass
+
+    def latest(self):
+        with self.lock:
+            return self.frame, self.number
+
+    def elapsed(self):
+        with self.lock:
+            end = self.paused_at if self.paused else time.monotonic()
+            return max(0.0, end - self.start)
+
+    def stop(self):
+        import signal as sig
+        self.done = True
+        for process in (self.decoder, self.sound):
+            try:
+                process.send_signal(sig.SIGCONT)
+                process.kill()
+                process.wait(2)
+            except Exception:
+                pass
 
 
 class MediaViewer(Modal):
@@ -3164,6 +3324,19 @@ class MediaViewer(Modal):
         self.media = media
         self.picture = None
         self.loaded_for = None
+        self.player = None
+        self.shown = (None, -1)       # The frame number on the screen, and its scaled surface.
+        self.seconds = {}             # Clip lengths.
+
+    def stop_video(self):
+        if self.player is not None:
+            self.player.stop()
+            self.player = None
+            self.shown = (None, -1)
+
+    def close(self):
+        self.stop_video()
+        super().close()
 
     def path(self):
         paths = self.media.paths
@@ -3172,19 +3345,31 @@ class MediaViewer(Modal):
     def act(self, action):
         h = self.home
         m = self.media
-        if action in (BACK, OK):
+        video = self.path() is not None and system.is_video(self.path())
+        if action == OK and video:
+            h.sounds.play("select")
+            if self.player is None or self.player.done:
+                self.stop_video()
+                self.player = VideoPlayer(self.path())
+            else:
+                self.player.toggle_pause()
+        elif action in (BACK, OK):
             h.sounds.play("back")
             self.close()
         elif action == LEFT and m.index > 0:
+            self.stop_video()
             m.index -= 1
             h.sounds.play("move")
         elif action == RIGHT and m.index < len(m.paths) - 1:
+            self.stop_video()
             m.index += 1
             h.sounds.play("move")
         elif action == TRIANGLE and self.path():
+            self.stop_video()
             h.sounds.play("select")
             h.push(ShareView(h, self.path()))
         elif action == SQUARE and self.path():
+            self.stop_video()
             path = self.path()
 
             def delete():
@@ -3194,7 +3379,8 @@ class MediaViewer(Modal):
                 if not m.paths:
                     self.close()
 
-            h.push(Dialog(h, "Delete this screenshot? It cannot be brought back.",
+            h.push(Dialog(h, ("Delete this video? It cannot be brought back." if video else
+                              "Delete this screenshot? It cannot be brought back."),
                           [("Delete", delete), ("Cancel", None)]))
 
     def draw(self, c):
@@ -3202,9 +3388,10 @@ class MediaViewer(Modal):
         path = self.path()
         if path is None:
             return
+        video = system.is_video(path)
         if self.loaded_for != path:
             try:
-                picture = pygame.image.load(path)
+                picture = pygame.image.load(system.video_thumb(path) if video else path)
                 w, hgt = c.s.get_size()
                 scale = min(w / picture.get_width(), hgt / picture.get_height())
                 self.picture = pygame.transform.smoothscale(
@@ -3212,8 +3399,27 @@ class MediaViewer(Modal):
             except (pygame.error, OSError):
                 self.picture = None
             self.loaded_for = path
-        if self.picture is not None:
+        frame = self.video_frame(c) if video else None
+        if frame is not None:
+            c.s.blit(frame, frame.get_rect(center=c.s.get_rect().center))
+        elif self.picture is not None:
             c.s.blit(self.picture, self.picture.get_rect(center=c.s.get_rect().center))
+        if video and (self.player is None or self.player.done or self.player.paused):
+            draw_play_badge(c, ui.W / 2, ui.H / 2, 46)
+        if video:
+            if path not in self.seconds:
+                self.seconds[path] = None
+                threading.Thread(target=lambda: self.seconds.__setitem__(path, system.video_seconds(path)),
+                                 daemon=True).start()
+            total = self.seconds.get(path)
+            now = self.player.elapsed() if self.player is not None and not self.player.done else 0
+            if total:
+                now = min(now, total)
+                c.rect((0, 0, 0, 150), 0, ui.H - 40, ui.W, 40)
+                c.rect((255, 255, 255, 60), 40, ui.H - 22, ui.W - 200, 4, 2)
+                c.rect(ACCENT, 40, ui.H - 22, max(1, (ui.W - 200) * now / total), 4, 2)
+                c.text(f"{int(now) // 60}:{int(now) % 60:02d} / {int(total) // 60}:{int(total) % 60:02d}", 15,
+                       ui.W - 40, ui.H - 20, (255, 255, 255), False, "midright")
         name = os.path.basename(os.path.dirname(path))
         when = os.path.splitext(os.path.basename(path))[0]
         c.rect((0, 0, 0, 150), 0, 0, ui.W, 64)
@@ -3221,14 +3427,34 @@ class MediaViewer(Modal):
         c.text(f"{self.media.index + 1} / {len(self.media.paths)}", 16, ui.W - 40, 22, (255, 255, 255), False,
                "topright")
 
+    def video_frame(self, c):
+        """The player's newest frame, scaled to the screen (once per new frame), or None."""
+        if self.player is None:
+            return None
+        data, number = self.player.latest()
+        if data is None:
+            return None
+        if number != self.shown[1]:
+            w, hgt = self.player.size
+            raw = pygame.image.frombuffer(data, (w, hgt), "RGB")
+            sw, sh = c.s.get_size()
+            scale = min(sw / w, sh / hgt)
+            self.shown = (pygame.transform.scale(raw, (int(w * scale), int(hgt * scale))), number)
+        return self.shown[0]
+
     def hints(self):
+        path = self.path()
+        if path is not None and system.is_video(path):
+            playing = self.player is not None and not self.player.done and not self.player.paused
+            return [(None, "Left / Right: next"), ("cross", "Pause" if playing else "Play"), ("triangle", "Share"),
+                    ("square", "Delete"), ("circle", "Back")]
         return [(None, "Left / Right: next"), ("triangle", "Share"), ("square", "Delete"), ("circle", "Back")]
 
 
 def picture_palette(path):
-    """Two colors of a picture file (see surface_palette), or None."""
+    """Two colors of a picture file (a video's thumbnail; see surface_palette), or None."""
     try:
-        return surface_palette(pygame.image.load(path))
+        return surface_palette(pygame.image.load(system.video_thumb(path) if system.is_video(path) else path))
     except (pygame.error, OSError):
         return None
 
@@ -3258,8 +3484,9 @@ class ShareView(Modal):
         except ImportError:
             self.error = "Sharing needs the python3-segno package."
             return
-        self.server = system.ShareServer(path, i18n.translate("Screenshot"), i18n.translate("Download"),
-                                         ACCENT, palette)
+        self.video = system.is_video(path)
+        self.server = system.ShareServer(path, i18n.translate("Video" if self.video else "Screenshot"),
+                                         i18n.translate("Download"), ACCENT, palette)
         self.url = self.server.start()
         if self.url is None:
             self.error = "Connect the PS4 to a network first."
@@ -3310,8 +3537,9 @@ class ShareView(Modal):
         frame = pygame.Surface(size).convert()
         c = ui.Canvas(frame, text)
         vivid = self.vivid
+        video = system.is_video(self.path)
         try:
-            picture = pygame.image.load(self.path).convert()
+            picture = pygame.image.load(system.video_thumb(self.path) if video else self.path).convert()
         except (pygame.error, OSError):
             picture = None
         # Behind: the screenshot, blurred and darkened, with the Aurora's ribbons of light.
@@ -3342,6 +3570,8 @@ class ShareView(Modal):
                                                pr.w, pr.h))
             frame.blit(self.cut(shot, px(15)), pr.topleft)
         frame.blit(gradient_border(pr.w, pr.h, px(15), vivid, CHAMPAGNE, max(1, px(1.4))), pr.topleft)
+        if video:
+            draw_play_badge(c, pr.centerx / ui.S, pr.centery / ui.S, 26)
         px_, py_, pw, ph = self.PICTURE
         name = os.path.basename(os.path.dirname(self.path))
         when = os.path.splitext(os.path.basename(self.path))[0]
@@ -3349,8 +3579,13 @@ class ShareView(Modal):
         if len(parts) == 2 and parts[1].count("-") == 2:
             when = parts[0] + "  " + parts[1].replace("-", ":")[:5]
         c.text(c.t.fit(name, 20, pw, True), 20, px_, py_ + ph + 22, WHITE, True)
-        c.text("Screenshot" + i18n.SEPARATOR + i18n.Final(when), 15, px_, py_ + ph + 52, SOFT)
-        if picture is not None:
+        c.text(("Video" if video else "Screenshot") + i18n.SEPARATOR + i18n.Final(when), 15, px_, py_ + ph + 52, SOFT)
+        if video:
+            size = VideoPlayer.probe(self.path)
+            seconds = int(system.video_seconds(self.path) or 0)
+            size_text = f"{size[0]} × {size[1]}  ·  MP4  ·  {seconds // 60}:{seconds % 60:02d}"
+            c.text(i18n.Final(size_text), 15, px_, py_ + ph + 74, DIM)
+        elif picture is not None:
             size_text = f"{picture.get_width()} × {picture.get_height()}  ·  PNG"
             c.text(i18n.Final(size_text), 15, px_, py_ + ph + 74, DIM)
         # The code on a white tile.
@@ -3366,7 +3601,8 @@ class ShareView(Modal):
         c.text("Share to your phone", 23, cx, top, WHITE, True, "midtop")
         ink = (14, 12, 20) if sum(vivid) > 300 else WHITE
         sx = cx - 140
-        for n, line in enumerate(("Open your phone's camera", "Point it at the code", "Save or share the picture")):
+        last = "Save or share the video" if video else "Save or share the picture"
+        for n, line in enumerate(("Open your phone's camera", "Point it at the code", last)):
             yy = top + 46 + n * 35
             c.circle(vivid, sx + 12, yy + 12, 12)
             c.text(str(n + 1), 13, sx + 12, yy + 12, ink, True, "center")

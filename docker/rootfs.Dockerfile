@@ -29,6 +29,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         python3 python3-pygame python3-segno fonts-inter \
         smbnetfs fuse3 \
         python3-gi python3-gi-cairo gir1.2-webkit2-4.1 gstreamer1.0-plugins-good gstreamer1.0-libav \
+        ffmpeg \
         adwaita-icon-theme \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 

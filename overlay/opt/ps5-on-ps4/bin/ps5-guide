@@ -15,6 +15,9 @@
 # Screenshots, anywhere: PS + Square, or Share (Create on a DualSense). Saved in PS5-screenshots on
 # the USB drive (or ~/Screenshots without one), with a notification.
 #
+# Video clips, anywhere: PS + Triangle starts recording (ps5-record), PS + Triangle again stops it.
+# Saved in ~/Videos, or PS5-videos on the USB drive (Settings > Storage), with a notification.
+#
 # Controller notices, anywhere: when a controller connects (with its battery level), and once when
 # its battery drops to 15% (again after it was charged).
 #
@@ -36,11 +39,12 @@ from ps5 import system  # noqa: E402
 BIN = os.path.dirname(os.path.realpath(__file__))
 HOME = os.path.join(BIN, "ps5-home")
 NOTIFY = os.path.join(BIN, "ps5-notify")
+RECORD = os.path.join(BIN, "ps5-record")
 STATE = os.path.join(system.RUNTIME, "ps5-game.json")
 CLOSED = os.path.join(system.RUNTIME, "ps5-game-closed")    # Read by ps5-session.
 PAUSED = os.path.join(system.RUNTIME, "ps5-game-paused")    # Seconds paused, read by ps5-launch.
 EV_KEY = 0x01
-BTN_WEST, BTN_SELECT, BTN_MODE = 0x134, 0x13a, 0x13c        # Square, Share, PS
+BTN_NORTH, BTN_WEST, BTN_SELECT, BTN_MODE = 0x133, 0x134, 0x13a, 0x13c   # Triangle, Square, Share, PS
 EVENT = struct.Struct("llHHi")
 LOW_BATTERY = 15            # Percent: the low battery notice.
 BATTERY_OK_AGAIN = 25       # Percent (or charging): the notice can come again.
@@ -118,6 +122,8 @@ class Guide:
         self.state = None         # The paused game.
         self.paused_at = None
         self.last_shot = 0.0
+        self.recorder = None      # ps5-record while a clip is recorded.
+        self.last_record = 0.0
         # Controllers already connected when the session starts get no notice.
         self.pads = {pad["mac"] + "/" + pad["connection"] for pad in system.controllers()}
         self.waiting_battery = {}   # mac -> time it connected, until its battery level is known
@@ -249,6 +255,60 @@ class Guide:
 
         threading.Thread(target=work, daemon=True).start()
 
+    # Video clips ------------------------------------------------------------------------------
+
+    def record(self):
+        now = time.monotonic()
+        if now - self.last_record < 1.5:
+            return
+        self.last_record = now
+        if self.recorder is not None:
+            log("recording: stopping")
+            self.recorder.send_signal(signal.SIGINT)
+            return
+        from ps5 import store
+        settings = store.Settings()
+        state = running_game() or self.state
+        title = (state or {}).get("title") or "Home screen"
+        safe = "".join(ch for ch in title if ch.isalnum() or ch in " -_").strip() or "Video"
+        folder, on_usb = system.video_dir(settings["video_location"])
+        path = os.path.join(folder, safe, time.strftime("%Y-%m-%d %H-%M-%S") + ".mp4")
+        where = "PS5-videos on the USB drive" if on_usb else "~/Videos"
+        if settings["video_location"] == "usb" and not on_usb:
+            where += " (no USB drive)"
+        recorder = subprocess.Popen([sys.executable, RECORD, path, "--quality", settings["video_quality"]],
+                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        self.recorder = recorder
+        log(f"recording: {path}")
+        self.notify("Recording started", f"{title}  ·  PS + Triangle stops it")
+
+        def wait():
+            out, err = recorder.communicate()
+            result = out.strip().splitlines()[-1] if out.strip() else "FAILED " + (err.strip()[-200:] or "?")
+            log("recording: " + result)
+            if self.recorder is recorder:
+                self.recorder = None
+            if result.startswith("SAVED"):
+                seconds = int(float(result.split()[1])) if len(result.split()) > 1 else 0
+                args = [sys.executable, NOTIFY, "Video saved",
+                        f"{title}  ·  {seconds // 60}:{seconds % 60:02d}  ·  {where}"]
+                thumb = system.video_thumb(path)
+                if os.path.exists(thumb):
+                    args += ["--picture", thumb]
+                subprocess.Popen(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            else:
+                self.notify("Recording failed", result[7:] or "The screen could not be recorded.")
+
+        threading.Thread(target=wait, daemon=True).start()
+
+    def stop_recording(self):
+        if self.recorder is not None and self.recorder.poll() is None:
+            self.recorder.send_signal(signal.SIGINT)
+            try:
+                self.recorder.wait(25)
+            except subprocess.TimeoutExpired:
+                self.recorder.kill()
+
     # Controller notices ---------------------------------------------------------------------
 
     def notify(self, title, text):
@@ -316,6 +376,8 @@ class Guide:
                 self.ps_combo = True
                 if code == BTN_WEST:
                     self.screenshot()
+                elif code == BTN_NORTH:
+                    self.record()
             elif code == BTN_SELECT:
                 self.screenshot()
 
@@ -339,6 +401,7 @@ class Guide:
                 self.last_pad_check = now
                 if self.session and not os.path.exists(f"/proc/{self.session}"):
                     log("the session ended")
+                    self.stop_recording()
                     return 0
                 try:
                     self.check_pads()
@@ -365,5 +428,11 @@ class Guide:
 
 
 if __name__ == "__main__":
-    signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
-    sys.exit(Guide().run())
+    guide = Guide()
+
+    def end(*_):
+        guide.stop_recording()      # The clip is finished, not cut.
+        sys.exit(0)
+
+    signal.signal(signal.SIGTERM, end)
+    sys.exit(guide.run())

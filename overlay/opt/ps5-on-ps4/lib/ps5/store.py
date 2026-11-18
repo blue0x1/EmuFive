@@ -24,6 +24,7 @@ DEFAULT_SETTINGS = {
     "clock_24h": True,
     "auto_off_minutes": 0,     # 0: never. Only while the home screen is idle.
     "fps_counter": False,      # A small FPS counter in the bottom-left corner of games.
+    "gpu_shared_memory": True, # Patch 0033: game memory the GPU uses in place (KYTY_GPU_SHARED_MEMORY).
     "menu_language": "en",     # i18n.LANGUAGES
     # Appearance.
     "theme": "dark",           # dark, midnight, light
@@ -69,7 +70,13 @@ DEFAULT_SETTINGS = {
     "console_language": 1,     # 1: English (US); LANGUAGES
     "hdr": False,
     "present_mode": "Mailbox", # Mailbox, Fifo, Immediate
+    # Video clips (PS + Triangle).
+    "video_location": "internal",  # internal (~/Videos), usb (PS5-videos on the USB drive)
+    "video_quality": "720p",       # 720p, 1080p
 }
+
+VIDEO_QUALITIES = {"720p": ("720p, lighter for games", 1280, 720, "6M"),
+                   "1080p": ("1080p, uses more CPU", 1920, 1080, "10M")}
 
 LIGHTBAR_COLORS = {
     "blue": ("Blue", (0, 70, 255)), "red": ("Red", (255, 20, 20)), "green": ("Green", (0, 220, 60)),
