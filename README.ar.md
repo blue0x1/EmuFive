@@ -170,6 +170,7 @@ scripts/build-rootfs.sh    # out/ps5-ps4-rootfs.tar.xz
 | Need for Speed Unbound | PS4 Slim | 1.0.6 | تنهار عند البدء (نسخ عمق غير مدعوم) |
 | V Rising | PS4 Pro | 1.0.8 | تنهار عند البدء |
 | Serious Sam: Siberian Mayhem | PS4 Slim | 1.0.9 | تُغلق عند البدء (الخدمات عبر الإنترنت) |
+| The Long Dark | PS4 Slim | 1.0.10 | تعلق في فيديو البداية، ولا تظهر القائمة |
 
 جربت لعبة؟ افتح [مشكلة](https://github.com/blue0x1/EmuFive/issues) واذكر اللعبة ومعرّفها وطراز جهازك وإصدار EmuFive وكيف عملت. الألعاب التي لا تعمل مفيدة أيضاً (مثلاً «لا تبدأ» أو «تنهار في القائمة»): تُضاف إلى الجدول حتى لا يجرب الآخرون اللعبة نفسها.
 

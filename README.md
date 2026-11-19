@@ -152,6 +152,7 @@ Games that don't work yet (a newer version may fix them):
 | Need for Speed Unbound | PS4 Slim | 1.0.6 | Crashes at start (unsupported depth copy) |
 | V Rising | PS4 Pro | 1.0.8 | Crashes at start |
 | Serious Sam: Siberian Mayhem | PS4 Slim | 1.0.9 | Closes at start (online services) |
+| The Long Dark | PS4 Slim | 1.0.10 | Stuck on its intro video, no menu |
 
 Tested a game? Open an [issue](https://github.com/blue0x1/EmuFive/issues) with the game, its title ID, your console model, the EmuFive version and how it ran. Games that don't work are useful too (for example "doesn't start" or "crashes in the menu"): they go in the table, so others don't try the same game.
 

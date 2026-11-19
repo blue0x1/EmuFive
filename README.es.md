@@ -160,6 +160,7 @@ Juegos que aún no funcionan (una versión más nueva puede arreglarlos):
 | Need for Speed Unbound | PS4 Slim | 1.0.6 | Se cierra al arrancar (copia de profundidad no soportada) |
 | V Rising | PS4 Pro | 1.0.8 | Se cierra al arrancar |
 | Serious Sam: Siberian Mayhem | PS4 Slim | 1.0.9 | Se cierra al arrancar (servicios en línea) |
+| The Long Dark | PS4 Slim | 1.0.10 | Se queda en el vídeo de introducción, sin menú |
 
 ¿Probaste un juego? Abre un [issue](https://github.com/blue0x1/EmuFive/issues) con el juego, su ID de título, el modelo de tu consola, la versión de EmuFive y cómo funcionó. Los juegos que no funcionan también sirven (por ejemplo «no arranca» o «se cierra en el menú»): van a la tabla, para que otros no prueben el mismo juego.
 

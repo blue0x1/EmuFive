@@ -160,6 +160,7 @@ Henüz çalışmayan oyunlar (daha yeni bir sürüm düzeltebilir):
 | Need for Speed Unbound | PS4 Slim | 1.0.6 | Açılışta çöküyor (desteklenmeyen derinlik kopyası) |
 | V Rising | PS4 Pro | 1.0.8 | Açılışta çöküyor |
 | Serious Sam: Siberian Mayhem | PS4 Slim | 1.0.9 | Açılışta kapanıyor (çevrim içi hizmetler) |
+| The Long Dark | PS4 Slim | 1.0.10 | Giriş videosunda takılıyor, menü açılmıyor |
 
 Bir oyun mu denediniz? Oyunu, oyun kimliğini, konsol modelinizi, EmuFive sürümünü ve nasıl çalıştığını yazarak bir [issue](https://github.com/blue0x1/EmuFive/issues) açın. Çalışmayan oyunlar da işe yarar (örneğin "açılmıyor" veya "menüde çöküyor"): tabloya eklenirler, böylece başkaları aynı oyunu denemez.
 

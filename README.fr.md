@@ -160,6 +160,7 @@ Jeux qui ne fonctionnent pas encore (une version plus récente peut les corriger
 | Need for Speed Unbound | PS4 Slim | 1.0.6 | Plante au démarrage (copie de profondeur non prise en charge) |
 | V Rising | PS4 Pro | 1.0.8 | Plante au démarrage |
 | Serious Sam: Siberian Mayhem | PS4 Slim | 1.0.9 | Se ferme au démarrage (services en ligne) |
+| The Long Dark | PS4 Slim | 1.0.10 | Bloqué sur la vidéo d'introduction, pas de menu |
 
 Vous avez testé un jeu ? Ouvrez une [issue](https://github.com/blue0x1/EmuFive/issues) avec le jeu, son ID de titre, le modèle de votre console, la version d'EmuFive et comment il a tourné. Les jeux qui ne fonctionnent pas sont utiles aussi (par exemple « ne démarre pas » ou « plante dans le menu ») : ils vont dans le tableau, pour que d'autres n'essaient pas le même jeu.
 
