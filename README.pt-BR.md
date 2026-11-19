@@ -150,6 +150,7 @@ Jogos que funcionam:
 | Blue Prince | PS4 Pro | 1.0.10 | Jogável, cerca de 25 FPS |
 | Wytchwood | PS4 Pro | 1.0.10 | Jogável, 30 FPS estáveis |
 | Hades II | PS4 Slim | 1.0.10 | Roda, 20–25 FPS no jogo (10–15 nos menus), com travamentos |
+| Minecraft | PS4 Slim | 1.0.10 | Jogável, 30–35 FPS no jogo (56–60 nos menus) com a memória compartilhada com a GPU desligada |
 
 Jogos que ainda não funcionam (uma versão mais nova pode corrigi-los):
 

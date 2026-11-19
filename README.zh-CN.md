@@ -150,6 +150,7 @@ EmuFive 和其他 Linux 系统一样，通过 [PS4 Multiboot](https://github.com
 | Blue Prince | PS4 Pro | 1.0.10 | 可玩，约 25 FPS |
 | Wytchwood | PS4 Pro | 1.0.10 | 可玩，稳定 30 FPS |
 | Hades II | PS4 Slim | 1.0.10 | 可运行，游戏中 20–25 FPS（菜单 10–15），有卡顿 |
+| Minecraft | PS4 Slim | 1.0.10 | 可玩，游戏中 30–35 FPS（菜单 56–60），需关闭 GPU 共享内存 |
 
 暂时无法运行的游戏（新版本可能会修复）：
 

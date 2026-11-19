@@ -150,6 +150,7 @@ Spiele, die laufen:
 | Blue Prince | PS4 Pro | 1.0.10 | Spielbar, etwa 25 FPS |
 | Wytchwood | PS4 Pro | 1.0.10 | Spielbar, stabile 30 FPS |
 | Hades II | PS4 Slim | 1.0.10 | Läuft, 20–25 FPS im Spiel (10–15 in Menüs), ruckelt |
+| Minecraft | PS4 Slim | 1.0.10 | Spielbar, 30–35 FPS im Spiel (56–60 in Menüs) mit ausgeschaltetem GPU-geteiltem Speicher |
 
 Spiele, die noch nicht laufen (eine neuere Version kann sie beheben):
 
