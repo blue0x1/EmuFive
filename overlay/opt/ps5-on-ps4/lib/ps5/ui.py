@@ -13,6 +13,11 @@ os.environ.setdefault("PYGAME_HIDE_SUPPORT_PROMPT", "1")
 # A full-screen SDL window hides itself when another window takes the focus (the screenshot
 # notice, say), and the kiosk window manager never shows it again: a black screen.
 os.environ.setdefault("SDL_VIDEO_MINIMIZE_ON_FOCUS_LOSS", "0")
+# A full-screen window keeps the screen mode X has (the TV's, or emufive.mode=). Otherwise SDL 2
+# switches to its own 1920x1080 at 59.96 Hz (173 MHz, not a TV mode): a black screen on TVs that
+# don't take it.
+os.environ.setdefault("SDL_VIDEO_X11_XRANDR", "0")
+os.environ.setdefault("SDL_VIDEO_X11_XVIDMODE", "0")
 import pygame  # noqa: E402
 
 from ps5 import i18n  # noqa: E402
