@@ -168,11 +168,9 @@ Bir oyun mu denediniz? Oyunu, oyun kimliğini, konsol modelinizi, EmuFive sürü
 <a id="changelog"></a>
 ## Değişiklik günlüğü
 
-### 1.0.10 (2026-11-18)
+### 1.0.11 (2026-11-19)
 
-- Düzeltildi: 3D oyunlarda beyaz çizgiler ve eski piksellerden küçük bloklar (Blue Prince). PS4 GPU'sunun hızlı renk temizlemeleri ile derinlik ve MSAA sıkıştırması, bir oyun bir görüntüyü geri okuduğunda 8×8 piksellik bloklar bırakıyordu; EmuFive artık bunları kapatıyor.
-- Düzeltildi: etkileşime girilebilen nesnelerin yakınında tüm ekranı kaplayan parazit (Wytchwood). Oyunun çizmeden önce okuduğu yeni bir tam ekran maske, başka görüntülerden kalan baytları içeriyordu; artık dolu başlıyor.
-- Yeni: `bootargs.txt` içindeki `emufive.mode=1920x1080@60`, EmuFive'ın ekran modunu belirler. EmuFive, TV'nin tercih ettiği modu kullanıyordu; bazı TV'ler bu modu PS4 gönderemese de sunuyor (PS4 Multiboot menüsünden sonra siyah ekran).
+- Düzeltildi: GPU paylaşımlı bellek açıkken EmuFive "unsupported buffer readback from an asynchronous GPU completion" hatasıyla kapanıyordu (PS4 Slim'de Teardown'un büyük haritaları). Yazmaya karşı korumalı bir sayfadaki "GPU işi bitti" işaretini artık GPU iş parçacığı yazıyor.
 
 1.0.3 veya önceki bir sürümden güncellemek için, eski yazılım güncellemesi bunu yapamadığından güncellemeyi bir kez elle başlatın: Ayarlar'da SSH'yi açın, `ssh ps5@<PS4 adresi>` ile bağlanın (değiştirmediyseniz parola `ps5`) ve çalıştırın:
 
@@ -180,7 +178,7 @@ Bir oyun mu denediniz? Oyunu, oyun kimliğini, konsol modelinizi, EmuFive sürü
 sudo systemd-run --unit=emufive-update --collect /opt/ps5-on-ps4/bin/ps5-update install
 ```
 
-Eksik tüm güncellemeleri kurar (1.0.0 veya 1.0.1'den buna 1.0.2'nin yaklaşık 110 MB'lık tarayıcı paketleri dahildir); ardından ana ekrandan yeniden başlatın. 1.0.4'ten itibaren Ayarlar'daki yazılım güncellemesi çalışır. Yeni kurulumlar 1.0.10 sürümündeki `ps5-ps4-rootfs.tar.xz` dosyasını kullanır.
+Eksik tüm güncellemeleri kurar (1.0.0 veya 1.0.1'den buna 1.0.2'nin yaklaşık 110 MB'lık tarayıcı paketleri dahildir); ardından ana ekrandan yeniden başlatın. 1.0.4'ten itibaren Ayarlar'daki yazılım güncellemesi çalışır. Yeni kurulumlar 1.0.11 sürümündeki `ps5-ps4-rootfs.tar.xz` dosyasını kullanır.
 
 ## Proje yapısı
 

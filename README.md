@@ -159,11 +159,9 @@ Tested a game? Open an [issue](https://github.com/blue0x1/EmuFive/issues) with t
 
 ## Changelog
 
-### 1.0.10 (2026-11-18)
+### 1.0.11 (2026-11-19)
 
-- Fixed: white dashes and small blocks of stale pixels in 3D games (Blue Prince). The PS4 GPU's colour fast clears and depth and MSAA compression left 8×8-pixel blocks behind when a game read an image back; EmuFive now turns them off.
-- Fixed: full-screen noise near objects you can interact with (Wytchwood). A new full-screen mask the game reads before drawing it held leftover bytes from other images; it now starts full.
-- New: `emufive.mode=1920x1080@60` in `bootargs.txt` sets EmuFive's screen mode. EmuFive used the TV's preferred mode, which some TVs offer although the PS4 can't send it (black screen after the PS4 Multiboot menu).
+- Fixed: EmuFive closed with "unsupported buffer readback from an asynchronous GPU completion" when GPU-shared memory was on (Teardown's large maps on a PS4 Slim). A "GPU work done" marker on a write-protected page is now written by the GPU thread.
 
 To update from 1.0.3 or earlier, start the update once by hand, since the old Software update cannot: turn on SSH in Settings, connect with `ssh ps5@<PS4 address>` (password `ps5` unless you changed it) and run
 
@@ -171,7 +169,7 @@ To update from 1.0.3 or earlier, start the update once by hand, since the old So
 sudo systemd-run --unit=emufive-update --collect /opt/ps5-on-ps4/bin/ps5-update install
 ```
 
-It installs every update you are missing (from 1.0.0 or 1.0.1 that includes 1.0.2's browser packages, about 110 MB), then restart from the home screen. From 1.0.4 on, Software update in Settings works. New installs use the `ps5-ps4-rootfs.tar.xz` of the 1.0.10 release.
+It installs every update you are missing (from 1.0.0 or 1.0.1 that includes 1.0.2's browser packages, about 110 MB), then restart from the home screen. From 1.0.4 on, Software update in Settings works. New installs use the `ps5-ps4-rootfs.tar.xz` of the 1.0.11 release.
 
 ## Project layout
 

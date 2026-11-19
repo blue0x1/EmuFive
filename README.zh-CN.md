@@ -168,11 +168,9 @@ EmuFive 和其他 Linux 系统一样，通过 [PS4 Multiboot](https://github.com
 <a id="changelog"></a>
 ## 更新日志
 
-### 1.0.10 (2026-11-18)
+### 1.0.11 (2026-11-19)
 
-- 修复：3D 游戏中的白色短线和小块旧像素（Blue Prince）。PS4 GPU 的颜色快速清除以及深度和 MSAA 压缩会在游戏读回图像时留下 8×8 像素的块；EmuFive 现在会关闭它们。
-- 修复：靠近可互动物体时全屏出现噪点（Wytchwood）。游戏在绘制之前就读取一个新的全屏遮罩，其中残留着其他图像的字节；现在它以全满状态开始。
-- 新增：`bootargs.txt` 中的 `emufive.mode=1920x1080@60` 用于设置 EmuFive 的屏幕模式。EmuFive 之前使用电视的首选模式，而有些电视提供的这个模式 PS4 无法输出（PS4 Multiboot 菜单之后黑屏）。
+- 修复：开启 GPU 共享内存时，EmuFive 会以 "unsupported buffer readback from an asynchronous GPU completion" 退出（PS4 Slim 上 Teardown 的大地图）。位于写保护页面上的"GPU 工作完成"标记现在由 GPU 线程写入。
 
 从 1.0.3 或更早版本更新时，旧的软件更新无法完成，请手动启动一次：在设置中打开 SSH，用 `ssh ps5@<PS4 地址>` 连接（未修改时密码为 `ps5`），然后运行
 
@@ -180,7 +178,7 @@ EmuFive 和其他 Linux 系统一样，通过 [PS4 Multiboot](https://github.com
 sudo systemd-run --unit=emufive-update --collect /opt/ps5-on-ps4/bin/ps5-update install
 ```
 
-它会安装所有缺少的更新（从 1.0.0 或 1.0.1 更新时包括 1.0.2 的浏览器软件包，约 110 MB），完成后在主屏幕上重启。从 1.0.4 起，设置中的软件更新可以正常使用。新安装请使用 1.0.10 版本中的 `ps5-ps4-rootfs.tar.xz`。
+它会安装所有缺少的更新（从 1.0.0 或 1.0.1 更新时包括 1.0.2 的浏览器软件包，约 110 MB），完成后在主屏幕上重启。从 1.0.4 起，设置中的软件更新可以正常使用。新安装请使用 1.0.11 版本中的 `ps5-ps4-rootfs.tar.xz`。
 
 ## 项目结构
 

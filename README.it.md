@@ -168,11 +168,9 @@ Hai provato un gioco? Apri una [issue](https://github.com/blue0x1/EmuFive/issues
 <a id="changelog"></a>
 ## Registro delle modifiche
 
-### 1.0.10 (2026-11-18)
+### 1.0.11 (2026-11-19)
 
-- Corretto: trattini bianchi e piccoli blocchi di pixel vecchi nei giochi 3D (Blue Prince). Le pulizie rapide del colore e la compressione di profondità e MSAA della GPU della PS4 lasciavano blocchi di 8×8 pixel quando un gioco rileggeva un'immagine; ora EmuFive le disattiva.
-- Corretto: rumore su tutto lo schermo vicino agli oggetti con cui si può interagire (Wytchwood). Una nuova maschera a schermo intero che il gioco legge prima di disegnarla conteneva byte rimasti da altre immagini; ora parte piena.
-- Nuovo: `emufive.mode=1920x1080@60` in `bootargs.txt` imposta la modalità dello schermo di EmuFive. EmuFive usava la modalità preferita della TV, che alcune TV offrono anche se la PS4 non può inviarla (schermo nero dopo il menu di PS4 Multiboot).
+- Corretto: EmuFive si chiudeva con "unsupported buffer readback from an asynchronous GPU completion" con la memoria condivisa con la GPU attiva (mappe grandi di Teardown su una PS4 Slim). Un indicatore "lavoro della GPU finito" su una pagina protetta in scrittura ora lo scrive il thread della GPU.
 
 Per aggiornare dalla 1.0.3 o precedenti, avvia l'aggiornamento una volta a mano, perché il vecchio aggiornamento software non ci riesce: attiva SSH nelle Impostazioni, collegati con `ssh ps5@<indirizzo della PS4>` (password `ps5` se non l'hai cambiata) ed esegui
 
@@ -180,7 +178,7 @@ Per aggiornare dalla 1.0.3 o precedenti, avvia l'aggiornamento una volta a mano,
 sudo systemd-run --unit=emufive-update --collect /opt/ps5-on-ps4/bin/ps5-update install
 ```
 
-Installa tutti gli aggiornamenti mancanti (dalla 1.0.0 o 1.0.1 include i pacchetti del browser della 1.0.2, circa 110 MB), poi riavvia dalla schermata Home. Dalla 1.0.4 l'aggiornamento software nelle Impostazioni funziona. Le nuove installazioni usano il `ps5-ps4-rootfs.tar.xz` della versione 1.0.10.
+Installa tutti gli aggiornamenti mancanti (dalla 1.0.0 o 1.0.1 include i pacchetti del browser della 1.0.2, circa 110 MB), poi riavvia dalla schermata Home. Dalla 1.0.4 l'aggiornamento software nelle Impostazioni funziona. Le nuove installazioni usano il `ps5-ps4-rootfs.tar.xz` della versione 1.0.11.
 
 ## Struttura del progetto
 
