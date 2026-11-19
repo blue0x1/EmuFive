@@ -1,0 +1,171 @@
+From: Chokri Hammedi <52697989+blue0x1@users.noreply.github.com>
+Subject: [PATCH] graphics: GPU thread writes labels on protected pages (GPU-shared memory)
+
+With GPU-shared memory, RELEASE_MEM labels reach guest memory from the
+priority thread once the GPU is done. When the label's page is
+write-protected (cached or GPU-written data the caches track), that write
+faulted on the priority thread, and the fault needs the GPU thread, which can
+be waiting for the priority thread. KytyPS5 exits there:
+"unsupported buffer readback from an asynchronous GPU completion". Teardown
+(PPSA15246) on a PS4 Slim did this right after loading a large map.
+
+The priority thread now tries the write with process_vm_writev, which fails
+instead of faulting on a protected page. Then the GPU thread writes the label,
+the same way labels were written without GPU-shared memory. While any such
+label is pending, later ones go the same way, so they stay in order.
+--- a/src/graphics/guest_gpu/graphicsRun.cpp
++++ b/src/graphics/guest_gpu/graphicsRun.cpp
+@@ -38,6 +38,11 @@
+ #include <thread>
+ #include <vector>
+ 
++#if KYTY_PLATFORM == KYTY_PLATFORM_LINUX
++#include <sys/uio.h>
++#include <unistd.h>
++#endif
++
+ #include <fmt/format.h>
+ 
+ namespace Libs::Graphics {
+@@ -90,6 +95,22 @@
+ 	m_work_available.Signal();
+ }
+ 
++bool GuestGpu::TrySendCommand(Common::UniqueFunction<void>&& command) {
++	EXIT_IF(!command);
++	if (IsGpuThread()) {
++		command();
++		return true;
++	}
++	Common::LockGuard lock(m_queue_mutex);
++	if (!m_accepting) {
++		return false;
++	}
++	m_commands.push_back(std::move(command));
++	m_pending_commands.fetch_add(1, std::memory_order_release);
++	m_work_available.Signal();
++	return true;
++}
++
+ void GuestGpu::ProcessCommands() {
+ 	while (m_pending_commands.load(std::memory_order_acquire) != 0) {
+ 		Common::UniqueFunction<void> command;
+@@ -257,15 +278,62 @@
+ 	g_early_labels[reinterpret_cast<uint64_t>(address)] = value;
+ }
+ 
+-static void PublishEarlyLabel(void* address, uint64_t value, uint64_t size) {
+-	std::lock_guard lock(g_early_labels_mutex);
+-	std::memcpy(address, &value, size);
++static void ForgetEarlyLabel(void* address, uint64_t value) {
+ 	const auto it = g_early_labels.find(reinterpret_cast<uint64_t>(address));
+ 	if (it != g_early_labels.end() && it->second == value) {
+ 		g_early_labels.erase(it);
+ 	}
+ }
+ 
++// Writes guest memory without a page fault: false when the page is write-protected (cached
++// or GPU-written data the caches track). A fault there must be handled on the GPU thread.
++static bool TryWriteGuestNoFault(void* address, const void* value, uint64_t size) {
++#if KYTY_PLATFORM == KYTY_PLATFORM_LINUX
++	iovec local {const_cast<void*>(value), static_cast<size_t>(size)};
++	iovec remote {address, static_cast<size_t>(size)};
++	return process_vm_writev(getpid(), &local, 1, &remote, 1, 0) == static_cast<ssize_t>(size);
++#else
++	(void)address;
++	(void)value;
++	(void)size;
++	return false;
++#endif
++}
++
++// Labels whose write was handed to the GPU thread and has not run yet. While any is pending,
++// later labels go the same way, so an older value never lands after a newer one.
++static std::atomic<uint32_t> g_gpu_thread_labels {0};
++
++// Runs on the priority thread once the GPU has finished. Writing a protected page from there
++// would need the GPU thread's fault handling, which can be waiting for this thread (Teardown's
++// large maps on a PS4 Slim exited with "unsupported buffer readback from an asynchronous GPU
++// completion"), so such a label is written by the GPU thread instead.
++static void PublishEarlyLabel(GuestGpu& gpu, void* address, uint64_t value, uint64_t size,
++                              Common::UniqueFunction<void>&& write_on_gpu_thread) {
++	{
++		std::lock_guard lock(g_early_labels_mutex);
++		if (g_gpu_thread_labels.load(std::memory_order_acquire) == 0 &&
++		    TryWriteGuestNoFault(address, &value, size)) {
++			ForgetEarlyLabel(address, value);
++			return;
++		}
++		g_gpu_thread_labels.fetch_add(1, std::memory_order_acq_rel);
++	}
++	const bool sent = gpu.TrySendCommand(
++	    [address, value, write = std::move(write_on_gpu_thread)]() mutable {
++		    write();
++		    std::lock_guard lock(g_early_labels_mutex);
++		    ForgetEarlyLabel(address, value);
++		    g_gpu_thread_labels.fetch_sub(1, std::memory_order_acq_rel);
++	    });
++	if (!sent) {
++		// The GPU is shutting down: nothing waits for the label any more.
++		std::lock_guard lock(g_early_labels_mutex);
++		ForgetEarlyLabel(address, value);
++		g_gpu_thread_labels.fetch_sub(1, std::memory_order_acq_rel);
++	}
++}
++
+ template <typename T>
+ static T ReadLabel(const T* addr) {
+ 	std::lock_guard lock(g_early_labels_mutex);
+@@ -990,25 +1058,30 @@
+ 	// A label beside GPU-written bytes goes to the backing store, so they are not downloaded.
+ 	// Other labels go through the guest mapping: its fault keeps a clean cached copy current and
+ 	// downloads GPU-written bytes under the label before the store.
+-	const auto write_label = [this, address](const void* value, uint64_t size) {
++	const auto store_label = [&renderer = m_renderer, address](const void* value, uint64_t size) {
+ 		const auto vaddr   = reinterpret_cast<uint64_t>(address);
+-		auto&      buffers = m_renderer.GetBufferCache();
+-		if (buffers.DirectMemoryEnabled()) {
++		auto&      buffers = renderer.GetBufferCache();
++		if (!GuestRange {vaddr, size}.Valid() || !buffers.IsRegionGpuModified(vaddr, size) ||
++		    buffers.HasGpuDirtyBytes(vaddr, size) ||
++		    !LibKernel::Memory::TryWriteBacking(vaddr, value, size)) {
++			std::memcpy(address, value, size);
++		}
++	};
++	const auto write_label = [this, address, store_label](const void* value, uint64_t size) {
++		if (m_renderer.GetBufferCache().DirectMemoryEnabled()) {
+ 			// GPU work writes guest memory in place: the label may only say "done" once the
+ 			// GPU really is.
+ 			uint64_t copy = 0;
+ 			std::memcpy(&copy, value, size);
+ 			NoteEarlyLabel(address, copy);
+-			GetScheduler().DeferPriorityOperation([address, copy, size] {
+-				PublishEarlyLabel(address, copy, size);
+-			});
++			GetScheduler().DeferPriorityOperation(
++			    [&renderer = m_renderer, address, copy, size, store_label] {
++				    PublishEarlyLabel(renderer.GetGpu(), address, copy, size,
++				                      [store_label, copy, size] { store_label(&copy, size); });
++			    });
+ 			return;
+ 		}
+-		if (!GuestRange {vaddr, size}.Valid() || !buffers.IsRegionGpuModified(vaddr, size) ||
+-		    buffers.HasGpuDirtyBytes(vaddr, size) ||
+-		    !LibKernel::Memory::TryWriteBacking(vaddr, value, size)) {
+-			std::memcpy(address, value, size);
+-		}
++		store_label(value, size);
+ 	};
+ 	// EndOfPipeData: kNone, kImmediate32b, kImmediate64b, kRefClk; 5 reads GDS.
+ 	switch (data_sel) {
+--- a/src/graphics/guest_gpu/graphicsRun.h
++++ b/src/graphics/guest_gpu/graphicsRun.h
+@@ -31,6 +31,8 @@
+ 	[[nodiscard]] bool IsStopping();
+ 	void               SendCommand(Common::UniqueFunction<void>&& command);
+ 	void               SendCommandSync(Common::UniqueFunction<void>&& command);
++	// SendCommand that returns false instead of exiting once the GPU stops taking commands.
++	[[nodiscard]] bool TrySendCommand(Common::UniqueFunction<void>&& command);
+ 
+ 	// Submitted command memory is borrowed and must remain valid until GPU execution completes.
+ 	void Submit(std::span<const uint32_t> commands);
