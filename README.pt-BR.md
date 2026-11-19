@@ -168,9 +168,9 @@ Testou um jogo? Abra uma [issue](https://github.com/blue0x1/EmuFive/issues) com 
 <a id="changelog"></a>
 ## Registro de alterações
 
-### 1.0.11 (2026-11-19)
+### 1.0.12 (2026-11-19)
 
-- Corrigido: o EmuFive fechava com "unsupported buffer readback from an asynchronous GPU completion" com a memória compartilhada com a GPU ligada (mapas grandes de Teardown num PS4 Slim). Uma marca de "trabalho da GPU concluído" numa página protegida contra escrita agora é escrita pela thread da GPU.
+- Corrigido: tela preta com `emufive.mode=` no `bootargs.txt`. O EmuFive definia o modo da TV e depois a tela inicial trocava para outro modo 1920x1080 (59,96 Hz) que algumas TVs não aceitam. Agora a tela inicial mantém o modo.
 
 Para atualizar a partir da 1.0.3 ou anterior, inicie a atualização uma vez à mão, pois a atualização de software antiga não consegue: ative o SSH nas Configurações, conecte com `ssh ps5@<endereço do PS4>` (senha `ps5`, se não a mudou) e execute
 
@@ -178,7 +178,7 @@ Para atualizar a partir da 1.0.3 ou anterior, inicie a atualização uma vez à 
 sudo systemd-run --unit=emufive-update --collect /opt/ps5-on-ps4/bin/ps5-update install
 ```
 
-Ela instala todas as atualizações que faltam (a partir da 1.0.0 ou 1.0.1 isso inclui os pacotes do navegador da 1.0.2, cerca de 110 MB); depois reinicie pela tela inicial. A partir da 1.0.4, a atualização de software nas Configurações funciona. Instalações novas usam o `ps5-ps4-rootfs.tar.xz` da versão 1.0.11.
+Ela instala todas as atualizações que faltam (a partir da 1.0.0 ou 1.0.1 isso inclui os pacotes do navegador da 1.0.2, cerca de 110 MB); depois reinicie pela tela inicial. A partir da 1.0.4, a atualização de software nas Configurações funciona. Instalações novas usam o `ps5-ps4-rootfs.tar.xz` da versão 1.0.12.
 
 ## Estrutura do projeto
 

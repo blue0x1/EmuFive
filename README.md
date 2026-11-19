@@ -159,9 +159,9 @@ Tested a game? Open an [issue](https://github.com/blue0x1/EmuFive/issues) with t
 
 ## Changelog
 
-### 1.0.11 (2026-11-19)
+### 1.0.12 (2026-11-19)
 
-- Fixed: EmuFive closed with "unsupported buffer readback from an asynchronous GPU completion" when GPU-shared memory was on (Teardown's large maps on a PS4 Slim). A "GPU work done" marker on a write-protected page is now written by the GPU thread.
+- Fixed: a black screen with `emufive.mode=` in `bootargs.txt`. EmuFive set the TV's mode, then its home screen switched to another 1920x1080 mode (59.96 Hz) that some TVs don't take. The home screen now keeps the mode.
 
 To update from 1.0.3 or earlier, start the update once by hand, since the old Software update cannot: turn on SSH in Settings, connect with `ssh ps5@<PS4 address>` (password `ps5` unless you changed it) and run
 
@@ -169,7 +169,7 @@ To update from 1.0.3 or earlier, start the update once by hand, since the old So
 sudo systemd-run --unit=emufive-update --collect /opt/ps5-on-ps4/bin/ps5-update install
 ```
 
-It installs every update you are missing (from 1.0.0 or 1.0.1 that includes 1.0.2's browser packages, about 110 MB), then restart from the home screen. From 1.0.4 on, Software update in Settings works. New installs use the `ps5-ps4-rootfs.tar.xz` of the 1.0.11 release.
+It installs every update you are missing (from 1.0.0 or 1.0.1 that includes 1.0.2's browser packages, about 110 MB), then restart from the home screen. From 1.0.4 on, Software update in Settings works. New installs use the `ps5-ps4-rootfs.tar.xz` of the 1.0.12 release.
 
 ## Project layout
 

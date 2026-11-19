@@ -168,9 +168,9 @@ EmuFive 和其他 Linux 系统一样，通过 [PS4 Multiboot](https://github.com
 <a id="changelog"></a>
 ## 更新日志
 
-### 1.0.11 (2026-11-19)
+### 1.0.12 (2026-11-19)
 
-- 修复：开启 GPU 共享内存时，EmuFive 会以 "unsupported buffer readback from an asynchronous GPU completion" 退出（PS4 Slim 上 Teardown 的大地图）。位于写保护页面上的"GPU 工作完成"标记现在由 GPU 线程写入。
+- 修复：在 `bootargs.txt` 中使用 `emufive.mode=` 时黑屏。EmuFive 先设置了电视的模式，随后主屏幕又切换到另一个 1920x1080 模式（59.96 Hz），有些电视不支持。现在主屏幕会保持该模式。
 
 从 1.0.3 或更早版本更新时，旧的软件更新无法完成，请手动启动一次：在设置中打开 SSH，用 `ssh ps5@<PS4 地址>` 连接（未修改时密码为 `ps5`），然后运行
 
@@ -178,7 +178,7 @@ EmuFive 和其他 Linux 系统一样，通过 [PS4 Multiboot](https://github.com
 sudo systemd-run --unit=emufive-update --collect /opt/ps5-on-ps4/bin/ps5-update install
 ```
 
-它会安装所有缺少的更新（从 1.0.0 或 1.0.1 更新时包括 1.0.2 的浏览器软件包，约 110 MB），完成后在主屏幕上重启。从 1.0.4 起，设置中的软件更新可以正常使用。新安装请使用 1.0.11 版本中的 `ps5-ps4-rootfs.tar.xz`。
+它会安装所有缺少的更新（从 1.0.0 或 1.0.1 更新时包括 1.0.2 的浏览器软件包，约 110 MB），完成后在主屏幕上重启。从 1.0.4 起，设置中的软件更新可以正常使用。新安装请使用 1.0.12 版本中的 `ps5-ps4-rootfs.tar.xz`。
 
 ## 项目结构
 

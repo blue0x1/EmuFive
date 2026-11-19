@@ -168,9 +168,9 @@ Bir oyun mu denediniz? Oyunu, oyun kimliğini, konsol modelinizi, EmuFive sürü
 <a id="changelog"></a>
 ## Değişiklik günlüğü
 
-### 1.0.11 (2026-11-19)
+### 1.0.12 (2026-11-19)
 
-- Düzeltildi: GPU paylaşımlı bellek açıkken EmuFive "unsupported buffer readback from an asynchronous GPU completion" hatasıyla kapanıyordu (PS4 Slim'de Teardown'un büyük haritaları). Yazmaya karşı korumalı bir sayfadaki "GPU işi bitti" işaretini artık GPU iş parçacığı yazıyor.
+- Düzeltildi: `bootargs.txt` içinde `emufive.mode=` varken siyah ekran. EmuFive televizyonun modunu ayarlıyor, ardından ana ekran bazı televizyonların kabul etmediği başka bir 1920x1080 moduna (59,96 Hz) geçiyordu. Ana ekran artık modu koruyor.
 
 1.0.3 veya önceki bir sürümden güncellemek için, eski yazılım güncellemesi bunu yapamadığından güncellemeyi bir kez elle başlatın: Ayarlar'da SSH'yi açın, `ssh ps5@<PS4 adresi>` ile bağlanın (değiştirmediyseniz parola `ps5`) ve çalıştırın:
 
@@ -178,7 +178,7 @@ Bir oyun mu denediniz? Oyunu, oyun kimliğini, konsol modelinizi, EmuFive sürü
 sudo systemd-run --unit=emufive-update --collect /opt/ps5-on-ps4/bin/ps5-update install
 ```
 
-Eksik tüm güncellemeleri kurar (1.0.0 veya 1.0.1'den buna 1.0.2'nin yaklaşık 110 MB'lık tarayıcı paketleri dahildir); ardından ana ekrandan yeniden başlatın. 1.0.4'ten itibaren Ayarlar'daki yazılım güncellemesi çalışır. Yeni kurulumlar 1.0.11 sürümündeki `ps5-ps4-rootfs.tar.xz` dosyasını kullanır.
+Eksik tüm güncellemeleri kurar (1.0.0 veya 1.0.1'den buna 1.0.2'nin yaklaşık 110 MB'lık tarayıcı paketleri dahildir); ardından ana ekrandan yeniden başlatın. 1.0.4'ten itibaren Ayarlar'daki yazılım güncellemesi çalışır. Yeni kurulumlar 1.0.12 sürümündeki `ps5-ps4-rootfs.tar.xz` dosyasını kullanır.
 
 ## Proje yapısı
 
