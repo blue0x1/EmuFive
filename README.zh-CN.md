@@ -154,7 +154,7 @@ EmuFive 和其他 Linux 系统一样，通过 [PS4 Multiboot](https://github.com
 
 | 游戏 | 主机 | EmuFive | 结果 |
 |---|---|---|---|
-| DRAGON BALL: Sparking! ZERO | PS4 Pro | 1.0.4 | 第一个启动画面后停止（网格着色器） |
+| DRAGON BALL: Sparking! ZERO | PS4 Pro | 1.0.10 | 显示 EULA 和在线界面后，GPU 停止 |
 | Hello Neighbor | PS4 Pro | 1.0.4 | 启动时停止（网格着色器） |
 | Need for Speed Unbound | PS4 Slim | 1.0.6 | 启动时崩溃（不支持的深度复制） |
 | V Rising | PS4 Pro | 1.0.8 | 启动时崩溃 |

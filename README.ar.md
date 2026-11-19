@@ -164,7 +164,7 @@ scripts/build-rootfs.sh    # out/ps5-ps4-rootfs.tar.xz
 
 | اللعبة | الجهاز | EmuFive | النتيجة |
 |---|---|---|---|
-| DRAGON BALL: Sparking! ZERO | PS4 Pro | 1.0.4 | تتوقف بعد شاشة البداية الأولى (mesh shaders) |
+| DRAGON BALL: Sparking! ZERO | PS4 Pro | 1.0.10 | تعرض شاشة اتفاقية الترخيص وشاشات الاتصال بالإنترنت، ثم يتوقف معالج الرسوميات |
 | Hello Neighbor | PS4 Pro | 1.0.4 | تتوقف عند البدء (mesh shaders) |
 | Need for Speed Unbound | PS4 Slim | 1.0.6 | تنهار عند البدء (نسخ عمق غير مدعوم) |
 | V Rising | PS4 Pro | 1.0.8 | تنهار عند البدء |

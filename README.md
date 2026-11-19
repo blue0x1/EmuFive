@@ -146,7 +146,7 @@ Games that don't work yet (a newer version may fix them):
 
 | Game | Console | EmuFive | Result |
 |---|---|---|---|
-| DRAGON BALL: Sparking! ZERO | PS4 Pro | 1.0.4 | Stops after the first splash screen (mesh shaders) |
+| DRAGON BALL: Sparking! ZERO | PS4 Pro | 1.0.10 | Shows the EULA and online screens, then the GPU stops |
 | Hello Neighbor | PS4 Pro | 1.0.4 | Stops at start (mesh shaders) |
 | Need for Speed Unbound | PS4 Slim | 1.0.6 | Crashes at start (unsupported depth copy) |
 | V Rising | PS4 Pro | 1.0.8 | Crashes at start |

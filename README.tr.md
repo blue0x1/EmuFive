@@ -154,7 +154,7 @@ Henüz çalışmayan oyunlar (daha yeni bir sürüm düzeltebilir):
 
 | Oyun | Konsol | EmuFive | Sonuç |
 |---|---|---|---|
-| DRAGON BALL: Sparking! ZERO | PS4 Pro | 1.0.4 | İlk açılış ekranından sonra duruyor (mesh shader) |
+| DRAGON BALL: Sparking! ZERO | PS4 Pro | 1.0.10 | EULA ve çevrim içi ekranlarını gösteriyor, ardından GPU duruyor |
 | Hello Neighbor | PS4 Pro | 1.0.4 | Açılışta duruyor (mesh shader) |
 | Need for Speed Unbound | PS4 Slim | 1.0.6 | Açılışta çöküyor (desteklenmeyen derinlik kopyası) |
 | V Rising | PS4 Pro | 1.0.8 | Açılışta çöküyor |

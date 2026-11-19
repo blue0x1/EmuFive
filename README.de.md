@@ -154,7 +154,7 @@ Spiele, die noch nicht laufen (eine neuere Version kann sie beheben):
 
 | Spiel | Konsole | EmuFive | Ergebnis |
 |---|---|---|---|
-| DRAGON BALL: Sparking! ZERO | PS4 Pro | 1.0.4 | Stoppt nach dem ersten Startbild (Mesh-Shader) |
+| DRAGON BALL: Sparking! ZERO | PS4 Pro | 1.0.10 | Zeigt die EULA und die Online-Bildschirme, dann stoppt die GPU |
 | Hello Neighbor | PS4 Pro | 1.0.4 | Stoppt beim Start (Mesh-Shader) |
 | Need for Speed Unbound | PS4 Slim | 1.0.6 | Stürzt beim Start ab (nicht unterstützte Tiefenkopie) |
 | V Rising | PS4 Pro | 1.0.8 | Stürzt beim Start ab |

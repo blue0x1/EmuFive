@@ -154,7 +154,7 @@ Jogos que ainda não funcionam (uma versão mais nova pode corrigi-los):
 
 | Jogo | Console | EmuFive | Resultado |
 |---|---|---|---|
-| DRAGON BALL: Sparking! ZERO | PS4 Pro | 1.0.4 | Para após a primeira tela de abertura (mesh shaders) |
+| DRAGON BALL: Sparking! ZERO | PS4 Pro | 1.0.10 | Mostra o EULA e as telas online, depois a GPU para |
 | Hello Neighbor | PS4 Pro | 1.0.4 | Para ao iniciar (mesh shaders) |
 | Need for Speed Unbound | PS4 Slim | 1.0.6 | Fecha ao iniciar (cópia de profundidade não suportada) |
 | V Rising | PS4 Pro | 1.0.8 | Fecha ao iniciar |
