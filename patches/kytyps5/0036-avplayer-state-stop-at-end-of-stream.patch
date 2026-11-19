@@ -1,0 +1,95 @@
+From ce0c55711f15c86c1ab0bb4b8fffd5ef15336a9d Mon Sep 17 00:00:00 2001
+From: EmuFive dev <dev@localhost>
+Date: Thu, 19 Nov 2026 11:37:36 -0500
+Subject: [PATCH] avplayer: send STATE_STOP when a video ends by itself
+
+The console's player sends STATE_STOP to the game's event callback when a
+video that does not loop has been played to the end (or cannot be decoded).
+KytyPS5 only made sceAvPlayerIsActive return false, so a game that waits for
+the event to leave a video never saw it end. The Long Dark restarts its intro
+video hundreds of times and never reaches its menu (EmuFive issue #51).
+
+The end is noticed on the game's thread, in GetVideoData, GetAudioData and
+IsActive, and sent once per start without the player's locks held. A later
+sceAvPlayerStop does not send a second STATE_STOP.
+---
+ src/libs/avPlayer.cpp | 28 +++++++++++++++++++++++++++-
+ 1 file changed, 27 insertions(+), 1 deletion(-)
+
+diff --git a/src/libs/avPlayer.cpp b/src/libs/avPlayer.cpp
+index e4762de8..ca8c8f84 100644
+--- a/src/libs/avPlayer.cpp
++++ b/src/libs/avPlayer.cpp
+@@ -857,7 +857,10 @@ public:
+ 				std::lock_guard lock(mutex);
+ 				if (state == State::Playing) {
+ 					was_playing_video = video_id.has_value();
+-					stop_event        = event;
++					// The end of the stream already sent STATE_STOP (TakeEnd); send it once.
++					if (!end_event_sent) {
++						stop_event = event;
++					}
+ 				}
+ 				state = State::Stopped;
+ 			}
+@@ -906,6 +909,19 @@ public:
+ 		return state == State::Ready ||
+ 		       (state == State::Playing && !pipeline_failed && !DrainedNoLock());
+ 	}
++	// True once per start when playback has ended by itself: every frame of a non-looping
++	// stream has been handed out, or decoding failed. The console's player then sends
++	// STATE_STOP; games that wait for that event to leave a video otherwise wait forever
++	// (or restart the video).
++	bool TakeEnd() {
++		std::lock_guard lock(mutex);
++		if (state != State::Playing || end_event_sent ||
++		    !(pipeline_failed || (!loop && DrainedNoLock()))) {
++			return false;
++		}
++		end_event_sent = true;
++		return true;
++	}
+ 	uint64_t CurrentTime() const {
+ 		std::lock_guard lock(mutex);
+ 		return CurrentTimeNoLock();
+@@ -1214,6 +1230,7 @@ private:
+ 		worker_stop     = false;
+ 		interrupt_io    = false;
+ 		pipeline_failed = false;
++		end_event_sent  = false;
+ 		demux_eof       = false;
+ 		video_done      = !video_id;
+ 		audio_done      = !audio_id;
+@@ -1677,6 +1694,7 @@ private:
+ 	std::atomic_bool                         worker_stop {true};
+ 	std::atomic_bool                         interrupt_io {false};
+ 	std::atomic_bool                         pipeline_failed {false};
++	bool                                     end_event_sent  = false;   // Guarded by mutex.
+ 	std::atomic_bool                         demux_eof {true};
+ 	std::atomic_bool                         video_done {true};
+ 	std::atomic_bool                         audio_done {true};
+@@ -1721,6 +1739,12 @@ static void pump_warnings(AvPlayerInternal* h) {
+ 		int32_t warning = *w;
+ 		emit_event(h->event, AVPLAYER_EVENT_WARNING_ID, &warning);
+ 	}
++	// Called without the source's locks held, so the game may stop or close the player
++	// from its event callback.
++	if (h->source->TakeEnd()) {
++		::printf("AvPlayer video finished\n");
++		emit_event(h->event, AVPLAYER_EVENT_STATE_STOP);
++	}
+ }
+ static AvPlayerInternal* create_player(const AvPlayerMemAllocator&     mem,
+                                        const AvPlayerFileReplacement&  file,
+@@ -2041,6 +2065,8 @@ Bool KYTY_SYSV_ABI AvPlayerGetAudioData(AvPlayerInternal* h, AvPlayerFrameInfo*
+ }
+ Bool KYTY_SYSV_ABI AvPlayerIsActive(AvPlayerInternal* h) {
+ 	PRINT_NAME();
++	// Games that only poll IsActive at the end of a video still get STATE_STOP.
++	pump_warnings(h);
+ 	return h != nullptr && (h->source == nullptr || h->source->Active());
+ }
+ uint64_t KYTY_SYSV_ABI AvPlayerCurrentTime(AvPlayerInternal* h) {
+-- 
+2.43.0
+
