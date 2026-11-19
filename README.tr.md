@@ -149,6 +149,7 @@ Bu proje hiçbir PS5 sistem yazılımı ve hiçbir oyun içermez. Yalnızca sahi
 | Invincible VS | PS4 Pro | 1.0.9 | Açılıyor, 4–5 FPS; henüz oynanamıyor |
 | Blue Prince | PS4 Pro | 1.0.10 | Oynanabilir, yaklaşık 25 FPS |
 | Wytchwood | PS4 Pro | 1.0.10 | Oynanabilir, kararlı 30 FPS |
+| Hades II | PS4 Slim | 1.0.10 | Çalışıyor, oyunda 20–25 FPS (menülerde 10–15), takılmalar var |
 
 Henüz çalışmayan oyunlar (daha yeni bir sürüm düzeltebilir):
 

@@ -149,6 +149,7 @@ Jeux qui fonctionnent :
 | Invincible VS | PS4 Pro | 1.0.9 | Démarre, 4–5 IPS ; pas encore jouable |
 | Blue Prince | PS4 Pro | 1.0.10 | Jouable, environ 25 IPS |
 | Wytchwood | PS4 Pro | 1.0.10 | Jouable, 30 IPS stables |
+| Hades II | PS4 Slim | 1.0.10 | Tourne, 20–25 IPS en jeu (10–15 dans les menus), saccades |
 
 Jeux qui ne fonctionnent pas encore (une version plus récente peut les corriger) :
 

@@ -149,6 +149,7 @@ Spiele, die laufen:
 | Invincible VS | PS4 Pro | 1.0.9 | Startet, 4–5 FPS; noch nicht spielbar |
 | Blue Prince | PS4 Pro | 1.0.10 | Spielbar, etwa 25 FPS |
 | Wytchwood | PS4 Pro | 1.0.10 | Spielbar, stabile 30 FPS |
+| Hades II | PS4 Slim | 1.0.10 | Läuft, 20–25 FPS im Spiel (10–15 in Menüs), ruckelt |
 
 Spiele, die noch nicht laufen (eine neuere Version kann sie beheben):
 
