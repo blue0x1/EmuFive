@@ -143,25 +143,26 @@ Games that work:
 | Wytchwood | PS4 Pro | 1.0.10 | Playable, stable 30 FPS |
 | Hades II | PS4 Slim | 1.0.10 | Runs, 20–25 FPS in game (10–15 in menus), stutters |
 | Minecraft | PS4 Slim | 1.0.10 | Playable, 30–35 FPS in game (56–60 in menus) with GPU-shared memory off |
-| Iron Lung | PS4 Pro | ? | Playable, 60 FPS |
-| The King is Watching | PS4 Pro | ? | Playable, 55–60 FPS |
-| Wizard with a Gun | PS4 Pro | ? | Runs, 20–30 FPS with stutters; a portal glow stays on screen |
-| Mouse: P.I. For Hire | PS4 Pro | ? | Runs, 4–22 FPS with stutters and crackling sound (1024 MB payload) |
-| Another Crab's Treasure | PS4 Pro | ? | Runs, 4–10 FPS; graphics artifacts stay on screen |
-| Anger Foot | PS4 Pro | ? | Starts, 4 FPS (1024 MB payload); not playable yet |
+| Crusader Kings III | PS4 Pro | 1.0.10 | Playable |
+| Iron Lung | PS4 Pro | 1.0.10 | Playable, 60 FPS |
+| The King is Watching | PS4 Pro | 1.0.10 | Playable, 55–60 FPS |
+| Wizard with a Gun | PS4 Pro | 1.0.10 | Runs, 20–30 FPS with stutters; a portal glow stays on screen |
+| Mouse: P.I. For Hire | PS4 Pro | 1.0.10 | Runs, 4–22 FPS with stutters and crackling sound (1024 MB payload) |
+| Another Crab's Treasure | PS4 Pro | 1.0.10 | Runs, 4–10 FPS; graphics artifacts stay on screen |
+| Anger Foot | PS4 Pro | 1.0.10 | Starts, 4 FPS (1024 MB payload); not playable yet |
 
 Games that don't work yet (a newer version may fix them):
 
 | Game | Console | EmuFive | Result |
 |---|---|---|---|
-| Bionic Bay | PS4 Pro | ? | Crashes at start (unsupported video-out surface) |
-| Digging a Hole | PS4 Pro | ? | Game screen stays black, only the UI shows |
-| Dispatch | PS4 Pro | ? | Crashes at start |
+| Bionic Bay | PS4 Pro | 1.0.10 | Crashes at start (unsupported video-out surface) |
+| Digging a Hole | PS4 Pro | 1.0.10 | Game screen stays black, only the UI shows |
+| Dispatch | PS4 Pro | 1.0.10 | Crashes at start |
 | DRAGON BALL: Sparking! ZERO | PS4 Pro | 1.0.10 | Shows the EULA and online screens, then the GPU stops |
 | Hello Neighbor | PS4 Pro | 1.0.4 | Stops at start (mesh shaders) |
-| Mewgenics | PS4 Pro | ? | Crashes after Play (1024 MB payload) |
+| Mewgenics | PS4 Pro | 1.0.10 | Crashes after Play (1024 MB payload) |
 | Need for Speed Unbound | PS4 Slim | 1.0.6 | Crashes at start (unsupported depth copy) |
-| Rat Shaker | PS4 Pro | ? | Not enough memory (2 FPS with the 1024 MB payload) |
+| Rat Shaker | PS4 Pro | 1.0.10 | Not enough memory (2 FPS with the 1024 MB payload) |
 | V Rising | PS4 Pro | 1.0.8 | Crashes at start |
 | Serious Sam 4 | PS4 Slim | 1.0.10 | Closes at start (online services) |
 | Serious Sam: Siberian Mayhem | PS4 Slim | 1.0.9 | Closes at start (online services) |

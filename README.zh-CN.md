@@ -151,25 +151,26 @@ EmuFive 和其他 Linux 系统一样，通过 [PS4 Multiboot](https://github.com
 | Wytchwood | PS4 Pro | 1.0.10 | 可玩，稳定 30 FPS |
 | Hades II | PS4 Slim | 1.0.10 | 可运行，游戏中 20–25 FPS（菜单 10–15），有卡顿 |
 | Minecraft | PS4 Slim | 1.0.10 | 可玩，游戏中 30–35 FPS（菜单 56–60），需关闭 GPU 共享内存 |
-| Iron Lung | PS4 Pro | ? | 可玩，60 FPS |
-| The King is Watching | PS4 Pro | ? | 可玩，55–60 FPS |
-| Wizard with a Gun | PS4 Pro | ? | 可运行，20–30 FPS，有卡顿；传送门光效会留在屏幕上 |
-| Mouse: P.I. For Hire | PS4 Pro | ? | 可运行，4–22 FPS，有卡顿和爆音（1024 MB payload） |
-| Another Crab's Treasure | PS4 Pro | ? | 可运行，4–10 FPS；画面残留伪影 |
-| Anger Foot | PS4 Pro | ? | 可启动，4 FPS（1024 MB payload）；暂不可玩 |
+| Crusader Kings III | PS4 Pro | 1.0.10 | 可玩 |
+| Iron Lung | PS4 Pro | 1.0.10 | 可玩，60 FPS |
+| The King is Watching | PS4 Pro | 1.0.10 | 可玩，55–60 FPS |
+| Wizard with a Gun | PS4 Pro | 1.0.10 | 可运行，20–30 FPS，有卡顿；传送门光效会留在屏幕上 |
+| Mouse: P.I. For Hire | PS4 Pro | 1.0.10 | 可运行，4–22 FPS，有卡顿和爆音（1024 MB payload） |
+| Another Crab's Treasure | PS4 Pro | 1.0.10 | 可运行，4–10 FPS；画面残留伪影 |
+| Anger Foot | PS4 Pro | 1.0.10 | 可启动，4 FPS（1024 MB payload）；暂不可玩 |
 
 暂时无法运行的游戏（新版本可能会修复）：
 
 | 游戏 | 主机 | EmuFive | 结果 |
 |---|---|---|---|
-| Bionic Bay | PS4 Pro | ? | 启动时崩溃（不支持的 video-out 表面） |
-| Digging a Hole | PS4 Pro | ? | 游戏画面黑屏，只显示界面 |
-| Dispatch | PS4 Pro | ? | 启动时崩溃 |
+| Bionic Bay | PS4 Pro | 1.0.10 | 启动时崩溃（不支持的 video-out 表面） |
+| Digging a Hole | PS4 Pro | 1.0.10 | 游戏画面黑屏，只显示界面 |
+| Dispatch | PS4 Pro | 1.0.10 | 启动时崩溃 |
 | DRAGON BALL: Sparking! ZERO | PS4 Pro | 1.0.10 | 显示 EULA 和在线界面后，GPU 停止 |
 | Hello Neighbor | PS4 Pro | 1.0.4 | 启动时停止（网格着色器） |
-| Mewgenics | PS4 Pro | ? | 点击 Play 后崩溃（1024 MB payload） |
+| Mewgenics | PS4 Pro | 1.0.10 | 点击 Play 后崩溃（1024 MB payload） |
 | Need for Speed Unbound | PS4 Slim | 1.0.6 | 启动时崩溃（不支持的深度复制） |
-| Rat Shaker | PS4 Pro | ? | 内存不足（1024 MB payload 下 2 FPS） |
+| Rat Shaker | PS4 Pro | 1.0.10 | 内存不足（1024 MB payload 下 2 FPS） |
 | V Rising | PS4 Pro | 1.0.8 | 启动时崩溃 |
 | Serious Sam 4 | PS4 Slim | 1.0.10 | 启动时关闭（在线服务） |
 | Serious Sam: Siberian Mayhem | PS4 Slim | 1.0.9 | 启动时关闭（在线服务） |
