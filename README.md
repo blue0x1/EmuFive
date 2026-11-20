@@ -152,6 +152,7 @@ Games that don't work yet (a newer version may fix them):
 | Hello Neighbor | PS4 Pro | 1.0.4 | Stops at start (mesh shaders) |
 | Need for Speed Unbound | PS4 Slim | 1.0.6 | Crashes at start (unsupported depth copy) |
 | V Rising | PS4 Pro | 1.0.8 | Crashes at start |
+| Serious Sam 4 | PS4 Slim | 1.0.10 | Closes at start (online services) |
 | Serious Sam: Siberian Mayhem | PS4 Slim | 1.0.9 | Closes at start (online services) |
 | The Long Dark | PS4 Slim | 1.0.10 | Stuck on its intro video, no menu |
 

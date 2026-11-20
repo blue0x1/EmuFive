@@ -160,6 +160,7 @@ EmuFive 和其他 Linux 系统一样，通过 [PS4 Multiboot](https://github.com
 | Hello Neighbor | PS4 Pro | 1.0.4 | 启动时停止（网格着色器） |
 | Need for Speed Unbound | PS4 Slim | 1.0.6 | 启动时崩溃（不支持的深度复制） |
 | V Rising | PS4 Pro | 1.0.8 | 启动时崩溃 |
+| Serious Sam 4 | PS4 Slim | 1.0.10 | 启动时关闭（在线服务） |
 | Serious Sam: Siberian Mayhem | PS4 Slim | 1.0.9 | 启动时关闭（在线服务） |
 | The Long Dark | PS4 Slim | 1.0.10 | 卡在开场视频，无法进入菜单 |
 

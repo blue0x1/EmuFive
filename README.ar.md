@@ -170,6 +170,7 @@ scripts/build-rootfs.sh    # out/ps5-ps4-rootfs.tar.xz
 | Hello Neighbor | PS4 Pro | 1.0.4 | تتوقف عند البدء (mesh shaders) |
 | Need for Speed Unbound | PS4 Slim | 1.0.6 | تنهار عند البدء (نسخ عمق غير مدعوم) |
 | V Rising | PS4 Pro | 1.0.8 | تنهار عند البدء |
+| Serious Sam 4 | PS4 Slim | 1.0.10 | تُغلق عند البدء (الخدمات عبر الإنترنت) |
 | Serious Sam: Siberian Mayhem | PS4 Slim | 1.0.9 | تُغلق عند البدء (الخدمات عبر الإنترنت) |
 | The Long Dark | PS4 Slim | 1.0.10 | تعلق في فيديو البداية، ولا تظهر القائمة |
 

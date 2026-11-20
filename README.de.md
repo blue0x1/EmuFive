@@ -160,6 +160,7 @@ Spiele, die noch nicht laufen (eine neuere Version kann sie beheben):
 | Hello Neighbor | PS4 Pro | 1.0.4 | Stoppt beim Start (Mesh-Shader) |
 | Need for Speed Unbound | PS4 Slim | 1.0.6 | Stürzt beim Start ab (nicht unterstützte Tiefenkopie) |
 | V Rising | PS4 Pro | 1.0.8 | Stürzt beim Start ab |
+| Serious Sam 4 | PS4 Slim | 1.0.10 | Beendet sich beim Start (Online-Dienste) |
 | Serious Sam: Siberian Mayhem | PS4 Slim | 1.0.9 | Beendet sich beim Start (Online-Dienste) |
 | The Long Dark | PS4 Slim | 1.0.10 | Hängt im Intro-Video, kein Menü |
 

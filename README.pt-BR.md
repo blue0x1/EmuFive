@@ -160,6 +160,7 @@ Jogos que ainda não funcionam (uma versão mais nova pode corrigi-los):
 | Hello Neighbor | PS4 Pro | 1.0.4 | Para ao iniciar (mesh shaders) |
 | Need for Speed Unbound | PS4 Slim | 1.0.6 | Fecha ao iniciar (cópia de profundidade não suportada) |
 | V Rising | PS4 Pro | 1.0.8 | Fecha ao iniciar |
+| Serious Sam 4 | PS4 Slim | 1.0.10 | Fecha ao iniciar (serviços online) |
 | Serious Sam: Siberian Mayhem | PS4 Slim | 1.0.9 | Fecha ao iniciar (serviços online) |
 | The Long Dark | PS4 Slim | 1.0.10 | Fica preso no vídeo de abertura, sem menu |
 
