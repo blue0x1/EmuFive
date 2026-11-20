@@ -134,7 +134,8 @@ Ardından EmuFive'ı başlatmak için payload'ı çalıştırın (başka sisteml
 
 Bu proje hiçbir PS5 sistem yazılımı ve hiçbir oyun içermez. Yalnızca sahip olduğunuz ve dökümünü kendiniz aldığınız oyunları kullanın.
 
-Çalışan oyunlar:
+<details>
+<summary><b>Çalışan oyunlar</b></summary>
 
 | Oyun | Konsol | EmuFive | Sonuç |
 |---|---|---|---|
@@ -159,7 +160,10 @@ Bu proje hiçbir PS5 sistem yazılımı ve hiçbir oyun içermez. Yalnızca sahi
 | Another Crab's Treasure | PS4 Pro | 1.0.10 | Çalışıyor, 4–10 FPS; görüntü bozulmaları ekranda kalıyor |
 | Anger Foot | PS4 Pro | 1.0.10 | Açılıyor, 4 FPS (1024 MB payload); henüz oynanamıyor |
 
-Henüz çalışmayan oyunlar (daha yeni bir sürüm düzeltebilir):
+</details>
+
+<details>
+<summary><b>Henüz çalışmayan oyunlar (daha yeni bir sürüm düzeltebilir)</b></summary>
 
 | Oyun | Konsol | EmuFive | Sonuç |
 |---|---|---|---|
@@ -175,6 +179,8 @@ Henüz çalışmayan oyunlar (daha yeni bir sürüm düzeltebilir):
 | Serious Sam 4 | PS4 Slim | 1.0.10 | Açılışta kapanıyor (çevrim içi hizmetler) |
 | Serious Sam: Siberian Mayhem | PS4 Slim | 1.0.9 | Açılışta kapanıyor (çevrim içi hizmetler) |
 | The Long Dark | PS4 Slim | 1.0.10 | Giriş videosunda takılıyor, menü açılmıyor |
+
+</details>
 
 Bir oyun mu denediniz? Oyunu, oyun kimliğini, konsol modelinizi, EmuFive sürümünü ve nasıl çalıştığını yazarak bir [issue](https://github.com/blue0x1/EmuFive/issues) açın. Çalışmayan oyunlar da işe yarar (örneğin "açılmıyor" veya "menüde çöküyor"): tabloya eklenirler, böylece başkaları aynı oyunu denemez.
 

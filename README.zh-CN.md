@@ -134,7 +134,8 @@ EmuFive 和其他 Linux 系统一样，通过 [PS4 Multiboot](https://github.com
 
 本项目不包含任何 PS5 系统软件，也不包含任何游戏。请只使用你自己拥有并亲自转储的游戏。
 
-可以运行的游戏：
+<details>
+<summary><b>可以运行的游戏</b></summary>
 
 | 游戏 | 主机 | EmuFive | 结果 |
 |---|---|---|---|
@@ -159,7 +160,10 @@ EmuFive 和其他 Linux 系统一样，通过 [PS4 Multiboot](https://github.com
 | Another Crab's Treasure | PS4 Pro | 1.0.10 | 可运行，4–10 FPS；画面残留伪影 |
 | Anger Foot | PS4 Pro | 1.0.10 | 可启动，4 FPS（1024 MB payload）；暂不可玩 |
 
-暂时无法运行的游戏（新版本可能会修复）：
+</details>
+
+<details>
+<summary><b>暂时无法运行的游戏（新版本可能会修复）</b></summary>
 
 | 游戏 | 主机 | EmuFive | 结果 |
 |---|---|---|---|
@@ -175,6 +179,8 @@ EmuFive 和其他 Linux 系统一样，通过 [PS4 Multiboot](https://github.com
 | Serious Sam 4 | PS4 Slim | 1.0.10 | 启动时关闭（在线服务） |
 | Serious Sam: Siberian Mayhem | PS4 Slim | 1.0.9 | 启动时关闭（在线服务） |
 | The Long Dark | PS4 Slim | 1.0.10 | 卡在开场视频，无法进入菜单 |
+
+</details>
 
 测试过某个游戏？请开一个 [issue](https://github.com/blue0x1/EmuFive/issues)，写明游戏、游戏 ID、主机型号、EmuFive 版本和运行情况。无法运行的游戏也很有用（例如“无法启动”或“在菜单崩溃”）：它们会写进表格，免得别人再试同一个游戏。
 

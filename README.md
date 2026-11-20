@@ -126,7 +126,8 @@ After installing, run the payload to start EmuFive (with other systems installed
 
 This project contains no PS5 system software and no games. Use only games you own and dumped yourself.
 
-Games that work:
+<details>
+<summary><b>Games that work</b></summary>
 
 | Game | Console | EmuFive | Result |
 |---|---|---|---|
@@ -151,7 +152,10 @@ Games that work:
 | Another Crab's Treasure | PS4 Pro | 1.0.10 | Runs, 4–10 FPS; graphics artifacts stay on screen |
 | Anger Foot | PS4 Pro | 1.0.10 | Starts, 4 FPS (1024 MB payload); not playable yet |
 
-Games that don't work yet (a newer version may fix them):
+</details>
+
+<details>
+<summary><b>Games that don't work yet (a newer version may fix them)</b></summary>
 
 | Game | Console | EmuFive | Result |
 |---|---|---|---|
@@ -167,6 +171,8 @@ Games that don't work yet (a newer version may fix them):
 | Serious Sam 4 | PS4 Slim | 1.0.10 | Closes at start (online services) |
 | Serious Sam: Siberian Mayhem | PS4 Slim | 1.0.9 | Closes at start (online services) |
 | The Long Dark | PS4 Slim | 1.0.10 | Stuck on its intro video, no menu |
+
+</details>
 
 Tested a game? Open an [issue](https://github.com/blue0x1/EmuFive/issues) with the game, its title ID, your console model, the EmuFive version and how it ran. Games that don't work are useful too (for example "doesn't start" or "crashes in the menu"): they go in the table, so others don't try the same game.
 

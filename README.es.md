@@ -134,7 +134,8 @@ Después, ejecuta el payload para iniciar EmuFive (con otros sistemas instalados
 
 Este proyecto no contiene software de sistema de PS5 ni juegos. Usa solo juegos que tengas y que hayas volcado tú mismo.
 
-Juegos que funcionan:
+<details>
+<summary><b>Juegos que funcionan</b></summary>
 
 | Juego | Consola | EmuFive | Resultado |
 |---|---|---|---|
@@ -159,7 +160,10 @@ Juegos que funcionan:
 | Another Crab's Treasure | PS4 Pro | 1.0.10 | Funciona, 4–10 FPS; quedan artefactos gráficos en pantalla |
 | Anger Foot | PS4 Pro | 1.0.10 | Arranca, 4 FPS (payload de 1024 MB); aún no es jugable |
 
-Juegos que aún no funcionan (una versión más nueva puede arreglarlos):
+</details>
+
+<details>
+<summary><b>Juegos que aún no funcionan (una versión más nueva puede arreglarlos)</b></summary>
 
 | Juego | Consola | EmuFive | Resultado |
 |---|---|---|---|
@@ -175,6 +179,8 @@ Juegos que aún no funcionan (una versión más nueva puede arreglarlos):
 | Serious Sam 4 | PS4 Slim | 1.0.10 | Se cierra al arrancar (servicios en línea) |
 | Serious Sam: Siberian Mayhem | PS4 Slim | 1.0.9 | Se cierra al arrancar (servicios en línea) |
 | The Long Dark | PS4 Slim | 1.0.10 | Se queda en el vídeo de introducción, sin menú |
+
+</details>
 
 ¿Probaste un juego? Abre un [issue](https://github.com/blue0x1/EmuFive/issues) con el juego, su ID de título, el modelo de tu consola, la versión de EmuFive y cómo funcionó. Los juegos que no funcionan también sirven (por ejemplo «no arranca» o «se cierra en el menú»): van a la tabla, para que otros no prueben el mismo juego.
 

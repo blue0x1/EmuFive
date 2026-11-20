@@ -134,7 +134,8 @@ Danach startet die Payload EmuFive (sind weitere Systeme installiert, erscheint 
 
 Dieses Projekt enthält keine PS5-Systemsoftware und keine Spiele. Verwende nur Spiele, die du besitzt und selbst gedumpt hast.
 
-Spiele, die laufen:
+<details>
+<summary><b>Spiele, die laufen</b></summary>
 
 | Spiel | Konsole | EmuFive | Ergebnis |
 |---|---|---|---|
@@ -159,7 +160,10 @@ Spiele, die laufen:
 | Another Crab's Treasure | PS4 Pro | 1.0.10 | Läuft, 4–10 FPS; Grafikfehler bleiben auf dem Bildschirm |
 | Anger Foot | PS4 Pro | 1.0.10 | Startet, 4 FPS (1024-MB-Payload); noch nicht spielbar |
 
-Spiele, die noch nicht laufen (eine neuere Version kann sie beheben):
+</details>
+
+<details>
+<summary><b>Spiele, die noch nicht laufen (eine neuere Version kann sie beheben)</b></summary>
 
 | Spiel | Konsole | EmuFive | Ergebnis |
 |---|---|---|---|
@@ -175,6 +179,8 @@ Spiele, die noch nicht laufen (eine neuere Version kann sie beheben):
 | Serious Sam 4 | PS4 Slim | 1.0.10 | Beendet sich beim Start (Online-Dienste) |
 | Serious Sam: Siberian Mayhem | PS4 Slim | 1.0.9 | Beendet sich beim Start (Online-Dienste) |
 | The Long Dark | PS4 Slim | 1.0.10 | Hängt im Intro-Video, kein Menü |
+
+</details>
 
 Ein Spiel getestet? Eröffne ein [Issue](https://github.com/blue0x1/EmuFive/issues) mit dem Spiel, seiner Title-ID, deinem Konsolenmodell, der EmuFive-Version und wie es lief. Auch Spiele, die nicht laufen, helfen (zum Beispiel „startet nicht“ oder „stürzt im Menü ab“): Sie kommen in die Tabelle, damit andere nicht dasselbe Spiel versuchen.
 
