@@ -157,6 +157,7 @@ EmuFive 和其他 Linux 系统一样，通过 [PS4 Multiboot](https://github.com
 | The King is Watching | PS4 Pro | 1.0.12 | 可玩，55–60 FPS |
 | Wizard with a Gun | PS4 Pro | 1.0.12 | 可运行，20–30 FPS，有卡顿；传送门光效会留在屏幕上 |
 | Another Crab's Treasure | PS4 Pro | 1.0.12 | 可运行，4–10 FPS；画面残留伪影 |
+| Minecraft Dungeons 2 | PS4 Slim | 1.0.12 | 断开网络后可运行，20–30 FPS |
 
 </details>
 

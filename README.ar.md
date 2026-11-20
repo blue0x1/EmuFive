@@ -167,6 +167,7 @@ scripts/build-rootfs.sh    # out/ps5-ps4-rootfs.tar.xz
 | The King is Watching | PS4 Pro | 1.0.12 | قابلة للعب، 55–60 إطاراً |
 | Wizard with a Gun | PS4 Pro | 1.0.12 | تعمل، 20–30 إطاراً مع تقطّع؛ يبقى توهّج البوابة على الشاشة |
 | Another Crab's Treasure | PS4 Pro | 1.0.12 | تعمل، 4–10 إطارات؛ تبقى تشوّهات رسومية على الشاشة |
+| Minecraft Dungeons 2 | PS4 Slim | 1.0.12 | تعمل مع فصل الإنترنت، 20–30 إطاراً |
 
 </details>
 

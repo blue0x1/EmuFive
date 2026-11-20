@@ -157,6 +157,7 @@ Ce projet ne contient aucun logiciel système PS5 ni aucun jeu. N'utilisez que d
 | The King is Watching | PS4 Pro | 1.0.12 | Jouable, 55–60 IPS |
 | Wizard with a Gun | PS4 Pro | 1.0.12 | Tourne, 20–30 IPS, saccades ; la lueur d'un portail reste à l'écran |
 | Another Crab's Treasure | PS4 Pro | 1.0.12 | Tourne, 4–10 IPS ; des artefacts restent à l'écran |
+| Minecraft Dungeons 2 | PS4 Slim | 1.0.12 | Tourne avec internet coupé, 20–30 IPS |
 
 </details>
 

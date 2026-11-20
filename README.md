@@ -149,6 +149,7 @@ This project contains no PS5 system software and no games. Use only games you ow
 | The King is Watching | PS4 Pro | 1.0.12 | Playable, 55–60 FPS |
 | Wizard with a Gun | PS4 Pro | 1.0.12 | Runs, 20–30 FPS with stutters; a portal glow stays on screen |
 | Another Crab's Treasure | PS4 Pro | 1.0.12 | Runs, 4–10 FPS; graphics artifacts stay on screen |
+| Minecraft Dungeons 2 | PS4 Slim | 1.0.12 | Runs with the internet off, 20–30 FPS |
 
 </details>
 
