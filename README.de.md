@@ -151,14 +151,25 @@ Spiele, die laufen:
 | Wytchwood | PS4 Pro | 1.0.10 | Spielbar, stabile 30 FPS |
 | Hades II | PS4 Slim | 1.0.10 | Läuft, 20–25 FPS im Spiel (10–15 in Menüs), ruckelt |
 | Minecraft | PS4 Slim | 1.0.10 | Spielbar, 30–35 FPS im Spiel (56–60 in Menüs) mit ausgeschaltetem GPU-geteiltem Speicher |
+| Iron Lung | PS4 Pro | ? | Spielbar, 60 FPS |
+| The King is Watching | PS4 Pro | ? | Spielbar, 55–60 FPS |
+| Wizard with a Gun | PS4 Pro | ? | Läuft, 20–30 FPS, ruckelt; ein Portal-Leuchten bleibt auf dem Bildschirm |
+| Mouse: P.I. For Hire | PS4 Pro | ? | Läuft, 4–22 FPS, ruckelt, Ton knackt (1024-MB-Payload) |
+| Another Crab's Treasure | PS4 Pro | ? | Läuft, 4–10 FPS; Grafikfehler bleiben auf dem Bildschirm |
+| Anger Foot | PS4 Pro | ? | Startet, 4 FPS (1024-MB-Payload); noch nicht spielbar |
 
 Spiele, die noch nicht laufen (eine neuere Version kann sie beheben):
 
 | Spiel | Konsole | EmuFive | Ergebnis |
 |---|---|---|---|
+| Bionic Bay | PS4 Pro | ? | Stürzt beim Start ab (nicht unterstützte Video-out-Oberfläche) |
+| Digging a Hole | PS4 Pro | ? | Spielbild bleibt schwarz, nur die Oberfläche ist sichtbar |
+| Dispatch | PS4 Pro | ? | Stürzt beim Start ab |
 | DRAGON BALL: Sparking! ZERO | PS4 Pro | 1.0.10 | Zeigt die EULA und die Online-Bildschirme, dann stoppt die GPU |
 | Hello Neighbor | PS4 Pro | 1.0.4 | Stoppt beim Start (Mesh-Shader) |
+| Mewgenics | PS4 Pro | ? | Stürzt nach „Play“ ab (1024-MB-Payload) |
 | Need for Speed Unbound | PS4 Slim | 1.0.6 | Stürzt beim Start ab (nicht unterstützte Tiefenkopie) |
+| Rat Shaker | PS4 Pro | ? | Nicht genug Speicher (2 FPS mit dem 1024-MB-Payload) |
 | V Rising | PS4 Pro | 1.0.8 | Stürzt beim Start ab |
 | Serious Sam 4 | PS4 Slim | 1.0.10 | Beendet sich beim Start (Online-Dienste) |
 | Serious Sam: Siberian Mayhem | PS4 Slim | 1.0.9 | Beendet sich beim Start (Online-Dienste) |
