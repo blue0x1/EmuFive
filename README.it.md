@@ -153,12 +153,10 @@ Questo progetto non contiene software di sistema PS5 né giochi. Usa solo giochi
 | Hades II | PS4 Slim | 1.0.10 | Funziona, 20–25 FPS in gioco (10–15 nei menu), scatti |
 | Minecraft | PS4 Slim | 1.0.10 | Giocabile, 30–35 FPS in gioco (56–60 nei menu) con la memoria condivisa con la GPU disattivata |
 | Crusader Kings III | PS4 Pro | 1.0.10 | Giocabile |
-| Iron Lung | PS4 Pro | 1.0.10 | Giocabile, 60 FPS |
-| The King is Watching | PS4 Pro | 1.0.10 | Giocabile, 55–60 FPS |
-| Wizard with a Gun | PS4 Pro | 1.0.10 | Funziona, 20–30 FPS con scatti; il bagliore di un portale resta sullo schermo |
-| Mouse: P.I. For Hire | PS4 Pro | 1.0.10 | Funziona, 4–22 FPS con scatti e audio che gracchia (payload da 1024 MB) |
-| Another Crab's Treasure | PS4 Pro | 1.0.10 | Funziona, 4–10 FPS; restano artefatti grafici sullo schermo |
-| Anger Foot | PS4 Pro | 1.0.10 | Si avvia, 4 FPS (payload da 1024 MB); non ancora giocabile |
+| Iron Lung | PS4 Pro | 1.0.12 | Giocabile, 60 FPS |
+| The King is Watching | PS4 Pro | 1.0.12 | Giocabile, 55–60 FPS |
+| Wizard with a Gun | PS4 Pro | 1.0.12 | Funziona, 20–30 FPS con scatti; il bagliore di un portale resta sullo schermo |
+| Another Crab's Treasure | PS4 Pro | 1.0.12 | Funziona, 4–10 FPS; restano artefatti grafici sullo schermo |
 
 </details>
 

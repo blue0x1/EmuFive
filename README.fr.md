@@ -153,12 +153,10 @@ Ce projet ne contient aucun logiciel système PS5 ni aucun jeu. N'utilisez que d
 | Hades II | PS4 Slim | 1.0.10 | Tourne, 20–25 IPS en jeu (10–15 dans les menus), saccades |
 | Minecraft | PS4 Slim | 1.0.10 | Jouable, 30–35 IPS en jeu (56–60 dans les menus) avec la mémoire partagée avec le GPU désactivée |
 | Crusader Kings III | PS4 Pro | 1.0.10 | Jouable |
-| Iron Lung | PS4 Pro | 1.0.10 | Jouable, 60 IPS |
-| The King is Watching | PS4 Pro | 1.0.10 | Jouable, 55–60 IPS |
-| Wizard with a Gun | PS4 Pro | 1.0.10 | Tourne, 20–30 IPS, saccades ; la lueur d'un portail reste à l'écran |
-| Mouse: P.I. For Hire | PS4 Pro | 1.0.10 | Tourne, 4–22 IPS, saccades et son qui grésille (payload 1024 Mo) |
-| Another Crab's Treasure | PS4 Pro | 1.0.10 | Tourne, 4–10 IPS ; des artefacts restent à l'écran |
-| Anger Foot | PS4 Pro | 1.0.10 | Démarre, 4 IPS (payload 1024 Mo) ; pas encore jouable |
+| Iron Lung | PS4 Pro | 1.0.12 | Jouable, 60 IPS |
+| The King is Watching | PS4 Pro | 1.0.12 | Jouable, 55–60 IPS |
+| Wizard with a Gun | PS4 Pro | 1.0.12 | Tourne, 20–30 IPS, saccades ; la lueur d'un portail reste à l'écran |
+| Another Crab's Treasure | PS4 Pro | 1.0.12 | Tourne, 4–10 IPS ; des artefacts restent à l'écran |
 
 </details>
 

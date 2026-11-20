@@ -153,12 +153,10 @@ Bu proje hiçbir PS5 sistem yazılımı ve hiçbir oyun içermez. Yalnızca sahi
 | Hades II | PS4 Slim | 1.0.10 | Çalışıyor, oyunda 20–25 FPS (menülerde 10–15), takılmalar var |
 | Minecraft | PS4 Slim | 1.0.10 | Oynanabilir, oyunda 30–35 FPS (menülerde 56–60), GPU paylaşımlı bellek kapalıyken |
 | Crusader Kings III | PS4 Pro | 1.0.10 | Oynanabilir |
-| Iron Lung | PS4 Pro | 1.0.10 | Oynanabilir, 60 FPS |
-| The King is Watching | PS4 Pro | 1.0.10 | Oynanabilir, 55–60 FPS |
-| Wizard with a Gun | PS4 Pro | 1.0.10 | Çalışıyor, 20–30 FPS, takılmalar var; bir portal parıltısı ekranda kalıyor |
-| Mouse: P.I. For Hire | PS4 Pro | 1.0.10 | Çalışıyor, 4–22 FPS, takılmalar ve cızırtılı ses (1024 MB payload) |
-| Another Crab's Treasure | PS4 Pro | 1.0.10 | Çalışıyor, 4–10 FPS; görüntü bozulmaları ekranda kalıyor |
-| Anger Foot | PS4 Pro | 1.0.10 | Açılıyor, 4 FPS (1024 MB payload); henüz oynanamıyor |
+| Iron Lung | PS4 Pro | 1.0.12 | Oynanabilir, 60 FPS |
+| The King is Watching | PS4 Pro | 1.0.12 | Oynanabilir, 55–60 FPS |
+| Wizard with a Gun | PS4 Pro | 1.0.12 | Çalışıyor, 20–30 FPS, takılmalar var; bir portal parıltısı ekranda kalıyor |
+| Another Crab's Treasure | PS4 Pro | 1.0.12 | Çalışıyor, 4–10 FPS; görüntü bozulmaları ekranda kalıyor |
 
 </details>
 
