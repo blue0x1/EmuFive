@@ -167,14 +167,9 @@ Bu proje hiçbir PS5 sistem yazılımı ve hiçbir oyun içermez. Yalnızca sahi
 
 | Oyun | Konsol | EmuFive | Sonuç |
 |---|---|---|---|
-| Bionic Bay | PS4 Pro | 1.0.10 | Açılışta çöküyor (desteklenmeyen video-out yüzeyi) |
-| Digging a Hole | PS4 Pro | 1.0.10 | Oyun ekranı siyah kalıyor, yalnızca arayüz görünüyor |
-| Dispatch | PS4 Pro | 1.0.10 | Açılışta çöküyor |
 | DRAGON BALL: Sparking! ZERO | PS4 Pro | 1.0.10 | EULA ve çevrim içi ekranlarını gösteriyor, ardından GPU duruyor |
 | Hello Neighbor | PS4 Pro | 1.0.4 | Açılışta duruyor (mesh shader) |
-| Mewgenics | PS4 Pro | 1.0.10 | Play'e basınca çöküyor (1024 MB payload) |
 | Need for Speed Unbound | PS4 Slim | 1.0.6 | Açılışta çöküyor (desteklenmeyen derinlik kopyası) |
-| Rat Shaker | PS4 Pro | 1.0.10 | Yetersiz bellek (1024 MB payload ile 2 FPS) |
 | V Rising | PS4 Pro | 1.0.8 | Açılışta çöküyor |
 | Serious Sam 4 | PS4 Slim | 1.0.10 | Açılışta kapanıyor (çevrim içi hizmetler) |
 | Serious Sam: Siberian Mayhem | PS4 Slim | 1.0.9 | Açılışta kapanıyor (çevrim içi hizmetler) |

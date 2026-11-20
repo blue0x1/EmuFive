@@ -177,14 +177,9 @@ scripts/build-rootfs.sh    # out/ps5-ps4-rootfs.tar.xz
 
 | اللعبة | الجهاز | EmuFive | النتيجة |
 |---|---|---|---|
-| Bionic Bay | PS4 Pro | 1.0.10 | تنهار عند البدء (سطح video-out غير مدعوم) |
-| Digging a Hole | PS4 Pro | 1.0.10 | تبقى شاشة اللعب سوداء، وتظهر الواجهة فقط |
-| Dispatch | PS4 Pro | 1.0.10 | تنهار عند البدء |
 | DRAGON BALL: Sparking! ZERO | PS4 Pro | 1.0.10 | تعرض شاشة اتفاقية الترخيص وشاشات الاتصال بالإنترنت، ثم يتوقف معالج الرسوميات |
 | Hello Neighbor | PS4 Pro | 1.0.4 | تتوقف عند البدء (mesh shaders) |
-| Mewgenics | PS4 Pro | 1.0.10 | تنهار بعد الضغط على Play (بايلود 1024 ميغابايت) |
 | Need for Speed Unbound | PS4 Slim | 1.0.6 | تنهار عند البدء (نسخ عمق غير مدعوم) |
-| Rat Shaker | PS4 Pro | 1.0.10 | ذاكرة غير كافية (إطاران مع بايلود 1024 ميغابايت) |
 | V Rising | PS4 Pro | 1.0.8 | تنهار عند البدء |
 | Serious Sam 4 | PS4 Slim | 1.0.10 | تُغلق عند البدء (الخدمات عبر الإنترنت) |
 | Serious Sam: Siberian Mayhem | PS4 Slim | 1.0.9 | تُغلق عند البدء (الخدمات عبر الإنترنت) |

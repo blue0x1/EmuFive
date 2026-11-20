@@ -167,14 +167,9 @@ Este proyecto no contiene software de sistema de PS5 ni juegos. Usa solo juegos 
 
 | Juego | Consola | EmuFive | Resultado |
 |---|---|---|---|
-| Bionic Bay | PS4 Pro | 1.0.10 | Se cierra al arrancar (superficie de video-out no soportada) |
-| Digging a Hole | PS4 Pro | 1.0.10 | La pantalla del juego queda negra, solo se ve la interfaz |
-| Dispatch | PS4 Pro | 1.0.10 | Se cierra al arrancar |
 | DRAGON BALL: Sparking! ZERO | PS4 Pro | 1.0.10 | Muestra el EULA y las pantallas en línea, y luego la GPU se detiene |
 | Hello Neighbor | PS4 Pro | 1.0.4 | Se detiene al arrancar (mesh shaders) |
-| Mewgenics | PS4 Pro | 1.0.10 | Se cierra tras pulsar Play (payload de 1024 MB) |
 | Need for Speed Unbound | PS4 Slim | 1.0.6 | Se cierra al arrancar (copia de profundidad no soportada) |
-| Rat Shaker | PS4 Pro | 1.0.10 | Memoria insuficiente (2 FPS con el payload de 1024 MB) |
 | V Rising | PS4 Pro | 1.0.8 | Se cierra al arrancar |
 | Serious Sam 4 | PS4 Slim | 1.0.10 | Se cierra al arrancar (servicios en línea) |
 | Serious Sam: Siberian Mayhem | PS4 Slim | 1.0.9 | Se cierra al arrancar (servicios en línea) |

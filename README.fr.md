@@ -167,14 +167,9 @@ Ce projet ne contient aucun logiciel système PS5 ni aucun jeu. N'utilisez que d
 
 | Jeu | Console | EmuFive | Résultat |
 |---|---|---|---|
-| Bionic Bay | PS4 Pro | 1.0.10 | Plante au démarrage (surface video-out non prise en charge) |
-| Digging a Hole | PS4 Pro | 1.0.10 | L'écran de jeu reste noir, seule l'interface s'affiche |
-| Dispatch | PS4 Pro | 1.0.10 | Plante au démarrage |
 | DRAGON BALL: Sparking! ZERO | PS4 Pro | 1.0.10 | Affiche le CLUF et les écrans en ligne, puis le GPU s'arrête |
 | Hello Neighbor | PS4 Pro | 1.0.4 | S'arrête au démarrage (mesh shaders) |
-| Mewgenics | PS4 Pro | 1.0.10 | Plante après Play (payload 1024 Mo) |
 | Need for Speed Unbound | PS4 Slim | 1.0.6 | Plante au démarrage (copie de profondeur non prise en charge) |
-| Rat Shaker | PS4 Pro | 1.0.10 | Mémoire insuffisante (2 IPS avec le payload 1024 Mo) |
 | V Rising | PS4 Pro | 1.0.8 | Plante au démarrage |
 | Serious Sam 4 | PS4 Slim | 1.0.10 | Se ferme au démarrage (services en ligne) |
 | Serious Sam: Siberian Mayhem | PS4 Slim | 1.0.9 | Se ferme au démarrage (services en ligne) |
