@@ -33,6 +33,11 @@ import urllib.parse
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "lib"))
 from ps5 import i18n, store  # noqa: E402
 
+# WebKitGTK 2.46+ draws page tiles with Skia on the GPU, which leaves checkered blocks on the PS4's
+# GPU (YouTube, the start page: #61). Drawn by the CPU, then put on screen by the GPU, they are
+# right. Set before WebKit starts, so its web process gets it too.
+os.environ.setdefault("WEBKIT_SKIA_ENABLE_CPU_RENDERING", "1")
+
 import gi  # noqa: E402
 gi.require_version("Gdk", "3.0")
 gi.require_version("Gtk", "3.0")
@@ -381,6 +386,7 @@ class KeyboardLayer(Layer):
         self.done_label, self.on_done = done_label, on_done
         self.base = "web" if web else "lower"
         self.row, self.col, self.mode = 1, 0, self.base
+        self.caps = False     # Caps lock: Shift twice keeps capitals until Shift again.
 
     def special(self):
         return ["Shift", "#+=", "Space", "Delete", "Show" if self.secret else "Clear", self.done_label]
@@ -390,6 +396,15 @@ class KeyboardLayer(Layer):
 
     def type(self, chunk):
         self.text = (self.text + chunk)[:4000]
+
+    def shift(self):
+        """Shift: capitals for one letter; again: caps lock; again: back to small letters."""
+        if self.mode != "upper":
+            self.mode, self.caps = "upper", False
+        elif not self.caps:
+            self.caps = True
+        else:
+            self.mode, self.caps = self.base, False
 
     def finish(self):
         self.close()
@@ -408,23 +423,23 @@ class KeyboardLayer(Layer):
         elif action == SQUARE:
             self.text = self.text[:-1]
         elif action == TRIANGLE:
-            self.mode = "symbols" if self.mode != "symbols" else self.base
+            self.mode, self.caps = ("symbols" if self.mode != "symbols" else self.base), False
         elif action == PAGE_UP:
             self.type(" ")
         elif action == PAGE_DOWN:
-            self.mode = self.base if self.mode == "upper" else "upper"
+            self.shift()
         elif action == OPTIONS:
             self.finish()
         elif action == OK:
             key = rows[self.row][self.col]
             if self.row < len(rows) - 1:
                 self.type(key)
-                if self.mode == "upper":
+                if self.mode == "upper" and not self.caps:
                     self.mode = self.base
             elif key == "Shift":
-                self.mode = self.base if self.mode == "upper" else "upper"
+                self.shift()
             elif key == "#+=":
-                self.mode = "symbols" if self.mode != "symbols" else self.base
+                self.mode, self.caps = ("symbols" if self.mode != "symbols" else self.base), False
             elif key == "Space":
                 self.type(" ")
             elif key == "Delete":
@@ -486,7 +501,8 @@ class KeyboardLayer(Layer):
                              (name == "#+=" and self.mode == "symbols") or (name == "Show" and self.show)
                     color = WHITE if on else ACCENT if main else KEY_ON if active else KEY
                     p.rect(color, kx, ky, widths[col], 46, 8)
-                    label = "Hide" if name == "Show" and self.show else name
+                    label = "Hide" if name == "Show" and self.show else \
+                        "Caps lock" if name == "Shift" and self.caps else name
                     p.text(label, 15, kx + widths[col] / 2, ky + 23, INK if on else WHITE, main or on, "center")
                     kx += widths[col] + 6
 
