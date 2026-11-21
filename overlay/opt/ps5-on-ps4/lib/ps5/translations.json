@@ -6262,5 +6262,14 @@
 "de": "Die Cheat-Datei ist ungültig.",
 "it": "Il file dei trucchi non è valido.",
 "pt": "O arquivo de trapaças não é válido."
+},
+"Caps lock": {
+"ar": "تثبيت الأحرف الكبيرة",
+"fr": "Verr. Maj",
+"tr": "Büyük harf kilidi",
+"es": "Bloq Mayús",
+"de": "Feststelltaste",
+"it": "Bloc Maiusc",
+"pt": "Caps Lock"
 }
 }

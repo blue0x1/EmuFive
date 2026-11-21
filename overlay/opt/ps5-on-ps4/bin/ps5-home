@@ -265,12 +265,14 @@ class ArtLoader:
                     game.raw_backgrounds = []
 
     def _load(self, game, backgrounds):
-        sys_dir = os.path.join(game.path, "sce_sys")
+        sys_dir = game.sys_dir
         if not game.icon_loaded:
             icon = None
             try:
+                if game.zar:
+                    system.zar.extract(game.path, ["icon0.png"])
                 icon = pygame.image.load(os.path.join(sys_dir, "icon0.png"))
-            except (pygame.error, FileNotFoundError, OSError):
+            except (pygame.error, FileNotFoundError, OSError, ValueError):
                 pass
             if icon is not None:
                 tiny = pygame.transform.smoothscale(icon, (1, 1))
@@ -281,6 +283,11 @@ class ArtLoader:
         if not backgrounds or game.backgrounds is not None or game.raw_backgrounds is not None:
             return
         result = []
+        if game.zar:
+            try:
+                system.zar.extract(game.path, ["pic0.png", "pic1.png"])
+            except (OSError, ValueError):
+                pass
         for name in ("pic0.png", "pic1.png"):
             try:
                 picture = pygame.image.load(os.path.join(sys_dir, name))
@@ -655,8 +662,8 @@ class KeyboardDialog(Modal):
         self.kb.draw(c, x + 40, y + 36, w - 80, self.home.t)
 
     def hints(self):
-        return [("cross", "Type"), ("square", "Delete"), ("triangle", "Symbols"),
-                ("options", self.kb.done_label), ("circle", "Back")]
+        return [("cross", "Type"), ("square", "Delete"), ("triangle", "Symbols"), ("l1", "Space"),
+                ("r1", "Shift"), ("options", self.kb.done_label), ("circle", "Back")]
 
 
 class Picker(Modal):

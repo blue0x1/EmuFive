@@ -14,7 +14,7 @@ import subprocess
 import threading
 import time
 
-from . import store, update
+from . import store, update, zar
 
 USB_MOUNT = "/media/ps5-usb"
 USB_GAMES = USB_MOUNT + "/PS5"
@@ -50,7 +50,8 @@ def admin(*args, timeout=30):
 
 class Game:
     """A game folder (with eboot.bin and sce_sys) or a .zar dump. The pictures are loaded by the
-    home screen; this is what can be read without pygame."""
+    home screen; this is what can be read without pygame. sys_dir is the game's sce_sys folder; for
+    a .zar, a cache of the few files read from inside it (zar.extract)."""
 
     def __init__(self, path, source="USB", source_name="USB drive"):
         self.path = path
@@ -59,9 +60,12 @@ class Game:
         self.title = os.path.basename(path.rstrip("/"))
         self.title_id = ""
         self.version = ""
-        sys_dir = os.path.join(path, "sce_sys")
+        self.zar = os.path.isfile(path) and path.lower().endswith(".zar")
+        self.sys_dir = os.path.join(path, "sce_sys")
         try:
-            with open(os.path.join(sys_dir, "param.json"), encoding="utf-8") as f:
+            if self.zar:
+                self.sys_dir = zar.extract(path, ["param.json"])
+            with open(os.path.join(self.sys_dir, "param.json"), encoding="utf-8") as f:
                 param = json.load(f)
             names = param.get("localizedParameters", {})
             language = names.get("defaultLanguage", "en-US")
@@ -72,7 +76,8 @@ class Game:
             self.version = param.get("contentVersion", "")
         except (OSError, ValueError, AttributeError):
             pass
-        self.key = store.game_key(path, self.title_id)
+        # A .zar keeps the key it had before its title ID was read (its play time and options).
+        self.key = store.game_key(path, "" if self.zar else self.title_id)
 
     def subtitle(self):
         parts = [p for p in (self.title_id, "version " + self.version if self.version else "") if p]
@@ -1009,7 +1014,7 @@ def system_version(value):
 def game_details(game):
     """[(label, value)] that the game's param.json has."""
     try:
-        with open(os.path.join(game.path, "sce_sys", "param.json"), encoding="utf-8") as f:
+        with open(os.path.join(game.sys_dir, "param.json"), encoding="utf-8") as f:
             param = json.load(f)
     except (OSError, ValueError):
         param = {}

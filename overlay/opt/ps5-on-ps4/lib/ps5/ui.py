@@ -709,7 +709,8 @@ def draw_lock(c, x, y, color):
 
 
 def draw_button(c, kind, x, y, size=11):
-    """PlayStation face button symbols, drawn: cross, circle, square, triangle, options, ps, l1r1."""
+    """PlayStation face button symbols, drawn: cross, circle, square, triangle, options, ps, l1r1,
+    l1, r1."""
     c.circle((60, 58, 92), x, y, size)
     s = size * 0.48
     if kind == "cross":
@@ -728,6 +729,8 @@ def draw_button(c, kind, x, y, size=11):
         c.text("PS", 9, x, y, WHITE, True, "center")
     elif kind == "l1r1":
         c.text("L1R1", 7, x, y, WHITE, True, "center")
+    elif kind in ("l1", "r1"):
+        c.text(kind.upper(), 9, x, y, WHITE, True, "center")
 
 
 def draw_hints(c, hints, x=64, y=None, soft=None, dim=None):
@@ -863,6 +866,7 @@ class Keyboard:
         self.done_label = done_label
         self.max_length = max_length
         self.row, self.col, self.mode = 1, 0, "lower"
+        self.caps = False     # Caps lock: Shift twice keeps capitals until Shift again.
         self.status = ""      # A line under the keys (an error).
         self.status_good = False
 
@@ -874,6 +878,15 @@ class Keyboard:
 
     def type(self, chunk):
         self.text = (self.text + chunk)[:self.max_length]
+
+    def shift(self):
+        """Shift: capitals for one letter; again: caps lock; again: small letters."""
+        if self.mode != "upper":
+            self.mode, self.caps = "upper", False
+        elif not self.caps:
+            self.caps = True
+        else:
+            self.mode, self.caps = "lower", False
 
     def act(self, action, sounds):
         rows = self.rows()
@@ -891,7 +904,13 @@ class Keyboard:
             self.text = self.text[:-1]
             sounds.play("back")
         elif action == TRIANGLE:
-            self.mode = "symbols" if self.mode != "symbols" else "lower"
+            self.mode, self.caps = ("symbols" if self.mode != "symbols" else "lower"), False
+            sounds.play("move")
+        elif action == PAGE_UP:
+            self.type(" ")
+            sounds.play("move")
+        elif action == PAGE_DOWN:
+            self.shift()
             sounds.play("move")
         elif action == OPTIONS:
             return "done"
@@ -899,13 +918,13 @@ class Keyboard:
             key = rows[self.row][self.col]
             if self.row < len(rows) - 1:
                 self.type(key)
-                if self.mode == "upper":
+                if self.mode == "upper" and not self.caps:
                     self.mode = "lower"
                 sounds.play("move")
             elif key == "Shift":
-                self.mode = "lower" if self.mode == "upper" else "upper"
+                self.shift()
             elif key == "#+=":
-                self.mode = "symbols" if self.mode != "symbols" else "lower"
+                self.mode, self.caps = ("symbols" if self.mode != "symbols" else "lower"), False
             elif key == "Space":
                 self.type(" ")
             elif key == "Delete":
@@ -958,7 +977,8 @@ class Keyboard:
                              (name == "#+=" and self.mode == "symbols") or (name == "Show" and self.show)
                     color = WHITE if on else ACCENT if main else KEY_ON if active else KEY
                     c.rect(color, kx, ky, widths[col], 46, 8)
-                    label = "Hide" if name == "Show" and self.show else name
+                    label = "Hide" if name == "Show" and self.show else \
+                        "Caps lock" if name == "Shift" and self.caps else name
                     c.text(label, 15, kx + widths[col] / 2, ky + 23, INK if on else WHITE, main or on, "center")
                     kx += widths[col] + 6
                 ky += 46
