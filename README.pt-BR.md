@@ -181,9 +181,12 @@ Testou um jogo? Abra uma [issue](https://github.com/blue0x1/EmuFive/issues) com 
 <a id="changelog"></a>
 ## Registro de alterações
 
-### 1.0.12 (2026-11-19)
+### 1.0.13 (2026-11-21)
 
-- Corrigido: tela preta com `emufive.mode=` no `bootargs.txt`. O EmuFive definia o modo da TV e depois a tela inicial trocava para outro modo 1920x1080 (59,96 Hz) que algumas TVs não aceitam. Agora a tela inicial mantém o modo.
+- Novo: um gerenciador de trapaças. Ative em Configurações, Jogos, e um bloco Trapaças aparece na tela inicial. Ele baixa as trapaças de PS5 da [HEN Cheats Collection](https://github.com/TeeKay87/HEN-Cheats-Collection) e lista seus jogos que têm trapaças para a versão deles; escolha as que quiser e elas são aplicadas quando o jogo inicia. O menu de um jogo mostra quantas estão ativadas.
+- Corrigido: blocos quadriculados nas páginas da web na Internet (#61).
+- Teclado: R1 é Shift, L1 é Espaço, e Shift duas vezes é o Caps Lock (#61).
+- Jogos `.zar` mostram nome, ícone e fundo na tela inicial (#54).
 
 Para atualizar a partir da 1.0.3 ou anterior, inicie a atualização uma vez à mão, pois a atualização de software antiga não consegue: ative o SSH nas Configurações, conecte com `ssh ps5@<endereço do PS4>` (senha `ps5`, se não a mudou) e execute
 
@@ -191,7 +194,7 @@ Para atualizar a partir da 1.0.3 ou anterior, inicie a atualização uma vez à 
 sudo systemd-run --unit=emufive-update --collect /opt/ps5-on-ps4/bin/ps5-update install
 ```
 
-Ela instala todas as atualizações que faltam (a partir da 1.0.0 ou 1.0.1 isso inclui os pacotes do navegador da 1.0.2, cerca de 110 MB); depois reinicie pela tela inicial. A partir da 1.0.4, a atualização de software nas Configurações funciona. Instalações novas usam o `ps5-ps4-rootfs.tar.xz` da versão 1.0.12.
+Ela instala todas as atualizações que faltam (a partir da 1.0.0 ou 1.0.1 isso inclui os pacotes do navegador da 1.0.2, cerca de 110 MB); depois reinicie pela tela inicial. A partir da 1.0.4, a atualização de software nas Configurações funciona. Instalações novas usam o `ps5-ps4-rootfs.tar.xz` da versão 1.0.13.
 
 ## Estrutura do projeto
 

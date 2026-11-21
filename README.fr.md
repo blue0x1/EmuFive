@@ -181,9 +181,12 @@ Vous avez testé un jeu ? Ouvrez une [issue](https://github.com/blue0x1/EmuFive/
 <a id="changelog"></a>
 ## Journal des modifications
 
-### 1.0.12 (2026-11-19)
+### 1.0.13 (2026-11-21)
 
-- Corrigé : écran noir avec `emufive.mode=` dans `bootargs.txt`. EmuFive réglait le mode de la TV, puis l'écran d'accueil passait à un autre mode 1920x1080 (59,96 Hz) que certaines TV n'acceptent pas. L'écran d'accueil garde maintenant le mode.
+- Nouveau : un gestionnaire de triches. Activez-le dans Paramètres, Jeux, et une tuile Triches apparaît sur l'écran d'accueil. Il télécharge les triches PS5 de la [HEN Cheats Collection](https://github.com/TeeKay87/HEN-Cheats-Collection) et liste vos jeux qui ont des triches pour leur version ; choisissez celles que vous voulez, elles s'appliquent au lancement du jeu. Le menu d'un jeu indique combien sont activées.
+- Corrigé : des blocs en damier sur les pages web dans Internet (#61).
+- Clavier : R1 est Maj, L1 est Espace, et Maj deux fois verrouille les majuscules (#61).
+- Les jeux `.zar` affichent leur nom, leur icône et leur fond sur l'écran d'accueil (#54).
 
 Pour mettre à jour depuis la 1.0.3 ou avant, lancez la mise à jour une fois à la main, car l'ancienne mise à jour du logiciel n'y arrive pas : activez SSH dans les Paramètres, connectez-vous avec `ssh ps5@<adresse de la PS4>` (mot de passe `ps5` si vous ne l'avez pas changé) et lancez
 
@@ -191,7 +194,7 @@ Pour mettre à jour depuis la 1.0.3 ou avant, lancez la mise à jour une fois à
 sudo systemd-run --unit=emufive-update --collect /opt/ps5-on-ps4/bin/ps5-update install
 ```
 
-Elle installe toutes les mises à jour manquantes (depuis la 1.0.0 ou la 1.0.1, cela inclut les paquets du navigateur de la 1.0.2, environ 110 Mo), puis redémarrez depuis l'écran d'accueil. À partir de la 1.0.4, la mise à jour du logiciel dans les Paramètres fonctionne. Les nouvelles installations utilisent le `ps5-ps4-rootfs.tar.xz` de la version 1.0.12.
+Elle installe toutes les mises à jour manquantes (depuis la 1.0.0 ou la 1.0.1, cela inclut les paquets du navigateur de la 1.0.2, environ 110 Mo), puis redémarrez depuis l'écran d'accueil. À partir de la 1.0.4, la mise à jour du logiciel dans les Paramètres fonctionne. Les nouvelles installations utilisent le `ps5-ps4-rootfs.tar.xz` de la version 1.0.13.
 
 ## Organisation du projet
 

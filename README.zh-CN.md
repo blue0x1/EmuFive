@@ -181,9 +181,12 @@ EmuFive 和其他 Linux 系统一样，通过 [PS4 Multiboot](https://github.com
 <a id="changelog"></a>
 ## 更新日志
 
-### 1.0.12 (2026-11-19)
+### 1.0.13 (2026-11-21)
 
-- 修复：在 `bootargs.txt` 中使用 `emufive.mode=` 时黑屏。EmuFive 先设置了电视的模式，随后主屏幕又切换到另一个 1920x1080 模式（59.96 Hz），有些电视不支持。现在主屏幕会保持该模式。
+- 新增：作弊管理器。在 设置 > 游戏 中开启后，主屏幕会出现“作弊”磁贴。它会下载 [HEN Cheats Collection](https://github.com/TeeKay87/HEN-Cheats-Collection) 中的 PS5 作弊，并列出有对应版本作弊的游戏；选择想要的作弊，游戏启动时即生效。游戏菜单会显示已开启的数量。
+- 修复：互联网中网页出现棋盘格方块 (#61)。
+- 键盘：R1 为 Shift，L1 为空格，连按两次 Shift 为大写锁定 (#61)。
+- `.zar` 游戏在主屏幕上显示名称、图标和背景 (#54)。
 
 从 1.0.3 或更早版本更新时，旧的软件更新无法完成，请手动启动一次：在设置中打开 SSH，用 `ssh ps5@<PS4 地址>` 连接（未修改时密码为 `ps5`），然后运行
 
@@ -191,7 +194,7 @@ EmuFive 和其他 Linux 系统一样，通过 [PS4 Multiboot](https://github.com
 sudo systemd-run --unit=emufive-update --collect /opt/ps5-on-ps4/bin/ps5-update install
 ```
 
-它会安装所有缺少的更新（从 1.0.0 或 1.0.1 更新时包括 1.0.2 的浏览器软件包，约 110 MB），完成后在主屏幕上重启。从 1.0.4 起，设置中的软件更新可以正常使用。新安装请使用 1.0.12 版本中的 `ps5-ps4-rootfs.tar.xz`。
+它会安装所有缺少的更新（从 1.0.0 或 1.0.1 更新时包括 1.0.2 的浏览器软件包，约 110 MB），完成后在主屏幕上重启。从 1.0.4 起，设置中的软件更新可以正常使用。新安装请使用 1.0.13 版本中的 `ps5-ps4-rootfs.tar.xz`。
 
 ## 项目结构
 

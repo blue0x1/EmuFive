@@ -181,9 +181,12 @@ Ein Spiel getestet? Eröffne ein [Issue](https://github.com/blue0x1/EmuFive/issu
 <a id="changelog"></a>
 ## Änderungsprotokoll
 
-### 1.0.12 (2026-11-19)
+### 1.0.13 (2026-11-21)
 
-- Behoben: schwarzer Bildschirm mit `emufive.mode=` in `bootargs.txt`. EmuFive stellte den Modus des Fernsehers ein, dann wechselte der Startbildschirm in einen anderen 1920x1080-Modus (59,96 Hz), den manche Fernseher nicht annehmen. Der Startbildschirm behält den Modus jetzt bei.
+- Neu: ein Cheat-Manager. In Einstellungen, Spiele einschalten, dann erscheint eine Cheats-Kachel auf dem Startbildschirm. Er lädt die PS5-Cheats der [HEN Cheats Collection](https://github.com/TeeKay87/HEN-Cheats-Collection) herunter und listet deine Spiele mit Cheats für ihre Version; wähle die gewünschten Cheats aus, sie werden beim Spielstart angewendet. Das Menü eines Spiels zeigt, wie viele an sind.
+- Behoben: Schachbrett-Blöcke auf Webseiten in Internet (#61).
+- Tastatur: R1 ist Umschalt, L1 ist Leertaste, zweimal Umschalt ist die Feststelltaste (#61).
+- `.zar`-Spiele zeigen ihren Namen, ihr Symbol und ihren Hintergrund auf dem Startbildschirm (#54).
 
 Um von 1.0.3 oder älter zu aktualisieren, starte das Update einmal von Hand, da die alte Softwareaktualisierung es nicht kann: SSH in den Einstellungen einschalten, mit `ssh ps5@<Adresse der PS4>` verbinden (Passwort `ps5`, falls nicht geändert) und ausführen:
 
@@ -191,7 +194,7 @@ Um von 1.0.3 oder älter zu aktualisieren, starte das Update einmal von Hand, da
 sudo systemd-run --unit=emufive-update --collect /opt/ps5-on-ps4/bin/ps5-update install
 ```
 
-Es installiert alle fehlenden Updates (von 1.0.0 oder 1.0.1 aus gehören die Browser-Pakete von 1.0.2 dazu, etwa 110 MB); danach über den Startbildschirm neu starten. Ab 1.0.4 funktioniert die Softwareaktualisierung in den Einstellungen. Neuinstallationen verwenden die `ps5-ps4-rootfs.tar.xz` der Version 1.0.12.
+Es installiert alle fehlenden Updates (von 1.0.0 oder 1.0.1 aus gehören die Browser-Pakete von 1.0.2 dazu, etwa 110 MB); danach über den Startbildschirm neu starten. Ab 1.0.4 funktioniert die Softwareaktualisierung in den Einstellungen. Neuinstallationen verwenden die `ps5-ps4-rootfs.tar.xz` der Version 1.0.13.
 
 ## Projektaufbau
 

@@ -181,9 +181,12 @@ Hai provato un gioco? Apri una [issue](https://github.com/blue0x1/EmuFive/issues
 <a id="changelog"></a>
 ## Registro delle modifiche
 
-### 1.0.12 (2026-11-19)
+### 1.0.13 (2026-11-21)
 
-- Corretto: schermo nero con `emufive.mode=` in `bootargs.txt`. EmuFive impostava la modalità della TV, poi la schermata Home passava a un'altra modalità 1920x1080 (59,96 Hz) che alcune TV non accettano. Ora la schermata Home mantiene la modalità.
+- Novità: un gestore di trucchi. Attivalo in Impostazioni, Giochi, e sulla schermata Home compare il riquadro Trucchi. Scarica i trucchi PS5 della [HEN Cheats Collection](https://github.com/TeeKay87/HEN-Cheats-Collection) ed elenca i tuoi giochi che hanno trucchi per la loro versione; scegli quelli che vuoi e vengono applicati all'avvio del gioco. Il menu di un gioco mostra quanti sono attivi.
+- Corretto: blocchi a scacchiera sulle pagine web in Internet (#61).
+- Tastiera: R1 è Maiusc, L1 è Spazio, e Maiusc due volte è il blocco maiuscole (#61).
+- I giochi `.zar` mostrano nome, icona e sfondo sulla schermata Home (#54).
 
 Per aggiornare dalla 1.0.3 o precedenti, avvia l'aggiornamento una volta a mano, perché il vecchio aggiornamento software non ci riesce: attiva SSH nelle Impostazioni, collegati con `ssh ps5@<indirizzo della PS4>` (password `ps5` se non l'hai cambiata) ed esegui
 
@@ -191,7 +194,7 @@ Per aggiornare dalla 1.0.3 o precedenti, avvia l'aggiornamento una volta a mano,
 sudo systemd-run --unit=emufive-update --collect /opt/ps5-on-ps4/bin/ps5-update install
 ```
 
-Installa tutti gli aggiornamenti mancanti (dalla 1.0.0 o 1.0.1 include i pacchetti del browser della 1.0.2, circa 110 MB), poi riavvia dalla schermata Home. Dalla 1.0.4 l'aggiornamento software nelle Impostazioni funziona. Le nuove installazioni usano il `ps5-ps4-rootfs.tar.xz` della versione 1.0.12.
+Installa tutti gli aggiornamenti mancanti (dalla 1.0.0 o 1.0.1 include i pacchetti del browser della 1.0.2, circa 110 MB), poi riavvia dalla schermata Home. Dalla 1.0.4 l'aggiornamento software nelle Impostazioni funziona. Le nuove installazioni usano il `ps5-ps4-rootfs.tar.xz` della versione 1.0.13.
 
 ## Struttura del progetto
 
