@@ -39,7 +39,7 @@ import time
 import urllib.request
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "lib"))
-from ps5 import about, i18n, store, system, ui, update  # noqa: E402
+from ps5 import about, cheats, i18n, store, system, ui, update  # noqa: E402
 
 # The Appearance settings decide the colors, so they are applied before the colors are imported
 # (the home screen starts again when they change).
@@ -1734,6 +1734,9 @@ class SettingsScreen(RowList):
             Row("info", "Games keep their memory where the GPU reads and writes it, so less is copied. "
                         "Much faster in 3D games like Teardown. Turn it off if a game hangs or runs out of memory. "
                         "It is used from the next game you start."),
+            self.setting_toggle("Cheat manager", "cheats", after=lambda: h.refresh_games(force=True)),
+            Row("info", "Adds a Cheats tile to the home screen, to turn on cheats for your games. "
+                        "Cheats can break saves and online play, so back up your saves first."),
             Row("info", "Press OPTIONS on a game for favorites, hiding it and its own settings."),
             Row("info", "Favorites come first and have a star."),
             Row("header", "For all games"),
@@ -2547,6 +2550,9 @@ class GameMenu(RowList):
         if os.path.isdir(os.path.join(g.path, "sce_sys", "trophy2")):
             rows.append(Row("action", "Trophies", ok=lambda: h.push(TrophyList(h, g))))
         rows.append(Row("action", "Game info", ok=lambda: h.push(GameInfo(h, g))))
+        if h.settings["cheats"] and g.title_id and g.version:
+            on = cheats.enabled_count(g.title_id, g.version)
+            rows.append(Row("button", "Cheats", f"{on} on" if on else "Off", ok=lambda: h.push(CheatGame(h, g))))
         rows.append(Row("info", "Play time", system.play_time_text(entry.get("play_seconds", 0))))
         rows += [Row("toggle", "Favorite", entry.get("favorite", False), ok=lambda: self.flip("favorite")),
                 Row("toggle", "Hide from the home screen", entry.get("hidden", False),
@@ -2632,6 +2638,238 @@ class GameInfo(GameMenu):
 
     def hints(self):
         return [("circle", "Back")]
+
+
+# --------------------------------------------------------------------------------------------
+# The cheat manager (the Cheats tile, with Settings > Games > Cheat manager on): the cheat list
+# from the HEN Cheats Collection, the games that have cheats, and each game's cheats to turn on.
+# The choices are saved at once; ps5-launch gives them to the game the next time it starts.
+
+def draw_side_panel(c, modal, title, subtitle):
+    """A panel on the right like a game's menu: the title, a line under it, then the rows."""
+    slide = ease_out(modal.appear)
+    left = ui.W - modal.WIDTH * slide
+    c.dim(150 * slide)
+    c.rect(PANEL, left, 0, modal.WIDTH, ui.H)
+    c.line(PANEL_LINE, left, 0, left, ui.H, 1)
+    x = left + 40
+    y = 40
+    rtl = i18n.rtl()
+    tx, anchor = (left + modal.WIDTH - 40, "topright") if rtl else (x, "topleft")
+    for line in c.t.wrap(title, 26, modal.WIDTH - 80, True)[:2]:
+        c.text(line, 26, tx, y, WHITE, True, anchor)
+        y += 34
+    if subtitle:
+        c.text(c.t.fit(subtitle, 15, modal.WIDTH - 80), 15, tx, y + 4, SOFT, False, anchor)
+    rows = modal.rows()
+    modal.current(rows)
+    draw_rows(c, rows, modal.row, x, y + 40, modal.WIDTH - 80, ui.H - 60, True,
+              modal.scroll(rows, y + 40, ui.H - 60))
+
+
+def update_cheat_list(h, then=None):
+    """Downloads the cheat list (Busy), then tells how it went and calls then()."""
+    def after(ok, message):
+        if ok:
+            h.toast(message)
+        else:
+            h.push(Dialog(h, message))
+        if then:
+            then()
+
+    h.push(Busy(h, "Downloading the cheat list…", cheats.update_index, after=after))
+
+
+class CheatManager(RowList):
+    WIDTH = 640
+
+    def __init__(self, home):
+        super().__init__(home)
+        self.index = cheats.read_index()
+        self.ask_update = not self.index["games"]      # First time: download the list at once.
+
+    def reload(self):
+        self.index = cheats.read_index()
+
+    def games(self):
+        """The games on the drives with a title ID and version, each version once."""
+        seen, found = set(), []
+        for g in self.home.all_games:
+            key = (g.title_id.upper(), g.version)
+            if g.title_id and g.version and key not in seen and not getattr(g, "stand_in", False):
+                seen.add(key)
+                found.append(g)
+        return found
+
+    def rows(self):
+        h = self.home
+        rows = [Row("action", "Update the cheat list", ok=lambda: update_cheat_list(h, self.reload))]
+        if self.index["games"]:
+            day = time.strftime("%Y-%m-%d", time.localtime(self.index.get("updated", 0)))
+            rows.append(Row("info", f"Cheats for {len(self.index['games'])} PS5 games. Updated {day}."))
+        else:
+            rows.append(Row("info", "The cheat list is not downloaded yet. It needs the internet."))
+        rows.append(Row("header", "Your games"))
+        listed = []
+        for g in self.games():
+            on = cheats.enabled_count(g.title_id, g.version)
+            if on:
+                value, order = f"{on} on", 0
+            elif cheats.entries(self.index, g.title_id, g.version):
+                value, order = "Cheats", 1
+            elif cheats.entries(self.index, g.title_id):
+                value, order = "Other version", 2
+            else:
+                value, order = "No cheats", 3
+            listed.append((order, g.title.lower(), Row("button", g.title, value,
+                                                       ok=lambda g=g: h.push(CheatGame(h, g)))))
+        rows += [r for _, _, r in sorted(listed, key=lambda t: t[:2])]
+        if not listed:
+            rows.append(Row("info", "No games yet. Games with a title ID and version show up here."))
+        rows.append(Row("info", "Cheats are turned on for each game version and are used the next time "
+                                "the game starts. Back up your saves first."))
+        rows.append(Row("info", "The cheats come from the HEN Cheats Collection (TeeKay87) and the people "
+                                "who made them."))
+        return rows
+
+    def update(self, dt):
+        super().update(dt)
+        if self.ask_update and not self.closed and self.home.modals and self.home.modals[-1] is self:
+            self.ask_update = False
+            update_cheat_list(self.home, self.reload)
+
+    def act(self, action):
+        if action == BACK:
+            self.home.sounds.play("back")
+            self.close()
+        else:
+            self.act_rows(action)
+
+    def draw(self, c):
+        draw_side_panel(c, self, i18n.translate("Cheats"), "HEN Cheats Collection")
+
+    def hints(self):
+        return [("cross", "Select"), ("circle", "Back")]
+
+
+class CheatGame(RowList):
+    """One game's cheats: a toggle for each (for the game's version), saved as they change."""
+    WIDTH = 640
+
+    def __init__(self, home, game):
+        super().__init__(home)
+        self.game = game
+        self.plan = None
+        self.error = None
+        self.loading = False
+        self.load_list()
+
+    def load_list(self):
+        g = self.game
+        self.index = cheats.read_index()
+        self.files = cheats.entries(self.index, g.title_id, g.version)
+        chosen = cheats.choice(g.title_id, g.version)
+        names = [f["file"] for f in self.files]
+        self.file = chosen.get("file") if chosen.get("file") in names else (names[0] if names else None)
+        self.on = set(chosen.get("on", [])) if chosen.get("file") == self.file else set()
+        self.load_file()
+
+    def load_file(self):
+        self.plan, self.error = None, None
+        if not self.file:
+            return
+        self.loading = True
+        name = self.file
+
+        def work():
+            plan, error = cheats.load(name)
+            if plan is not None and error is None:
+                error = cheats.problem(plan)
+            if name == self.file:
+                self.plan, self.error, self.loading = plan, error, False
+
+        threading.Thread(target=work, daemon=True).start()
+
+    def save(self):
+        g = self.game
+        cheats.set_choice(g.title_id, g.version, self.file if self.on else None, sorted(self.on))
+
+    def flip(self, name):
+        self.on.symmetric_difference_update({name})
+        self.save()
+
+    def all_off(self):
+        self.on.clear()
+        self.save()
+
+    def pick_file(self):
+        h = self.home
+
+        def picked(name):
+            if name and name != self.file:
+                self.file, self.on = name, set()
+                self.save()
+                self.load_file()
+
+        items = [(f"{f['format']}  ·  {f['file'].rsplit('_', 1)[-1].split('.')[0]}", f["file"]) for f in self.files]
+        h.push(Picker(h, "Cheat file", items, self.file, picked))
+
+    def rows(self):
+        h, g = self.home, self.game
+        rows = []
+        if not self.index["games"]:
+            rows.append(Row("action", "Update the cheat list", ok=lambda: update_cheat_list(h, self.load_list)))
+            rows.append(Row("info", "The cheat list is not downloaded yet. It needs the internet."))
+            return rows
+        if not self.files:
+            rows.append(Row("info", f"No cheats for version {g.version} of this game."))
+            others = sorted({e["version"] for e in cheats.entries(self.index, g.title_id)})
+            if others:
+                rows.append(Row("info", f"There are cheats for version {', '.join(others)}. Cheats only work "
+                                        "with the version they were made for."))
+            rows.append(Row("action", "Update the cheat list", ok=lambda: update_cheat_list(h, self.load_list)))
+            return rows
+        if len(self.files) > 1:
+            current = next(f for f in self.files if f["file"] == self.file)
+            rows.append(Row("choice", "Cheat file", f"{current['format']}  ·  "
+                            f"{current['file'].rsplit('_', 1)[-1].split('.')[0]}", ok=self.pick_file))
+        if self.loading:
+            rows.append(Row("info", "Downloading the cheats…"))
+            return rows
+        if self.plan is None or self.error:
+            rows.append(Row("info", self.error or "The cheats could not be read."))
+            if self.plan is None:
+                rows.append(Row("action", "Try again", ok=self.load_file))
+            return rows
+        rows.append(Row("header", "Cheats"))
+        names = []
+        for name in cheats.mod_names(self.plan):
+            if name and name not in names:
+                names.append(name)
+                rows.append(Row("toggle", name, name in self.on, ok=lambda n=name: self.flip(n)))
+        if self.on:
+            rows.append(Row("action", "Turn all off", ok=self.all_off))
+        made = cheats.credits(self.plan)
+        if made:
+            rows.append(Row("info", f"Made by {made}."))
+        rows.append(Row("info", "Cheats are used the next time the game starts. If the game stops working, "
+                                "turn its cheats off."))
+        if not h.settings["cheats"]:
+            rows.append(Row("info", "The cheat manager is off in Settings > Games, so no cheats are used."))
+        return rows
+
+    def act(self, action):
+        if action in (BACK, OPTIONS):
+            self.home.sounds.play("back")
+            self.close()
+        else:
+            self.act_rows(action)
+
+    def draw(self, c):
+        draw_side_panel(c, self, self.game.title, self.game.subtitle())
+
+    def hints(self):
+        return [("cross", "Select"), ("circle", "Back")]
 
 
 # --------------------------------------------------------------------------------------------
@@ -3911,18 +4149,32 @@ class Home:
             current = self.running_path
         # With no games, Power is chosen first, with the note on where to put them.
         self.selected = next((i for i, g in enumerate(self.games) if g.path == current),
-                             0 if self.games else len(self.games) + 1)
-        self.tile_sizes = [float(self.tile_small)] * (len(self.games) + 2)
+                             0 if self.games else self.items() - 1)
+        self.tile_sizes = [float(self.tile_small)] * self.items()
         self.select(self.selected, sound=False)
 
+    def extra_tiles(self):
+        """The tiles after the games: Internet, Cheats (with the cheat manager on), then Power."""
+        return ["browser"] + (["cheats"] if self.settings["cheats"] else []) + ["power"]
+
     def items(self):
-        return len(self.games) + 2  # After the games: Internet, then Power.
+        return len(self.games) + len(self.extra_tiles())
+
+    def tile_kind(self, index=None):
+        index = self.selected if index is None else index
+        if index < len(self.games):
+            return "game"
+        extra = self.extra_tiles()
+        return extra[min(index - len(self.games), len(extra) - 1)]
 
     def on_browser(self):
-        return self.selected == len(self.games)
+        return self.tile_kind() == "browser"
+
+    def on_cheats(self):
+        return self.tile_kind() == "cheats"
 
     def on_power(self):
-        return self.selected > len(self.games)
+        return self.tile_kind() == "power"
 
     def current_game(self):
         return None if self.selected >= len(self.games) else self.games[self.selected]
@@ -4012,6 +4264,9 @@ class Home:
                                            "browser has the memory."))
                 else:
                     self.finish("BROWSER")
+            elif self.on_cheats():
+                self.sounds.play("select")
+                self.push(CheatManager(self))
             elif self.on_power():
                 self.sounds.play("select")
                 closing = " The paused game is closed first." if self.running_path else ""
@@ -4588,9 +4843,12 @@ class Home:
                 self.tile_shape(c, game.color, x, y, size)
                 for n, line in enumerate(c.t.wrap(game.title, 14, size - 24)[:3]):
                     c.text(line, 14, x + 12, y + 12 + n * 18, (255, 255, 255))
-            elif i == len(self.games):
+            elif self.tile_kind(i) == "browser":
                 self.tile_shape(c, (36, 52, 96), x, y, size)
                 ui.draw_globe(c, x + size / 2, y + size / 2, size / 4.2, (255, 255, 255), 3 if size < 130 else 4)
+            elif self.tile_kind(i) == "cheats":
+                self.tile_shape(c, (78, 40, 92), x, y, size)
+                ui.draw_wand(c, x + size / 2, y + size / 2, size / 4.2, (255, 255, 255), 3 if size < 130 else 4)
             else:
                 self.tile_shape(c, (40, 38, 48), x, y, size)
                 ui.draw_power(c, x + size / 2, y + size / 2, size / 5, (255, 255, 255), 3 if size < 130 else 4)
@@ -4702,6 +4960,8 @@ class Home:
                      "They show up here by themselves."]
         elif self.on_browser():
             lines, sub, button = [i18n.translate("Internet")], "Browse the web with the controller", "Open"
+        elif self.on_cheats():
+            lines, sub, button = [i18n.translate("Cheats")], "Turn on cheats for your games", "Open"
         elif self.on_power():
             lines, sub, button = [i18n.translate("Power")], "Turn off or restart the PS4", "Power"
         else:
@@ -4756,7 +5016,7 @@ class Home:
             hints = [("cross", "View")] if self.media.paths else []
             return hints + [("l1r1", "Games"), back]
         game = self.current_game()
-        if self.on_browser():
+        if self.on_browser() or self.on_cheats():
             hints = [("cross", "Open")]
         elif self.on_power():
             hints = [("cross", "Select")]

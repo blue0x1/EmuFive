@@ -668,6 +668,14 @@ def draw_globe(c, x, y, radius, color, width=4):
         c.line(color, x - half, y + dy * radius, x + half, y + dy * radius, max(1, width - 1))
 
 
+def draw_wand(c, x, y, radius, color, width=4):
+    """The Cheats tile: a magic wand with a star at its tip and two sparkles."""
+    c.line(color, x - radius * 0.95, y + radius * 0.95, x + radius * 0.2, y - radius * 0.2, width + 1)
+    draw_star(c, x + radius * 0.45, y - radius * 0.45, radius * 0.62, color)
+    c.circle(color, x + radius * 1.0, y + radius * 0.2, max(2, width * 0.7))
+    c.circle(color, x - radius * 0.2, y - radius * 0.95, max(2, width * 0.55))
+
+
 BATTERY_HIGH, BATTERY_MID, BATTERY_LOW = (60, 205, 110), (240, 200, 60), (235, 70, 70)
 
 

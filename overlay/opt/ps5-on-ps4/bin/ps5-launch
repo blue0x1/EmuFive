@@ -8,7 +8,9 @@
 #   - $XDG_RUNTIME_DIR/ps5-game.json says which game runs and its process (for ps5-guide),
 #   - the time played is added to the game (minus the time it spent paused by the PS button),
 #   - memory is watched: when memory and swap are almost used up, the game is closed before the
-#     PS4 freezes, and the home screen says why.
+#     PS4 freezes, and the home screen says why,
+#   - with the cheat manager on, the cheats turned on for this game version go to KytyPS5
+#     (--game-patch $XDG_RUNTIME_DIR/ps5-cheats.json).
 # Exits with KytyPS5's exit code (128 + the signal when it was stopped by one).
 #   ps5-launch GAME [extra KytyPS5 options...]
 import json
@@ -19,13 +21,14 @@ import sys
 import time
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "lib"))
-from ps5 import store, system  # noqa: E402
+from ps5 import cheats, store, system  # noqa: E402
 
 KYTY = "/opt/kytyps5/kyty_emulator"
 STATE = os.path.join(system.RUNTIME, "ps5-game.json")
 LOW_MEMORY_MB = 160         # Memory plus swap left when the game is closed...
 LOW_MEMORY_SECONDS = 3      # ...for this long.
 PAUSED = os.path.join(system.RUNTIME, "ps5-game-paused")   # Seconds paused, added by ps5-guide.
+CHEATS = os.path.join(system.RUNTIME, "ps5-cheats.json")
 
 
 def user_name(name):
@@ -90,6 +93,27 @@ def kyty_options(settings, games, game, profile):
     return args + games.options(game.key, settings)
 
 
+def cheat_options(settings, game):
+    """--game-patch with the cheats turned on for this game version (cheat manager on)."""
+    try:
+        os.remove(CHEATS)
+    except OSError:
+        pass
+    if not settings["cheats"] or not game.title_id or not game.version:
+        return []
+    try:
+        names = cheats.launch_plan(game.title_id, game.version, CHEATS)
+    except (OSError, ValueError) as error:
+        names = str(error)
+    if isinstance(names, str):
+        print(f"ps5-launch: cheats not used: {names}", flush=True)
+        return []
+    if not names:
+        return []
+    print("ps5-launch: cheats: " + ", ".join(names), flush=True)
+    return ["--game-patch", CHEATS]
+
+
 def main():
     if len(sys.argv) < 2:
         print("usage: ps5-launch GAME [options...]", file=sys.stderr)
@@ -121,6 +145,7 @@ def main():
     system.set_controller_mic(settings["controller_mic"])
 
     args = [KYTY, "--game", path, "--fullscreen", "--hide-cursor"] + kyty_options(settings, games, game, profile) + extra
+    args += cheat_options(settings, game)
     print("ps5-launch: " + " ".join(args), flush=True)
     try:
         os.remove(PAUSED)

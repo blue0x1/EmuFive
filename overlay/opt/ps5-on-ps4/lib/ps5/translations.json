@@ -5893,5 +5893,374 @@
 "de": "Spiele behalten ihren Speicher dort, wo die GPU ihn liest und schreibt, so wird weniger kopiert. Viel schneller in 3D-Spielen wie Teardown. Schalte es aus, wenn ein Spiel hängt oder der Speicher ausgeht. Gilt ab dem nächsten Spiel, das du startest.",
 "it": "I giochi tengono la memoria dove la GPU la legge e la scrive, così si copia meno. Molto più veloce nei giochi 3D come Teardown. Disattivalo se un gioco si blocca o esaurisce la memoria. Vale dal prossimo gioco che avvii.",
 "pt": "Os jogos mantêm a memória onde a GPU a lê e escreve, então menos é copiado. Muito mais rápido em jogos 3D como Teardown. Desative se um jogo travar ou ficar sem memória. Vale a partir do próximo jogo que você iniciar."
+},
+"Cheat manager": {
+"ar": "مدير الغش",
+"fr": "Gestionnaire de triches",
+"tr": "Hile yöneticisi",
+"es": "Gestor de trucos",
+"de": "Cheat-Manager",
+"it": "Gestore trucchi",
+"pt": "Gerenciador de trapaças"
+},
+"Adds a Cheats tile to the home screen, to turn on cheats for your games. Cheats can break saves and online play, so back up your saves first.": {
+"ar": "يضيف مربع الغش إلى الشاشة الرئيسية لتشغيل الغش في ألعابك. قد يفسد الغش الحفظ واللعب عبر الإنترنت، لذا انسخ حفظك احتياطياً أولاً.",
+"fr": "Ajoute une tuile Triches à l'écran d'accueil pour activer des triches dans vos jeux. Les triches peuvent abîmer les sauvegardes et le jeu en ligne : sauvegardez-les d'abord.",
+"tr": "Ana ekrana, oyunlarınızda hileleri açmak için bir Hileler kutucuğu ekler. Hileler kayıtları ve çevrim içi oyunu bozabilir, bu yüzden önce kayıtlarınızı yedekleyin.",
+"es": "Añade un mosaico de Trucos a la pantalla de inicio para activar trucos en tus juegos. Los trucos pueden dañar las partidas guardadas y el juego en línea, así que haz primero una copia.",
+"de": "Fügt dem Startbildschirm eine Cheats-Kachel hinzu, um Cheats für deine Spiele einzuschalten. Cheats können Spielstände und Online-Spiel beschädigen, sichere deine Spielstände also zuerst.",
+"it": "Aggiunge un riquadro Trucchi alla schermata principale per attivare i trucchi nei tuoi giochi. I trucchi possono rovinare i salvataggi e il gioco online, quindi fai prima un backup.",
+"pt": "Adiciona um bloco Trapaças à tela inicial para ativar trapaças nos seus jogos. Trapaças podem estragar jogos salvos e o jogo online, então faça backup dos seus jogos salvos antes."
+},
+"Cheats": {
+"ar": "الغش",
+"fr": "Triches",
+"tr": "Hileler",
+"es": "Trucos",
+"de": "Cheats",
+"it": "Trucchi",
+"pt": "Trapaças"
+},
+"Turn on cheats for your games": {
+"ar": "شغّل الغش في ألعابك",
+"fr": "Activez des triches dans vos jeux",
+"tr": "Oyunlarınızda hileleri açın",
+"es": "Activa trucos en tus juegos",
+"de": "Cheats für deine Spiele einschalten",
+"it": "Attiva i trucchi nei tuoi giochi",
+"pt": "Ative trapaças nos seus jogos"
+},
+"Update the cheat list": {
+"ar": "تحديث قائمة الغش",
+"fr": "Mettre à jour la liste des triches",
+"tr": "Hile listesini güncelle",
+"es": "Actualizar la lista de trucos",
+"de": "Cheat-Liste aktualisieren",
+"it": "Aggiorna l'elenco dei trucchi",
+"pt": "Atualizar a lista de trapaças"
+},
+"Cheats for {n} PS5 games. Updated {a}.": {
+"ar": "غش لـ {n} لعبة PS5. آخر تحديث {a}.",
+"fr": "Triches pour {n} jeux PS5. Mise à jour le {a}.",
+"tr": "{n} PS5 oyunu için hile. Güncelleme: {a}.",
+"es": "Trucos para {n} juegos de PS5. Actualizado el {a}.",
+"de": "Cheats für {n} PS5-Spiele. Aktualisiert am {a}.",
+"it": "Trucchi per {n} giochi PS5. Aggiornato il {a}.",
+"pt": "Trapaças para {n} jogos de PS5. Atualizado em {a}."
+},
+"Cheats for {n} PS5 games.": {
+"ar": "غش لـ {n} لعبة PS5.",
+"fr": "Triches pour {n} jeux PS5.",
+"tr": "{n} PS5 oyunu için hile.",
+"es": "Trucos para {n} juegos de PS5.",
+"de": "Cheats für {n} PS5-Spiele.",
+"it": "Trucchi per {n} giochi PS5.",
+"pt": "Trapaças para {n} jogos de PS5."
+},
+"The cheat list is not downloaded yet. It needs the internet.": {
+"ar": "لم يتم تنزيل قائمة الغش بعد. تحتاج إلى الإنترنت.",
+"fr": "La liste des triches n'est pas encore téléchargée. Il faut Internet.",
+"tr": "Hile listesi henüz indirilmedi. İnternet gerekir.",
+"es": "La lista de trucos aún no se ha descargado. Necesita internet.",
+"de": "Die Cheat-Liste ist noch nicht heruntergeladen. Dafür wird Internet gebraucht.",
+"it": "L'elenco dei trucchi non è ancora scaricato. Serve internet.",
+"pt": "A lista de trapaças ainda não foi baixada. Precisa de internet."
+},
+"Your games": {
+"ar": "ألعابك",
+"fr": "Vos jeux",
+"tr": "Oyunlarınız",
+"es": "Tus juegos",
+"de": "Deine Spiele",
+"it": "I tuoi giochi",
+"pt": "Seus jogos"
+},
+"{n} on": {
+"ar": "{n} مفعّل",
+"fr": "{n} activées",
+"tr": "{n} açık",
+"es": "{n} activados",
+"de": "{n} an",
+"it": "{n} attivi",
+"pt": "{n} ativadas"
+},
+"Other version": {
+"ar": "إصدار آخر",
+"fr": "Autre version",
+"tr": "Başka sürüm",
+"es": "Otra versión",
+"de": "Andere Version",
+"it": "Altra versione",
+"pt": "Outra versão"
+},
+"No cheats": {
+"ar": "لا غش",
+"fr": "Aucune triche",
+"tr": "Hile yok",
+"es": "Sin trucos",
+"de": "Keine Cheats",
+"it": "Nessun trucco",
+"pt": "Sem trapaças"
+},
+"No games yet. Games with a title ID and version show up here.": {
+"ar": "لا ألعاب بعد. تظهر هنا الألعاب التي لها معرّف وإصدار.",
+"fr": "Pas encore de jeux. Les jeux avec un ID de titre et une version apparaissent ici.",
+"tr": "Henüz oyun yok. Başlık kimliği ve sürümü olan oyunlar burada görünür.",
+"es": "Aún no hay juegos. Aquí aparecen los juegos con ID de título y versión.",
+"de": "Noch keine Spiele. Spiele mit Titel-ID und Version erscheinen hier.",
+"it": "Ancora nessun gioco. Qui compaiono i giochi con ID titolo e versione.",
+"pt": "Ainda não há jogos. Jogos com ID de título e versão aparecem aqui."
+},
+"Cheats are turned on for each game version and are used the next time the game starts. Back up your saves first.": {
+"ar": "يُشغَّل الغش لكل إصدار من اللعبة ويُستخدم عند تشغيل اللعبة في المرة القادمة. انسخ حفظك احتياطياً أولاً.",
+"fr": "Les triches s'activent pour chaque version d'un jeu et servent au prochain lancement du jeu. Sauvegardez d'abord.",
+"tr": "Hileler her oyun sürümü için açılır ve oyun bir sonraki başladığında kullanılır. Önce kayıtlarınızı yedekleyin.",
+"es": "Los trucos se activan para cada versión del juego y se usan la próxima vez que se inicie. Haz primero una copia de tus partidas.",
+"de": "Cheats werden pro Spielversion eingeschaltet und beim nächsten Start des Spiels verwendet. Sichere zuerst deine Spielstände.",
+"it": "I trucchi si attivano per ogni versione del gioco e valgono dal prossimo avvio del gioco. Fai prima un backup dei salvataggi.",
+"pt": "As trapaças são ativadas para cada versão do jogo e usadas na próxima vez que o jogo iniciar. Faça backup dos jogos salvos antes."
+},
+"The cheats come from the HEN Cheats Collection (TeeKay87) and the people who made them.": {
+"ar": "الغش من مجموعة HEN Cheats Collection (TeeKay87) ومن صنعوه.",
+"fr": "Les triches viennent de la HEN Cheats Collection (TeeKay87) et de leurs auteurs.",
+"tr": "Hileler HEN Cheats Collection'dan (TeeKay87) ve onları yapanlardan gelir.",
+"es": "Los trucos vienen de la HEN Cheats Collection (TeeKay87) y de quienes los crearon.",
+"de": "Die Cheats stammen aus der HEN Cheats Collection (TeeKay87) und von ihren Machern.",
+"it": "I trucchi vengono dalla HEN Cheats Collection (TeeKay87) e da chi li ha creati.",
+"pt": "As trapaças vêm da HEN Cheats Collection (TeeKay87) e de quem as criou."
+},
+"Downloading the cheat list…": {
+"ar": "جارٍ تنزيل قائمة الغش…",
+"fr": "Téléchargement de la liste des triches…",
+"tr": "Hile listesi indiriliyor…",
+"es": "Descargando la lista de trucos…",
+"de": "Cheat-Liste wird heruntergeladen…",
+"it": "Download dell'elenco dei trucchi…",
+"pt": "Baixando a lista de trapaças…"
+},
+"Cheat file": {
+"ar": "ملف الغش",
+"fr": "Fichier de triches",
+"tr": "Hile dosyası",
+"es": "Archivo de trucos",
+"de": "Cheat-Datei",
+"it": "File dei trucchi",
+"pt": "Arquivo de trapaças"
+},
+"No cheats for version {a} of this game.": {
+"ar": "لا غش للإصدار {a} من هذه اللعبة.",
+"fr": "Aucune triche pour la version {a} de ce jeu.",
+"tr": "Bu oyunun {a} sürümü için hile yok.",
+"es": "No hay trucos para la versión {a} de este juego.",
+"de": "Keine Cheats für Version {a} dieses Spiels.",
+"it": "Nessun trucco per la versione {a} di questo gioco.",
+"pt": "Sem trapaças para a versão {a} deste jogo."
+},
+"There are cheats for version {a}. Cheats only work with the version they were made for.": {
+"ar": "يوجد غش للإصدار {a}. يعمل الغش فقط مع الإصدار الذي صُنع له.",
+"fr": "Il existe des triches pour la version {a}. Une triche ne marche qu'avec la version pour laquelle elle a été faite.",
+"tr": "{a} sürümü için hileler var. Hileler yalnızca yapıldıkları sürümle çalışır.",
+"es": "Hay trucos para la versión {a}. Los trucos solo funcionan con la versión para la que se hicieron.",
+"de": "Es gibt Cheats für Version {a}. Cheats funktionieren nur mit der Version, für die sie gemacht wurden.",
+"it": "Ci sono trucchi per la versione {a}. I trucchi funzionano solo con la versione per cui sono stati fatti.",
+"pt": "Há trapaças para a versão {a}. Trapaças só funcionam com a versão para a qual foram feitas."
+},
+"Downloading the cheats…": {
+"ar": "جارٍ تنزيل الغش…",
+"fr": "Téléchargement des triches…",
+"tr": "Hileler indiriliyor…",
+"es": "Descargando los trucos…",
+"de": "Cheats werden heruntergeladen…",
+"it": "Download dei trucchi…",
+"pt": "Baixando as trapaças…"
+},
+"The cheats could not be read.": {
+"ar": "تعذّرت قراءة الغش.",
+"fr": "Impossible de lire les triches.",
+"tr": "Hileler okunamadı.",
+"es": "No se pudieron leer los trucos.",
+"de": "Die Cheats konnten nicht gelesen werden.",
+"it": "Impossibile leggere i trucchi.",
+"pt": "Não foi possível ler as trapaças."
+},
+"Try again": {
+"ar": "حاول مرة أخرى",
+"fr": "Réessayer",
+"tr": "Tekrar dene",
+"es": "Reintentar",
+"de": "Erneut versuchen",
+"it": "Riprova",
+"pt": "Tentar de novo"
+},
+"Turn all off": {
+"ar": "إيقاف الكل",
+"fr": "Tout désactiver",
+"tr": "Hepsini kapat",
+"es": "Desactivar todos",
+"de": "Alle ausschalten",
+"it": "Disattiva tutti",
+"pt": "Desativar todas"
+},
+"Made by {a}.": {
+"ar": "من صنع {a}.",
+"fr": "Créé par {a}.",
+"tr": "Yapan: {a}.",
+"es": "Creado por {a}.",
+"de": "Erstellt von {a}.",
+"it": "Creato da {a}.",
+"pt": "Criado por {a}."
+},
+"Cheats are used the next time the game starts. If the game stops working, turn its cheats off.": {
+"ar": "يُستخدم الغش عند تشغيل اللعبة في المرة القادمة. إذا توقفت اللعبة عن العمل، أوقف الغش فيها.",
+"fr": "Les triches servent au prochain lancement du jeu. Si le jeu ne marche plus, désactivez ses triches.",
+"tr": "Hileler oyun bir sonraki başladığında kullanılır. Oyun çalışmazsa hilelerini kapatın.",
+"es": "Los trucos se usan la próxima vez que se inicie el juego. Si el juego deja de funcionar, desactiva sus trucos.",
+"de": "Cheats werden beim nächsten Start des Spiels verwendet. Wenn das Spiel nicht mehr läuft, schalte seine Cheats aus.",
+"it": "I trucchi valgono dal prossimo avvio del gioco. Se il gioco smette di funzionare, disattiva i suoi trucchi.",
+"pt": "As trapaças são usadas na próxima vez que o jogo iniciar. Se o jogo parar de funcionar, desative as trapaças dele."
+},
+"The cheat manager is off in Settings > Games, so no cheats are used.": {
+"ar": "مدير الغش متوقف في الإعدادات > الألعاب، لذا لا يُستخدم أي غش.",
+"fr": "Le gestionnaire de triches est désactivé dans Paramètres > Jeux : aucune triche n'est utilisée.",
+"tr": "Hile yöneticisi Ayarlar > Oyunlar'da kapalı, bu yüzden hile kullanılmaz.",
+"es": "El gestor de trucos está desactivado en Ajustes > Juegos, así que no se usan trucos.",
+"de": "Der Cheat-Manager ist unter Einstellungen > Spiele aus, daher werden keine Cheats verwendet.",
+"it": "Il gestore trucchi è disattivato in Impostazioni > Giochi, quindi nessun trucco viene usato.",
+"pt": "O gerenciador de trapaças está desligado em Configurações > Jogos, então nenhuma trapaça é usada."
+},
+"Could not download the cheat list: {a}": {
+"ar": "تعذّر تنزيل قائمة الغش: {a}",
+"fr": "Impossible de télécharger la liste des triches : {a}",
+"tr": "Hile listesi indirilemedi: {a}",
+"es": "No se pudo descargar la lista de trucos: {a}",
+"de": "Die Cheat-Liste konnte nicht heruntergeladen werden: {a}",
+"it": "Impossibile scaricare l'elenco dei trucchi: {a}",
+"pt": "Não foi possível baixar a lista de trapaças: {a}"
+},
+"The cheat list was empty. Try again later.": {
+"ar": "كانت قائمة الغش فارغة. حاول لاحقاً.",
+"fr": "La liste des triches était vide. Réessayez plus tard.",
+"tr": "Hile listesi boştu. Daha sonra tekrar deneyin.",
+"es": "La lista de trucos estaba vacía. Inténtalo más tarde.",
+"de": "Die Cheat-Liste war leer. Versuche es später erneut.",
+"it": "L'elenco dei trucchi era vuoto. Riprova più tardi.",
+"pt": "A lista de trapaças estava vazia. Tente mais tarde."
+},
+"Could not download the cheats: {a}": {
+"ar": "تعذّر تنزيل الغش: {a}",
+"fr": "Impossible de télécharger les triches : {a}",
+"tr": "Hileler indirilemedi: {a}",
+"es": "No se pudieron descargar los trucos: {a}",
+"de": "Die Cheats konnten nicht heruntergeladen werden: {a}",
+"it": "Impossibile scaricare i trucchi: {a}",
+"pt": "Não foi possível baixar as trapaças: {a}"
+},
+"The cheat file has no cheats.": {
+"ar": "ملف الغش لا يحتوي على غش.",
+"fr": "Le fichier de triches n'en contient aucune.",
+"tr": "Hile dosyasında hile yok.",
+"es": "El archivo de trucos no tiene trucos.",
+"de": "Die Cheat-Datei enthält keine Cheats.",
+"it": "Il file dei trucchi non contiene trucchi.",
+"pt": "O arquivo de trapaças não tem trapaças."
+},
+"This cheat file uses master codes, which are not supported yet.": {
+"ar": "يستخدم ملف الغش هذا رموزاً رئيسية غير مدعومة بعد.",
+"fr": "Ce fichier de triches utilise des codes maîtres, pas encore pris en charge.",
+"tr": "Bu hile dosyası henüz desteklenmeyen ana kodlar kullanıyor.",
+"es": "Este archivo de trucos usa códigos maestros, que aún no se admiten.",
+"de": "Diese Cheat-Datei nutzt Master-Codes, die noch nicht unterstützt werden.",
+"it": "Questo file di trucchi usa codici master, non ancora supportati.",
+"pt": "Este arquivo de trapaças usa códigos mestres, que ainda não são suportados."
+},
+"This cheat file is for another program of the game.": {
+"ar": "ملف الغش هذا لبرنامج آخر من اللعبة.",
+"fr": "Ce fichier de triches est pour un autre programme du jeu.",
+"tr": "Bu hile dosyası oyunun başka bir programı için.",
+"es": "Este archivo de trucos es para otro programa del juego.",
+"de": "Diese Cheat-Datei ist für ein anderes Programm des Spiels.",
+"it": "Questo file di trucchi è per un altro programma del gioco.",
+"pt": "Este arquivo de trapaças é para outro programa do jogo."
+},
+"The cheat file has a cheat without a name.": {
+"ar": "في ملف الغش غش بلا اسم.",
+"fr": "Le fichier contient une triche sans nom.",
+"tr": "Hile dosyasında adı olmayan bir hile var.",
+"es": "El archivo tiene un truco sin nombre.",
+"de": "Die Cheat-Datei enthält einen Cheat ohne Namen.",
+"it": "Il file contiene un trucco senza nome.",
+"pt": "O arquivo tem uma trapaça sem nome."
+},
+"This cheat file uses module cheats, which are not supported yet.": {
+"ar": "يستخدم ملف الغش هذا غش الوحدات غير المدعوم بعد.",
+"fr": "Ce fichier utilise des triches de module, pas encore prises en charge.",
+"tr": "Bu hile dosyası henüz desteklenmeyen modül hileleri kullanıyor.",
+"es": "Este archivo usa trucos de módulo, que aún no se admiten.",
+"de": "Diese Cheat-Datei nutzt Modul-Cheats, die noch nicht unterstützt werden.",
+"it": "Questo file usa trucchi di modulo, non ancora supportati.",
+"pt": "Este arquivo usa trapaças de módulo, que ainda não são suportadas."
+},
+"The cheat \"{a}\" has nothing to write.": {
+"ar": "الغش \"{a}\" لا يحتوي على شيء لكتابته.",
+"fr": "La triche « {a} » n'a rien à écrire.",
+"tr": "\"{a}\" hilesinin yazacak bir şeyi yok.",
+"es": "El truco \"{a}\" no tiene nada que escribir.",
+"de": "Der Cheat „{a}“ hat nichts zu schreiben.",
+"it": "Il trucco \"{a}\" non ha nulla da scrivere.",
+"pt": "A trapaça \"{a}\" não tem nada para escrever."
+},
+"The cheat file has an invalid entry.": {
+"ar": "في ملف الغش إدخال غير صالح.",
+"fr": "Le fichier de triches a une entrée invalide.",
+"tr": "Hile dosyasında geçersiz bir girdi var.",
+"es": "El archivo de trucos tiene una entrada no válida.",
+"de": "Die Cheat-Datei hat einen ungültigen Eintrag.",
+"it": "Il file dei trucchi ha una voce non valida.",
+"pt": "O arquivo de trapaças tem uma entrada inválida."
+},
+"This cheat file uses memory addressing that is not supported yet.": {
+"ar": "يستخدم ملف الغش هذا عنونة ذاكرة غير مدعومة بعد.",
+"fr": "Ce fichier utilise un adressage mémoire pas encore pris en charge.",
+"tr": "Bu hile dosyası henüz desteklenmeyen bir bellek adreslemesi kullanıyor.",
+"es": "Este archivo usa un direccionamiento de memoria que aún no se admite.",
+"de": "Diese Cheat-Datei nutzt eine Speicheradressierung, die noch nicht unterstützt wird.",
+"it": "Questo file usa un indirizzamento di memoria non ancora supportato.",
+"pt": "Este arquivo usa um endereçamento de memória que ainda não é suportado."
+},
+"The cheat \"{a}\" has invalid bytes.": {
+"ar": "الغش \"{a}\" يحتوي على بايتات غير صالحة.",
+"fr": "La triche « {a} » a des octets invalides.",
+"tr": "\"{a}\" hilesinde geçersiz baytlar var.",
+"es": "El truco \"{a}\" tiene bytes no válidos.",
+"de": "Der Cheat „{a}“ hat ungültige Bytes.",
+"it": "Il trucco \"{a}\" ha byte non validi.",
+"pt": "A trapaça \"{a}\" tem bytes inválidos."
+},
+"This cheat file writes into several modules of the game, which is not supported yet.": {
+"ar": "يكتب ملف الغش هذا في عدة وحدات من اللعبة، وهذا غير مدعوم بعد.",
+"fr": "Ce fichier écrit dans plusieurs modules du jeu, ce qui n'est pas encore pris en charge.",
+"tr": "Bu hile dosyası oyunun birkaç modülüne yazıyor; bu henüz desteklenmiyor.",
+"es": "Este archivo escribe en varios módulos del juego, lo que aún no se admite.",
+"de": "Diese Cheat-Datei schreibt in mehrere Module des Spiels, was noch nicht unterstützt wird.",
+"it": "Questo file scrive in più moduli del gioco, cosa non ancora supportata.",
+"pt": "Este arquivo escreve em vários módulos do jogo, o que ainda não é suportado."
+},
+"Unknown cheat file.": {
+"ar": "ملف غش غير معروف.",
+"fr": "Fichier de triches inconnu.",
+"tr": "Bilinmeyen hile dosyası.",
+"es": "Archivo de trucos desconocido.",
+"de": "Unbekannte Cheat-Datei.",
+"it": "File dei trucchi sconosciuto.",
+"pt": "Arquivo de trapaças desconhecido."
+},
+"The cheat file is not valid.": {
+"ar": "ملف الغش غير صالح.",
+"fr": "Le fichier de triches n'est pas valide.",
+"tr": "Hile dosyası geçerli değil.",
+"es": "El archivo de trucos no es válido.",
+"de": "Die Cheat-Datei ist ungültig.",
+"it": "Il file dei trucchi non è valido.",
+"pt": "O arquivo de trapaças não é válido."
 }
 }

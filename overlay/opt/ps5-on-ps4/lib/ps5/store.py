@@ -25,6 +25,7 @@ DEFAULT_SETTINGS = {
     "auto_off_minutes": 0,     # 0: never. Only while the home screen is idle.
     "fps_counter": False,      # A small FPS counter in the bottom-left corner of games.
     "gpu_shared_memory": True, # Patch 0033: game memory the GPU uses in place (KYTY_GPU_SHARED_MEMORY).
+    "cheats": False,           # The cheat manager (a Cheats tile on the home screen; lib/ps5/cheats.py).
     "menu_language": "en",     # i18n.LANGUAGES
     # Appearance.
     "theme": "dark",           # dark, midnight, light
