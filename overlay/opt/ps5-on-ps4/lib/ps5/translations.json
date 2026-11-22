@@ -6271,5 +6271,311 @@
 "de": "Feststelltaste",
 "it": "Bloc Maiusc",
 "pt": "Caps Lock"
+},
+"Compatibility badges": {
+"ar": "شارات التوافق",
+"fr": "Badges de compatibilité",
+"tr": "Uyumluluk rozetleri",
+"es": "Insignias de compatibilidad",
+"de": "Kompatibilitäts-Abzeichen",
+"it": "Badge di compatibilità",
+"pt": "Selos de compatibilidade"
+},
+"Works": {
+"ar": "تعمل",
+"fr": "Fonctionne",
+"tr": "Çalışıyor",
+"es": "Funciona",
+"de": "Läuft",
+"it": "Funziona",
+"pt": "Funciona"
+},
+"Doesn't work": {
+"ar": "لا تعمل",
+"fr": "Ne fonctionne pas",
+"tr": "Çalışmıyor",
+"es": "No funciona",
+"de": "Läuft nicht",
+"it": "Non funziona",
+"pt": "Não funciona"
+},
+"Tested": {
+"ar": "مُختبرة",
+"fr": "Testé",
+"tr": "Test edildi",
+"es": "Probado",
+"de": "Getestet",
+"it": "Testato",
+"pt": "Testado"
+},
+"Tested on": {
+"ar": "اختُبرت على",
+"fr": "Testé sur",
+"tr": "Test edildiği yer",
+"es": "Probado en",
+"de": "Getestet auf",
+"it": "Testato su",
+"pt": "Testado em"
+},
+"Report a test": {
+"ar": "الإبلاغ عن تجربة",
+"fr": "Signaler un test",
+"tr": "Test bildir",
+"es": "Informar de una prueba",
+"de": "Test melden",
+"it": "Segnala un test",
+"pt": "Relatar um teste"
+},
+"How did {a} run?": {
+"ar": "كيف عملت {a}؟",
+"fr": "Comment {a} a-t-il tourné ?",
+"tr": "{a} nasıl çalıştı?",
+"es": "¿Cómo funcionó {a}?",
+"de": "Wie lief {a}?",
+"it": "Come è andato {a}?",
+"pt": "Como {a} rodou?"
+},
+"Save to USB": {
+"ar": "حفظ على USB",
+"fr": "Enregistrer sur USB",
+"tr": "USB'ye kaydet",
+"es": "Guardar en USB",
+"de": "Auf USB speichern",
+"it": "Salva su USB",
+"pt": "Salvar no USB"
+},
+"Saving the report…": {
+"ar": "جارٍ حفظ التقرير…",
+"fr": "Enregistrement du rapport…",
+"tr": "Rapor kaydediliyor…",
+"es": "Guardando el informe…",
+"de": "Bericht wird gespeichert…",
+"it": "Salvataggio del rapporto…",
+"pt": "Salvando o relatório…"
+},
+"The report is in PS5-logs on the USB drive.": {
+"ar": "التقرير في مجلد PS5-logs على وحدة USB.",
+"fr": "Le rapport est dans PS5-logs sur la clé USB.",
+"tr": "Rapor USB sürücüsündeki PS5-logs klasöründe.",
+"es": "El informe está en PS5-logs en la unidad USB.",
+"de": "Der Bericht liegt in PS5-logs auf dem USB-Laufwerk.",
+"it": "Il rapporto è in PS5-logs sull'unità USB.",
+"pt": "O relatório está em PS5-logs no pendrive."
+},
+"Could not write to the USB drive.": {
+"ar": "تعذّرت الكتابة على وحدة USB.",
+"fr": "Impossible d'écrire sur la clé USB.",
+"tr": "USB sürücüsüne yazılamadı.",
+"es": "No se pudo escribir en la unidad USB.",
+"de": "Auf das USB-Laufwerk konnte nicht geschrieben werden.",
+"it": "Impossibile scrivere sull'unità USB.",
+"pt": "Não foi possível gravar no pendrive."
+},
+"Scan the code with your phone: it opens a ready GitHub issue to post. Square saves the report on the USB drive.": {
+"ar": "امسح الرمز بهاتفك: يفتح بلاغًا جاهزًا على GitHub لنشره. زر المربع يحفظ التقرير على وحدة USB.",
+"fr": "Scannez le code avec votre téléphone : il ouvre un ticket GitHub prêt à publier. Carré enregistre le rapport sur la clé USB.",
+"tr": "Kodu telefonunuzla tarayın: gönderilmeye hazır bir GitHub kaydı açar. Kare, raporu USB sürücüsüne kaydeder.",
+"es": "Escanea el código con el móvil: abre una incidencia de GitHub lista para publicar. Cuadrado guarda el informe en la unidad USB.",
+"de": "Scanne den Code mit dem Handy: Er öffnet ein fertiges GitHub-Issue zum Absenden. Quadrat speichert den Bericht auf dem USB-Laufwerk.",
+"it": "Scansiona il codice con il telefono: apre una segnalazione GitHub pronta da pubblicare. Quadrato salva il rapporto sull'unità USB.",
+"pt": "Escaneie o código com o celular: ele abre uma issue do GitHub pronta para enviar. Quadrado salva o relatório no pendrive."
+},
+"The QR code needs the python3-segno package. Square still saves the report.": {
+"ar": "رمز QR يحتاج حزمة python3-segno. زر المربع ما زال يحفظ التقرير.",
+"fr": "Le code QR nécessite le paquet python3-segno. Carré enregistre quand même le rapport.",
+"tr": "QR kodu için python3-segno paketi gerekir. Kare yine de raporu kaydeder.",
+"es": "El código QR necesita el paquete python3-segno. Cuadrado sigue guardando el informe.",
+"de": "Der QR-Code braucht das Paket python3-segno. Quadrat speichert den Bericht trotzdem.",
+"it": "Il codice QR richiede il pacchetto python3-segno. Quadrato salva comunque il rapporto.",
+"pt": "O código QR precisa do pacote python3-segno. Quadrado ainda salva o relatório."
+},
+"EmuFive disk": {
+"ar": "قرص EmuFive",
+"fr": "Disque EmuFive",
+"tr": "EmuFive diski",
+"es": "Disco de EmuFive",
+"de": "EmuFive-Laufwerk",
+"it": "Disco di EmuFive",
+"pt": "Disco do EmuFive"
+},
+"Copy to the EmuFive disk": {
+"ar": "نسخ إلى قرص EmuFive",
+"fr": "Copier sur le disque EmuFive",
+"tr": "EmuFive diskine kopyala",
+"es": "Copiar al disco de EmuFive",
+"de": "Auf das EmuFive-Laufwerk kopieren",
+"it": "Copia sul disco di EmuFive",
+"pt": "Copiar para o disco do EmuFive"
+},
+"Delete from the EmuFive disk": {
+"ar": "حذف من قرص EmuFive",
+"fr": "Supprimer du disque EmuFive",
+"tr": "EmuFive diskinden sil",
+"es": "Borrar del disco de EmuFive",
+"de": "Vom EmuFive-Laufwerk löschen",
+"it": "Elimina dal disco di EmuFive",
+"pt": "Excluir do disco do EmuFive"
+},
+"Delete {a} from the EmuFive disk? Its saves stay.": {
+"ar": "حذف {a} من قرص EmuFive؟ تبقى حفظاتها.",
+"fr": "Supprimer {a} du disque EmuFive ? Ses sauvegardes restent.",
+"tr": "{a} EmuFive diskinden silinsin mi? Kayıtları kalır.",
+"es": "¿Borrar {a} del disco de EmuFive? Sus partidas guardadas se quedan.",
+"de": "{a} vom EmuFive-Laufwerk löschen? Die Spielstände bleiben.",
+"it": "Eliminare {a} dal disco di EmuFive? I salvataggi restano.",
+"pt": "Excluir {a} do disco do EmuFive? Os saves ficam."
+},
+"{a} was deleted from the EmuFive disk.": {
+"ar": "حُذفت {a} من قرص EmuFive.",
+"fr": "{a} a été supprimé du disque EmuFive.",
+"tr": "{a} EmuFive diskinden silindi.",
+"es": "{a} se borró del disco de EmuFive.",
+"de": "{a} wurde vom EmuFive-Laufwerk gelöscht.",
+"it": "{a} è stato eliminato dal disco di EmuFive.",
+"pt": "{a} foi excluído do disco do EmuFive."
+},
+"Deleting…": {
+"ar": "جارٍ الحذف…",
+"fr": "Suppression…",
+"tr": "Siliniyor…",
+"es": "Borrando…",
+"de": "Wird gelöscht…",
+"it": "Eliminazione…",
+"pt": "Excluindo…"
+},
+"Copying to the EmuFive disk…": {
+"ar": "جارٍ النسخ إلى قرص EmuFive…",
+"fr": "Copie sur le disque EmuFive…",
+"tr": "EmuFive diskine kopyalanıyor…",
+"es": "Copiando al disco de EmuFive…",
+"de": "Wird auf das EmuFive-Laufwerk kopiert…",
+"it": "Copia sul disco di EmuFive…",
+"pt": "Copiando para o disco do EmuFive…"
+},
+"Cancelling…": {
+"ar": "جارٍ الإلغاء…",
+"fr": "Annulation…",
+"tr": "İptal ediliyor…",
+"es": "Cancelando…",
+"de": "Wird abgebrochen…",
+"it": "Annullamento…",
+"pt": "Cancelando…"
+},
+"Measuring the game…": {
+"ar": "جارٍ قياس حجم اللعبة…",
+"fr": "Mesure du jeu…",
+"tr": "Oyun ölçülüyor…",
+"es": "Midiendo el juego…",
+"de": "Spiel wird gemessen…",
+"it": "Misurazione del gioco…",
+"pt": "Medindo o jogo…"
+},
+"{a} is on the EmuFive disk now. It runs without the USB drive.": {
+"ar": "{a} على قرص EmuFive الآن. تعمل دون وحدة USB.",
+"fr": "{a} est maintenant sur le disque EmuFive. Il se lance sans la clé USB.",
+"tr": "{a} artık EmuFive diskinde. USB sürücüsü olmadan çalışır.",
+"es": "{a} ya está en el disco de EmuFive. Funciona sin la unidad USB.",
+"de": "{a} ist jetzt auf dem EmuFive-Laufwerk. Es läuft ohne das USB-Laufwerk.",
+"it": "{a} ora è sul disco di EmuFive. Funziona senza l'unità USB.",
+"pt": "{a} agora está no disco do EmuFive. Roda sem o pendrive."
+},
+"The copy was cancelled.": {
+"ar": "أُلغي النسخ.",
+"fr": "La copie a été annulée.",
+"tr": "Kopyalama iptal edildi.",
+"es": "Se canceló la copia.",
+"de": "Das Kopieren wurde abgebrochen.",
+"it": "La copia è stata annullata.",
+"pt": "A cópia foi cancelada."
+},
+"{a} is already on the EmuFive disk.": {
+"ar": "{a} موجودة على قرص EmuFive بالفعل.",
+"fr": "{a} est déjà sur le disque EmuFive.",
+"tr": "{a} zaten EmuFive diskinde.",
+"es": "{a} ya está en el disco de EmuFive.",
+"de": "{a} ist schon auf dem EmuFive-Laufwerk.",
+"it": "{a} è già sul disco di EmuFive.",
+"pt": "{a} já está no disco do EmuFive."
+},
+"Not enough space: the game needs {a}, and {b} can be used on the EmuFive disk.": {
+"ar": "لا توجد مساحة كافية: تحتاج اللعبة {a}، ويمكن استخدام {b} على قرص EmuFive.",
+"fr": "Pas assez d'espace : le jeu a besoin de {a}, et {b} sont utilisables sur le disque EmuFive.",
+"tr": "Yeterli alan yok: oyun {a} gerektiriyor, EmuFive diskinde {b} kullanılabilir.",
+"es": "No hay espacio suficiente: el juego necesita {a} y se pueden usar {b} en el disco de EmuFive.",
+"de": "Nicht genug Platz: Das Spiel braucht {a}, auf dem EmuFive-Laufwerk sind {b} nutzbar.",
+"it": "Spazio insufficiente: il gioco richiede {a} e sul disco di EmuFive se ne possono usare {b}.",
+"pt": "Espaço insuficiente: o jogo precisa de {a} e {b} podem ser usados no disco do EmuFive."
+},
+"Tell the game the TV is 1080p": {
+"ar": "إخبار اللعبة أن التلفاز 1080p",
+"fr": "Dire au jeu que la TV est en 1080p",
+"tr": "Oyuna TV'nin 1080p olduğunu söyle",
+"es": "Decir al juego que la TV es 1080p",
+"de": "Dem Spiel einen 1080p-Fernseher melden",
+"it": "Dire al gioco che la TV è 1080p",
+"pt": "Dizer ao jogo que a TV é 1080p"
+},
+"Games draw for a 1080p TV instead of 4K: much less work for the PS4's GPU, so heavy 3D games run faster. The picture is a little softer.": {
+"ar": "ترسم الألعاب لتلفاز 1080p بدل 4K: عمل أقل بكثير لمعالج رسوميات PS4، فتعمل ألعاب 3D الثقيلة أسرع. الصورة أنعم قليلًا.",
+"fr": "Les jeux dessinent pour une TV 1080p au lieu de 4K : bien moins de travail pour le GPU de la PS4, donc les jeux 3D lourds tournent plus vite. L'image est un peu plus douce.",
+"tr": "Oyunlar 4K yerine 1080p TV için çizer: PS4'ün GPU'su için çok daha az iş, bu yüzden ağır 3D oyunlar daha hızlı çalışır. Görüntü biraz daha yumuşak olur.",
+"es": "Los juegos dibujan para una TV 1080p en lugar de 4K: mucho menos trabajo para la GPU de la PS4, así que los juegos 3D pesados van más rápido. La imagen es un poco más suave.",
+"de": "Spiele zeichnen für einen 1080p-Fernseher statt 4K: viel weniger Arbeit für die GPU der PS4, schwere 3D-Spiele laufen schneller. Das Bild ist etwas weicher.",
+"it": "I giochi disegnano per una TV 1080p invece che 4K: molto meno lavoro per la GPU della PS4, quindi i giochi 3D pesanti vanno più veloci. L'immagine è un po' più morbida.",
+"pt": "Os jogos desenham para uma TV 1080p em vez de 4K: muito menos trabalho para a GPU do PS4, então jogos 3D pesados rodam mais rápido. A imagem fica um pouco mais suave."
+},
+"FSR 1 upscaling": {
+"ar": "تكبير FSR 1",
+"fr": "Mise à l'échelle FSR 1",
+"tr": "FSR 1 ölçekleme",
+"es": "Escalado FSR 1",
+"de": "FSR-1-Hochskalierung",
+"it": "Upscaling FSR 1",
+"pt": "Upscaling FSR 1"
+},
+"AMD FSR 1 enlarges a game picture that is smaller than the TV, with sharper edges than plain scaling. Use it with the 1080p setting on a 4K TV.": {
+"ar": "يكبّر AMD FSR 1 صورة اللعبة الأصغر من التلفاز بحواف أوضح من التكبير العادي. استخدمه مع إعداد 1080p على تلفاز 4K.",
+"fr": "AMD FSR 1 agrandit une image de jeu plus petite que la TV, avec des bords plus nets qu'une mise à l'échelle simple. À utiliser avec le réglage 1080p sur une TV 4K.",
+"tr": "AMD FSR 1, TV'den küçük bir oyun görüntüsünü düz ölçeklemeden daha keskin kenarlarla büyütür. 4K TV'de 1080p ayarıyla kullanın.",
+"es": "AMD FSR 1 amplía una imagen de juego más pequeña que la TV, con bordes más nítidos que el escalado normal. Úsalo con el ajuste 1080p en una TV 4K.",
+"de": "AMD FSR 1 vergrößert ein Spielbild, das kleiner als der Fernseher ist, mit schärferen Kanten als einfaches Skalieren. Zusammen mit der 1080p-Einstellung auf einem 4K-Fernseher nutzen.",
+"it": "AMD FSR 1 ingrandisce un'immagine di gioco più piccola della TV, con bordi più nitidi del semplice ridimensionamento. Usalo con l'impostazione 1080p su una TV 4K.",
+"pt": "O AMD FSR 1 amplia uma imagem de jogo menor que a TV, com bordas mais nítidas que a escala simples. Use com a opção 1080p numa TV 4K."
+},
+"Simulated PSN sign-in": {
+"ar": "تسجيل دخول PSN مُحاكى",
+"fr": "Connexion PSN simulée",
+"tr": "Simüle PSN girişi",
+"es": "Inicio de sesión de PSN simulado",
+"de": "Simulierte PSN-Anmeldung",
+"it": "Accesso PSN simulato",
+"pt": "Login PSN simulado"
+},
+"Answers a game's PSN sign-in checks as if you were signed in. Some games stop at the start without it. Nothing is sent to PSN.": {
+"ar": "يجيب على فحوص تسجيل الدخول إلى PSN كأنك مسجّل. بعض الألعاب تتوقف في البداية بدونه. لا يُرسل شيء إلى PSN.",
+"fr": "Répond aux vérifications de connexion PSN d'un jeu comme si vous étiez connecté. Certains jeux s'arrêtent au démarrage sans cela. Rien n'est envoyé au PSN.",
+"tr": "Oyunun PSN giriş kontrollerini giriş yapmışsınız gibi yanıtlar. Bazı oyunlar bu olmadan başta durur. PSN'e hiçbir şey gönderilmez.",
+"es": "Responde a las comprobaciones de inicio de sesión de PSN como si hubieras iniciado sesión. Algunos juegos se paran al empezar sin esto. No se envía nada a PSN.",
+"de": "Beantwortet die PSN-Anmeldeprüfungen eines Spiels, als wärst du angemeldet. Manche Spiele bleiben ohne das am Anfang stehen. Es wird nichts an PSN gesendet.",
+"it": "Risponde ai controlli di accesso PSN di un gioco come se fossi connesso. Alcuni giochi si fermano all'avvio senza. Nulla viene inviato a PSN.",
+"pt": "Responde às verificações de login PSN do jogo como se você estivesse conectado. Alguns jogos param no início sem isso. Nada é enviado à PSN."
+},
+"Memory is almost full": {
+"ar": "الذاكرة شبه ممتلئة",
+"fr": "La mémoire est presque pleine",
+"tr": "Bellek neredeyse dolu",
+"es": "La memoria está casi llena",
+"de": "Der Speicher ist fast voll",
+"it": "La memoria è quasi piena",
+"pt": "A memória está quase cheia"
+},
+"Save your game now. {n} MB left.": {
+"ar": "احفظ لعبتك الآن. بقي {n} ميغابايت.",
+"fr": "Sauvegardez maintenant. Il reste {n} Mo.",
+"tr": "Oyununu şimdi kaydet. {n} MB kaldı.",
+"es": "Guarda la partida ahora. Quedan {n} MB.",
+"de": "Jetzt speichern. Noch {n} MB frei.",
+"it": "Salva ora la partita. Restano {n} MB.",
+"pt": "Salve o jogo agora. Restam {n} MB."
 }
 }

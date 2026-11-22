@@ -9,6 +9,9 @@
 #   - the time played is added to the game (minus the time it spent paused by the PS button),
 #   - memory is watched: when memory and swap are almost used up, or free memory stays so low that
 #     the PS4 stalls, the game is closed before the PS4 freezes, and the home screen says why,
+#   - a notice says to save when memory is getting low, before it runs out,
+#   - when the game ends, $XDG_RUNTIME_DIR/ps5-last-game.json says how it ran (for Report a test
+#     on the home screen), and a crash saves a report with the log (lib/ps5/report.py),
 #   - with the cheat manager on, the cheats turned on for this game version go to KytyPS5
 #     (--game-patch $XDG_RUNTIME_DIR/ps5-cheats.json).
 # Exits with KytyPS5's exit code (128 + the signal when it was stopped by one).
@@ -21,7 +24,7 @@ import sys
 import time
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "lib"))
-from ps5 import cheats, store, system  # noqa: E402
+from ps5 import cheats, report, store, system  # noqa: E402
 
 KYTY = "/opt/kytyps5/kyty_emulator"
 STATE = os.path.join(system.RUNTIME, "ps5-game.json")
@@ -33,6 +36,10 @@ LOW_MEMORY_SECONDS = 3      # ...for this long.
 # at all). Under normal memory pressure Linux keeps about 340 MB free.
 STALL_MB = 64
 STALL_SECONDS = 60
+WARN_MB = 900               # Memory plus swap left when a notice says to save...
+WARN_EVERY = 180            # ...at most this often (seconds).
+NOTIFY = os.path.join(os.path.dirname(os.path.realpath(__file__)), "ps5-notify")
+CLOSED = os.path.join(system.RUNTIME, "ps5-game-closed")   # ps5-guide: closed from the PS button menu.
 PAUSED = os.path.join(system.RUNTIME, "ps5-game-paused")   # Seconds paused, added by ps5-guide.
 CHEATS = os.path.join(system.RUNTIME, "ps5-cheats.json")
 
@@ -62,6 +69,19 @@ class MemoryWatch:
     def __init__(self):
         self.low_since = None
         self.stall_since = None
+        self.warned = None
+
+    def warn(self, now, left):
+        """A notice over the game to save soon, at most every WARN_EVERY seconds."""
+        if self.warned is not None and now - self.warned < WARN_EVERY:
+            return
+        self.warned = now
+        try:
+            subprocess.Popen([sys.executable, NOTIFY, "Memory is almost full",
+                              f"Save your game now. {left} MB left.", "--seconds", "6"],
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except OSError:
+            pass
 
     def check(self, now):
         memory = memory_mb()
@@ -69,6 +89,8 @@ class MemoryWatch:
             return None
         available, swap_free = memory
         left = available + swap_free
+        if left <= WARN_MB:
+            self.warn(now, left)
         if left <= LOW_MEMORY_MB:
             self.low_since = self.low_since or now
             if now - self.low_since >= LOW_MEMORY_SECONDS:
@@ -163,12 +185,14 @@ def main():
     os.environ["SDL_VIDEO_MINIMIZE_ON_FOCUS_LOSS"] = "0"
     if settings["fps_counter"]:
         os.environ["KYTY_FPS_COUNTER"] = "1"     # Patch 0005: FPS in the bottom-left corner.
+    os.environ["KYTY_FPS_LOG"] = "1"             # Patch 0038: the FPS in the log, for test reports.
     # Patch 0033: GPU-shared guest memory, on unless turned off in Settings > Games.
     os.environ["KYTY_GPU_SHARED_MEMORY"] = "1" if settings["gpu_shared_memory"] else "0"
     # The PS4 GPU's colour fast clears, depth HiZ and MSAA FMASK leave 8x8-pixel blocks of
     # stale data when a game reads the target back (white dashes in Blue Prince). Mesa's
     # switches turn those shortcuts off.
     os.environ["RADV_DEBUG"] = "nofastclears,nohiz,nofmask"
+    os.environ.update(games.environment(game.key, settings))   # Game settings set by variables.
     os.makedirs(system.DATA_DIR, exist_ok=True)
     os.chdir(work)
     system.set_controller_mic(settings["controller_mic"])
@@ -190,7 +214,7 @@ def main():
         store.write_private(STATE, json.dumps(state) + "\n")
     except OSError:
         pass
-    code, _ = wait_watching_memory(child)
+    code, for_memory = wait_watching_memory(child)
     played = time.monotonic() - started
     try:
         with open(PAUSED) as f:
@@ -199,7 +223,56 @@ def main():
         pass
     if played > 5:
         games.add_play_time(game.key, played)
-    return 128 - code if code < 0 else code
+    code = 128 - code if code < 0 else code
+    after_game(game, games, settings, played, code, for_memory)
+    return code
+
+
+def settings_used(settings, games, game):
+    """The settings worth knowing in a report, in words."""
+    used = ["GPU-shared memory " + ("on" if settings["gpu_shared_memory"] else "off")]
+    entry = games.get(game.key)
+    for name, label, _ in store.GAME_OPTIONS:
+        if entry.get(name) or settings.data.get("default_" + name):
+            used.append(label)
+    return used
+
+
+def error_reason(text):
+    """The two lines after the last "--- ... Error ---" line of the log, or ""."""
+    lines = text.splitlines()
+    for i in range(len(lines) - 1, -1, -1):
+        if lines[i].startswith("--- ") and lines[i].rstrip().endswith("Error ---"):
+            return " ".join(line.strip() for line in lines[i + 1:i + 3])
+    return ""
+
+
+def after_game(game, games, settings, played, code, for_memory):
+    """Writes the last-game record; saves a crash report when the game stopped with an error."""
+    sys.stdout.flush()
+    try:
+        with open(system.GAME_LOG, encoding="utf-8", errors="replace") as f:
+            log_text = f.read()
+    except OSError:
+        log_text = ""
+    closed = os.path.isfile(CLOSED)
+    if for_memory:
+        ended = "Closed by EmuFive: out of memory"
+    elif closed:
+        ended = "Closed from the PS button menu"
+    elif code == 0:
+        ended = "The game ended by itself"
+    else:
+        reason = error_reason(log_text)
+        ended = f"Stopped with error code {code}" + (f": {reason}" if reason else "")
+    record = report.record_for(game, played, code, ended, settings_used(settings, games, game), log_text)
+    report.write_last_game(record)
+    if (code != 0 and not closed) or for_memory:
+        try:
+            folder, usb = report.save(record)
+            print(f"ps5-launch: crash report saved in {folder}" + (f" and {usb}" if usb else ""), flush=True)
+        except OSError as error:
+            print(f"ps5-launch: no crash report: {error}", flush=True)
 
 
 if __name__ == "__main__":

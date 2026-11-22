@@ -1,0 +1,196 @@
+{
+ "games": [
+  {
+   "title": "God of War Sons of Sparta",
+   "status": "works",
+   "console": "PS4 Pro",
+   "version": "1.0.0",
+   "result": "Playable, about 40 FPS and more"
+  },
+  {
+   "title": "Hollow Knight: Silksong",
+   "status": "works",
+   "console": "PS4 Pro",
+   "version": "1.0.1",
+   "result": "Playable, 60 FPS"
+  },
+  {
+   "title": "Plants vs. Zombies: Replanted",
+   "status": "works",
+   "console": "PS4 Pro",
+   "version": "1.0.4",
+   "result": "Playable, locked 60 FPS",
+   "title_ids": [
+    "PPSA29802"
+   ]
+  },
+  {
+   "title": "Vampire Survivors",
+   "status": "works",
+   "console": "PS4 Slim",
+   "version": "1.0.4",
+   "result": "Playable, stable 60 FPS"
+  },
+  {
+   "title": "My Little Puppy",
+   "status": "slow",
+   "console": "PS4 Slim",
+   "version": "1.0.6",
+   "result": "Runs, 3–15 FPS (20–25 in empty areas)"
+  },
+  {
+   "title": "DREDGE",
+   "status": "works",
+   "console": "PS4 Pro",
+   "version": "1.0.8",
+   "result": "Playable"
+  },
+  {
+   "title": "Animal Well",
+   "status": "works",
+   "console": "PS4 Pro",
+   "version": "1.0.9",
+   "result": "Playable, 42–44 FPS"
+  },
+  {
+   "title": "Teardown",
+   "status": "slow",
+   "console": "PS4 Pro",
+   "version": "1.0.9",
+   "result": "Runs, 9–12 FPS in game (about 20 in light scenes) with GPU-shared memory"
+  },
+  {
+   "title": "Invincible VS",
+   "status": "slow",
+   "console": "PS4 Pro",
+   "version": "1.0.9",
+   "result": "Starts, 4–5 FPS; not playable yet",
+   "title_ids": [
+    "PPSA30568"
+   ]
+  },
+  {
+   "title": "Blue Prince",
+   "status": "works",
+   "console": "PS4 Pro",
+   "version": "1.0.10",
+   "result": "Playable, about 25 FPS"
+  },
+  {
+   "title": "Wytchwood",
+   "status": "works",
+   "console": "PS4 Pro",
+   "version": "1.0.10",
+   "result": "Playable, stable 30 FPS"
+  },
+  {
+   "title": "Hades II",
+   "status": "slow",
+   "console": "PS4 Slim",
+   "version": "1.0.10",
+   "result": "Runs, 20–25 FPS in game (10–15 in menus), stutters"
+  },
+  {
+   "title": "Minecraft",
+   "status": "works",
+   "console": "PS4 Slim",
+   "version": "1.0.10",
+   "result": "Playable, 30–35 FPS in game (56–60 in menus) with GPU-shared memory off"
+  },
+  {
+   "title": "Crusader Kings III",
+   "status": "works",
+   "console": "PS4 Pro",
+   "version": "1.0.10",
+   "result": "Playable"
+  },
+  {
+   "title": "Iron Lung",
+   "status": "works",
+   "console": "PS4 Pro",
+   "version": "1.0.12",
+   "result": "Playable, 60 FPS"
+  },
+  {
+   "title": "The King is Watching",
+   "status": "works",
+   "console": "PS4 Pro",
+   "version": "1.0.12",
+   "result": "Playable, 55–60 FPS"
+  },
+  {
+   "title": "Wizard with a Gun",
+   "status": "slow",
+   "console": "PS4 Pro",
+   "version": "1.0.12",
+   "result": "Runs, 20–30 FPS with stutters; a portal glow stays on screen"
+  },
+  {
+   "title": "Another Crab's Treasure",
+   "status": "slow",
+   "console": "PS4 Pro",
+   "version": "1.0.12",
+   "result": "Runs, 4–10 FPS; graphics artifacts stay on screen"
+  },
+  {
+   "title": "Minecraft Dungeons 2",
+   "status": "slow",
+   "console": "PS4 Slim",
+   "version": "1.0.12",
+   "result": "Runs with the internet off, 20–30 FPS"
+  },
+  {
+   "title": "DRAGON BALL: Sparking! ZERO",
+   "status": "broken",
+   "console": "PS4 Pro",
+   "version": "1.0.10",
+   "result": "Shows the EULA and online screens, then the GPU stops",
+   "title_ids": [
+    "PPSA15210",
+    "PPSA15211"
+   ]
+  },
+  {
+   "title": "Hello Neighbor",
+   "status": "broken",
+   "console": "PS4 Pro",
+   "version": "1.0.4",
+   "result": "Stops at start (mesh shaders)"
+  },
+  {
+   "title": "Need for Speed Unbound",
+   "status": "broken",
+   "console": "PS4 Slim",
+   "version": "1.0.6",
+   "result": "Crashes at start (unsupported depth copy)"
+  },
+  {
+   "title": "V Rising",
+   "status": "broken",
+   "console": "PS4 Pro",
+   "version": "1.0.8",
+   "result": "Crashes at start"
+  },
+  {
+   "title": "Serious Sam 4",
+   "status": "broken",
+   "console": "PS4 Slim",
+   "version": "1.0.10",
+   "result": "Closes at start (online services)"
+  },
+  {
+   "title": "Serious Sam: Siberian Mayhem",
+   "status": "broken",
+   "console": "PS4 Slim",
+   "version": "1.0.9",
+   "result": "Closes at start (online services)"
+  },
+  {
+   "title": "The Long Dark",
+   "status": "broken",
+   "console": "PS4 Slim",
+   "version": "1.0.10",
+   "result": "Stuck on its intro video, no menu"
+  }
+ ]
+}

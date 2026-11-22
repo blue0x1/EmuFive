@@ -21,6 +21,10 @@ USB_GAMES = USB_MOUNT + "/PS5"
 PS4_MOUNT = "/media/ps4-drive"
 PS4_GAMES = PS4_MOUNT + "/home/PS5"
 PS4_GAMES_SHOWN = "/user/home/PS5"     # The same folder, as the PS4 and GoldHEN FTP name it.
+# Games copied from a USB drive onto EmuFive's own disk (Copy to the EmuFive disk). The PS4's own
+# drive is only ever read (ps5-ps4-drive): its UFS file system is not safe to write from Linux.
+LOCAL_GAMES = os.path.expanduser("~/PS5")
+COPY_SPARE = 2 * 1000 ** 3              # Left free on EmuFive's disk after a copy.
 PC_SETTINGS = os.path.join(store.CONFIG_DIR, "pc-share.json")
 PC_MOUNT = os.path.expanduser("~/.pc-share")   # smbnetfs: PC_MOUNT/<address>/<share>
 DATA_DIR = os.path.expanduser("~/data")         # The games' /data (saves).
@@ -92,6 +96,8 @@ def find_games(folder):
         return games
     for entry in entries:
         path = os.path.join(folder, entry)
+        if entry.endswith(".part"):     # A copy that is not finished yet (copy_game).
+            continue
         if os.path.isfile(os.path.join(path, "eboot.bin")) or (
                 os.path.isfile(path) and entry.lower().endswith(".zar")):
             games.append(path)
@@ -708,6 +714,75 @@ def space(path):
     return st.f_bavail * st.f_frsize, st.f_blocks * st.f_frsize
 
 
+class CopyCancelled(Exception):
+    pass
+
+
+def copy_game(source, progress=None, cancel=None):
+    """Copies a game (a folder or a .zar file) into LOCAL_GAMES, through a .part name so a stopped
+    copy never looks like a game. progress(done, total) is called as it goes; cancel() returning
+    True stops it (the part is removed). Returns the new path; raises OSError, or CopyCancelled."""
+    name = os.path.basename(source.rstrip("/"))
+    target = os.path.join(LOCAL_GAMES, name)
+    if os.path.exists(target):
+        raise OSError(f"{name} is already on the EmuFive disk.")
+    total = os.path.getsize(source) if os.path.isfile(source) else (folder_size(source) or 0)
+    os.makedirs(LOCAL_GAMES, exist_ok=True)
+    free = space(LOCAL_GAMES)
+    if free is not None and total + COPY_SPARE > free[0]:
+        raise OSError(f"Not enough space: the game needs {size_text(total)}, and "
+                      f"{size_text(max(0, free[0] - COPY_SPARE))} can be used on the EmuFive disk.")
+    part = target + ".part"
+    shutil.rmtree(part, ignore_errors=True)
+    if os.path.isfile(part):
+        os.remove(part)
+    done = [0]
+
+    def copy_file(src, dst):
+        with open(src, "rb") as fin, open(dst, "wb") as fout:
+            while True:
+                if cancel is not None and cancel():
+                    raise CopyCancelled()
+                chunk = fin.read(4 * 1024 * 1024)
+                if not chunk:
+                    break
+                fout.write(chunk)
+                done[0] += len(chunk)
+                if progress is not None:
+                    progress(done[0], total)
+        shutil.copystat(src, dst)
+
+    try:
+        if os.path.isfile(source):
+            copy_file(source, part)
+        else:
+            for root, dirs, files in os.walk(source):
+                dirs.sort()
+                out = os.path.join(part, os.path.relpath(root, source))
+                os.makedirs(out, exist_ok=True)
+                for f in sorted(files):
+                    copy_file(os.path.join(root, f), os.path.join(out, f))
+        os.replace(part, target)
+    except BaseException:
+        if os.path.isdir(part):
+            shutil.rmtree(part, ignore_errors=True)
+        elif os.path.exists(part):
+            os.remove(part)
+        raise
+    return target
+
+
+def delete_local_game(path):
+    """Deletes a game copied to the EmuFive disk (only from LOCAL_GAMES)."""
+    real = os.path.realpath(path)
+    if os.path.dirname(real) != os.path.realpath(LOCAL_GAMES):
+        raise OSError("Only games copied to the EmuFive disk can be deleted here.")
+    if os.path.isdir(real):
+        shutil.rmtree(real)
+    else:
+        os.remove(real)
+
+
 def mounted(path):
     try:
         with open("/proc/mounts") as f:
@@ -847,10 +922,8 @@ def system_info():
     for path in glob.glob("/sys/class/drm/card*/device/device"):
         gpu = read_first(path).lower()
         break
-    if gpu in ("0x9923",):
-        model = "PS4 Pro"
-    elif gpu:
-        model = "PS4"
+    # Gladius is the Pro's GPU; Liverpool is in the original PS4 (0x9920) and the Slim (0x9923).
+    model = {"0x9924": "PS4 Pro", "0x9923": "PS4 Slim", "0x9920": "PS4"}.get(gpu, "PS4")
     info.append(("Console", model + (f", {cores} CPU cores" if cores else "")))
     info.append(("KytyPS5", read_first("/opt/kytyps5/VERSION").replace("KytyPS5 ", "") or "unknown"))
     info.append(("EmuFive", update.installed()))

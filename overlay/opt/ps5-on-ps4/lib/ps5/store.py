@@ -41,6 +41,7 @@ DEFAULT_SETTINGS = {
     "tile_size": "medium",     # small, medium, large
     "tile_shape": "rounded",   # rounded, square, circle
     "source_labels": True,
+    "compat_badges": True,     # Works / Slow / Doesn't work on tested games (lib/ps5/compat.py).
     "text_size": 100,          # 90-130 percent
     "font": "modern",          # ui.FONTS
     "clock_date": False,
@@ -68,6 +69,9 @@ DEFAULT_SETTINGS = {
     "default_shader_cache": False,
     "default_perf_overlay": False,
     "default_full_hd": False,
+    "default_output_1080p": False,
+    "default_fsr": False,
+    "default_emulate_psn": False,
     "console_language": 1,     # 1: English (US); LANGUAGES
     "hdr": False,
     "present_mode": "Mailbox", # Mailbox, Fifo, Immediate
@@ -108,13 +112,19 @@ PRESENT_MODES = {"Mailbox": "Balanced (default)", "Fifo": "Smooth (no tearing)",
 
 BACKGROUND_FILE = os.path.join(CONFIG_DIR, "background.png")
 
-# KytyPS5 options a game can have, shown in its Game settings: (key, label, option).
+# KytyPS5 options a game can have, shown in its Game settings: (key, label, option). The option
+# is command-line arguments, or a dict of environment variables.
 GAME_OPTIONS = [
     ("perf_overlay", "Performance overlay", ["--perf-overlay"]),
     ("skip_logos", "Skip startup logos", ["--skip-notice-screen"]),
     ("shader_cache", "Keep compiled shaders", ["--shader-cache"]),
     ("full_hd", "Render at 1920x1080", ["--screen-width", "1920", "--screen-height", "1080"]),
     ("network", "Local network for the game", ["--network-connected"]),
+    # Patch 0025: the game sees a 1080p TV, so it draws a quarter of the pixels of 4K.
+    ("output_1080p", "Tell the game the TV is 1080p", {"KYTY_OUTPUT_1080P": "1"}),
+    ("fsr", "FSR 1 upscaling", {"KYTY_FSR": "1"}),
+    # KytyPS5 answers the game's PSN sign-in checks as if a user were signed in.
+    ("emulate_psn", "Simulated PSN sign-in", ["--emulate-psn"]),
 ]
 
 
@@ -339,12 +349,20 @@ class Games:
     def options(self, key, settings=None):
         """The KytyPS5 command-line options for this game: its own, and the defaults for all games
         (Settings, Games) when `settings` is given."""
+        return [arg for option in self._chosen(key, settings) if isinstance(option, list) for arg in option]
+
+    def environment(self, key, settings=None):
+        """The environment variables for this game's options (like options())."""
+        env = {}
+        for option in self._chosen(key, settings):
+            if isinstance(option, dict):
+                env.update(option)
+        return env
+
+    def _chosen(self, key, settings):
         entry = self.get(key)
-        args = []
-        for name, _, option in GAME_OPTIONS:
-            if entry.get(name) or (settings is not None and settings.data.get("default_" + name)):
-                args += option
-        return args
+        return [option for name, _, option in GAME_OPTIONS
+                if entry.get(name) or (settings is not None and settings.data.get("default_" + name))]
 
     def add_play_time(self, key, seconds):
         entry = self.get(key)

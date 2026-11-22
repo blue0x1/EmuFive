@@ -56,7 +56,7 @@ def give_back_freed_memory():
 give_back_freed_memory()
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "lib"))
-from ps5 import about, cheats, i18n, store, system, ui, update  # noqa: E402
+from ps5 import about, cheats, compat, i18n, report, store, system, ui, update  # noqa: E402
 
 # The Appearance settings decide the colors, so they are applied before the colors are imported
 # (the home screen starts again when they change).
@@ -1412,6 +1412,7 @@ class SettingsScreen(RowList):
             self.setting_choice("Tile shape", "tile_shape", [("rounded", "Rounded"), ("square", "Square"),
                                                               ("circle", "Circle")]),
             self.setting_toggle("Source labels (USB, PS4, PC)", "source_labels"),
+            self.setting_toggle("Compatibility badges", "compat_badges"),
             Row("header", "Text"),
             self.setting_choice("Text size", "text_size", [(v, f"{v}%") for v in (90, 100, 110, 120, 130)],
                                 reload=True),
@@ -1767,6 +1768,15 @@ class SettingsScreen(RowList):
             self.setting_toggle("Keep compiled shaders", "default_shader_cache"),
             self.setting_toggle("Performance overlay", "default_perf_overlay"),
             self.setting_toggle("Render at 1920x1080", "default_full_hd"),
+            self.setting_toggle("Tell the game the TV is 1080p", "default_output_1080p"),
+            Row("info", "Games draw for a 1080p TV instead of 4K: much less work for the PS4's GPU, "
+                        "so heavy 3D games run faster. The picture is a little softer."),
+            self.setting_toggle("FSR 1 upscaling", "default_fsr"),
+            Row("info", "AMD FSR 1 enlarges a game picture that is smaller than the TV, with sharper "
+                        "edges than plain scaling. Use it with the 1080p setting on a 4K TV."),
+            self.setting_toggle("Simulated PSN sign-in", "default_emulate_psn"),
+            Row("info", "Answers a game's PSN sign-in checks as if you were signed in. Some games stop at "
+                        "the start without it. Nothing is sent to PSN."),
             Row("choice", "Game language", store.LANGUAGES[h.settings["console_language"]]
                 if 0 <= h.settings["console_language"] < len(store.LANGUAGES) else "English (US)",
                 ok=lambda: h.push(Picker(h, "Game language", [(n, i) for i, n in enumerate(store.LANGUAGES)],
@@ -2574,6 +2584,12 @@ class GameMenu(RowList):
         if os.path.isdir(os.path.join(g.path, "sce_sys", "trophy2")):
             rows.append(Row("action", "Trophies", ok=lambda: h.push(TrophyList(h, g))))
         rows.append(Row("action", "Game info", ok=lambda: h.push(GameInfo(h, g))))
+        if not running:
+            rows.append(Row("action", "Report a test", ok=lambda: self.ask_report(g)))
+            if g.source == "USB":
+                rows.append(Row("action", "Copy to the EmuFive disk", ok=lambda: h.push(CopyView(h, g))))
+            elif g.source_name == "EmuFive disk":
+                rows.append(Row("action", "Delete from the EmuFive disk", ok=lambda: self.ask_delete(g)))
         if h.settings["cheats"] and g.title_id and g.version:
             on = cheats.enabled_count(g.title_id, g.version)
             rows.append(Row("button", "Cheats", f"{on} on" if on else "Off", ok=lambda: h.push(CheatGame(h, g))))
@@ -2586,6 +2602,34 @@ class GameMenu(RowList):
             rows.append(Row("toggle", label, entry.get(key, False), ok=lambda k=key: self.flip(k)))
         rows.append(Row("info", "Game settings are used the next time the game starts."))
         return rows
+
+    def ask_delete(self, g):
+        h = self.home
+
+        def delete():
+            def work():
+                system.delete_local_game(g.path)
+                return True, f"{g.title} was deleted from the EmuFive disk."
+
+            def after(ok, message):
+                h.refresh_games(force=True)
+                h.push(Dialog(h, message))
+
+            self.close()
+            h.push(Busy(h, "Deleting…", work, after))
+
+        h.push(Dialog(h, f"Delete {g.title} from the EmuFive disk? Its saves stay.",
+                      [("Delete", delete), ("Cancel", None)]))
+
+    def ask_report(self, g):
+        h = self.home
+
+        def show(result):
+            h.push(ReportView(h, g, result))
+
+        h.push(Dialog(h, f"How did {g.title} run?",
+                      [("Works", lambda: show("works")), ("Slow", lambda: show("slow")),
+                       ("Doesn't work", lambda: show("broken"))], title="Report a test"))
 
     def flip(self, key):
         h, g = self.home, self.game
@@ -2623,6 +2667,150 @@ class GameMenu(RowList):
         return [("cross", "Select"), ("circle", "Back")]
 
 
+class CopyView(Modal):
+    """Copies a USB game onto EmuFive's own disk (system.copy_game), with a progress bar; Circle
+    cancels. The copy then shows as its own tile (EmuFive disk) and runs without the USB drive."""
+
+    def __init__(self, home, game):
+        super().__init__(home)
+        self.game = game
+        self.done = 0
+        self.total = 0
+        self.result = None
+        self.cancelled = False
+
+        def progress(done, total):
+            self.done, self.total = done, total
+
+        def run():
+            try:
+                system.copy_game(game.path, progress, lambda: self.cancelled)
+                self.result = (True, f"{game.title} is on the EmuFive disk now. It runs without the USB drive.")
+            except system.CopyCancelled:
+                self.result = (False, "The copy was cancelled.")
+            except OSError as error:
+                self.result = (False, str(error))
+
+        threading.Thread(target=run, daemon=True).start()
+
+    def act(self, action):
+        if action == BACK and not self.cancelled:
+            self.cancelled = True
+            self.home.sounds.play("back")
+
+    def update(self, dt):
+        super().update(dt)
+        if self.result is not None and not self.closed:
+            self.close()
+            ok, message = self.result
+            self.home.sounds.play("select" if ok else "error")
+            self.home.refresh_games(force=True)
+            self.home.push(Dialog(self.home, message))
+
+    def draw(self, c):
+        c.dim(170 * ease_out(self.appear))
+        box_w, box_h = 640, 210
+        x, y = ui.W / 2 - box_w / 2, ui.H / 2 - box_h / 2
+        c.rect(DIALOG, x, y, box_w, box_h, 20)
+        c.text(c.t.fit(self.game.title, 22, box_w - 80, True), 22, x + 40, y + 30, WHITE, True)
+        c.text("Cancelling…" if self.cancelled else "Copying to the EmuFive disk…", 17, x + 40, y + 68, SOFT)
+        share = self.done / self.total if self.total else 0.0
+        c.rect((60, 58, 80), x + 40, y + 112, box_w - 80, 14, 7)
+        if share > 0:
+            c.rect(ACCENT, x + 40, y + 112, max(14, (box_w - 80) * min(1.0, share)), 14, 7)
+        if self.total:
+            c.text(f"{system.size_text(self.done)} of {system.size_text(self.total)}  ·  {int(share * 100)}%",
+                   16, x + 40, y + 144, WHITE)
+        else:
+            c.text("Measuring the game…", 16, x + 40, y + 144, WHITE)
+
+    def hints(self):
+        return [("circle", "Cancel")]
+
+
+class ReportView(Modal):
+    """Report a test: the game's details and how it ran, as a QR code that opens a ready GitHub
+    issue on a phone (lib/ps5/report.py). Square saves it to the USB drive. The FPS and how the
+    game ended come from its last run, when that was this game."""
+
+    def __init__(self, home, game, result):
+        super().__init__(home)
+        self.result = result
+        last = report.last_game()
+        if last is not None and last.get("title_id") == game.title_id and last.get("title") == game.title:
+            self.record = last
+            self.has_log = True
+        else:
+            entry = home.games_store.get(game.key)
+            self.record = report.record_for(game, entry.get("play_seconds", 0), 0, "", [], "")
+            self.record["played"] = int(entry.get("play_seconds", 0))
+            self.has_log = False
+        self.lines = report.details(self.record, result)
+        self.qr = None
+        self.error = None
+        self.saved = None
+        try:
+            import segno
+        except ImportError:
+            self.error = "The QR code needs the python3-segno package. Square still saves the report."
+            return
+        matrix = list(segno.make(report.issue_url(self.record, result), error="l").matrix)
+        n = len(matrix)
+        quiet = 4
+        surface = pygame.Surface((n + 2 * quiet, n + 2 * quiet))
+        surface.fill((255, 255, 255))
+        for y, row in enumerate(matrix):
+            for x, dark in enumerate(row):
+                if dark:
+                    surface.set_at((x + quiet, y + quiet), (10, 10, 16))
+        side = px(300)
+        self.qr = pygame.transform.scale(surface, (side - side % (n + 2 * quiet) or side, ) * 2)
+
+    def act(self, action):
+        h = self.home
+        if action in (BACK, OK):
+            h.sounds.play("back")
+            self.close()
+        elif action == SQUARE:
+            h.sounds.play("select")
+
+            def work():
+                if not system.mounted(system.USB_MOUNT):
+                    return False, "Plug in a USB drive first."
+                _, usb = report.save(self.record, self.result, self.has_log)
+                if usb is None:
+                    return False, "Could not write to the USB drive."
+                return True, "The report is in PS5-logs on the USB drive."
+
+            h.push(Busy(h, "Saving the report…", work))
+
+    def draw(self, c):
+        a = ease_out(self.appear)
+        c.dim(190 * a)
+        box_w, box_h = 1040, 500
+        x = ui.W / 2 - box_w / 2
+        y = ui.H / 2 - box_h / 2 + (1 - a) * 20
+        c.rect(DIALOG, x, y, box_w, box_h, 20)
+        c.text("Report a test", 26, x + 40, y + 34, WHITE, True)
+        ty = y + 90
+        for line in self.lines:
+            for part in c.t.wrap(line, 17, 560)[:2]:
+                c.text(part, 17, x + 40, ty, WHITE)
+                ty += 25
+        note = ("Scan the code with your phone: it opens a ready GitHub issue to post. "
+                "Square saves the report on the USB drive.")
+        ty = max(ty + 16, y + box_h - 110)
+        for part in c.t.wrap(self.error or note, 16, 560)[:3]:
+            c.text(part, 16, x + 40, ty, SOFT)
+            ty += 23
+        if self.qr is not None:
+            qx = x + box_w - 40 - self.qr.get_width() / ui.S
+            c.blit(self.qr, qx, y + box_h / 2 - self.qr.get_height() / ui.S / 2)
+
+    def hints(self):
+        return [("square", "Save to USB"), ("circle", "Back")]
+
+
 class GameInfo(GameMenu):
     """A game's details (its param.json) and its size on the drive, from its menu (OPTIONS on the home screen)."""
     WIDTH = 640
@@ -2649,6 +2837,11 @@ class GameInfo(GameMenu):
         rows += [Row("button", label, value) for label, value in self.details[:2]]
         rows.append(Row("button", "Size", size))
         rows += [Row("button", label, value) for label, value in self.details[2:]]
+        tested = compat.lookup(self.game.title_id, self.game.title)
+        if tested is not None:
+            rows.append(Row("header", "Tested"))
+            rows.append(Row("button", compat.LABELS[tested["status"]], tested["result"]))
+            rows.append(Row("button", "Tested on", f'{tested["console"]}, EmuFive {tested["version"]}'))
         rows.append(Row("header", "On this PS4"))
         rows.append(Row("button", "Play time", system.play_time_text(entry.get("play_seconds", 0))))
         return rows
@@ -3955,6 +4148,8 @@ class Home:
         self.entries = {}
         self.game_signature = None
         self.games_changed = False
+        # Badges from the tested-games list; a newer list is fetched once a day.
+        compat.refresh(lambda: setattr(self, "games_changed", True))
         self.selected = 0
         self.focus = "tiles"     # tiles, wifi, settings
         self.tab = "games"       # games, media
@@ -4134,6 +4329,7 @@ class Home:
     def refresh_games(self, force=False):
         found = [(p, "USB", "USB drive") for p in system.find_games(self.args.games)]
         found += [(p, "PS4", "PS4 drive") for p in system.find_games(self.args.ps4_games)]
+        found += [(p, "PS4", "EmuFive disk") for p in system.find_games(system.LOCAL_GAMES)]
         with self.pc.lock:
             pc_games = list(self.pc.games)
         signature = (tuple(f[0] for f in found) + tuple(g.path for g in pc_games),
@@ -4890,6 +5086,8 @@ class Home:
                     self.draw_badge(c, game.source, x, y + size, size if shape == "circle" else None)
                 if entry.get("favorite"):
                     ui.draw_star(c, x + size - 16, y + 16, 10, GOLD)
+                if self.settings["compat_badges"] and shape != "circle":
+                    self.draw_compat(c, game, x, y)
             if focused:
                 if settled and shape != "circle":
                     radius = (20 if shape == "rounded" else 4) + 5
@@ -4900,6 +5098,16 @@ class Home:
                     self.tile_shape(c, CHAMPAGNE, x, y, size, 2.5, 5)
             x += size + (TILE_GAP + 11 if i == self.selected else TILE_GAP)
         c.s.set_clip(old_clip)
+
+    def draw_compat(self, c, game, x, y):
+        """Works, Slow or Doesn't work, from the tested-games list, at the tile's top left."""
+        tested = compat.lookup(game.title_id, game.title)
+        if tested is None:
+            return
+        label = compat.LABELS[tested["status"]]
+        width = c.t.width(label, 11, True) + 14
+        c.rect(compat.COLORS[tested["status"]], x + 6, y + 6, width, 18, 9)
+        c.text(label, 11, x + 6 + width / 2, y + 15, (255, 255, 255), True, "center")
 
     def draw_badge(self, c, source, x, bottom, centered_in=None):
         width = c.t.width(source, 12, True) + 14

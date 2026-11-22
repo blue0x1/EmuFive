@@ -1,0 +1,254 @@
+From: Chokri Hammedi <52697989+blue0x1@users.noreply.github.com>
+Subject: [PATCH] presentation: KYTY_FSR upscales smaller game frames with AMD FSR 1
+
+With KYTY_FSR set, a game frame that is smaller than the screen (a game told
+the TV is 1080p, on a 4K TV) is drawn with FSR 1 EASU, the edge-adaptive
+upscaler, instead of a linear blit. SDR frames only; HDR frames and frames that
+are not upscaled keep the blit.
+---
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -316,6 +316,7 @@
+ add_gpu_blit_shader(gpu_blit_color_to_ms_depth gpu_blit_color_to_ms_depth.frag)
+ add_gpu_blit_shader(gpu_predicated_clear gpu_predicated_clear.frag)
+ add_gpu_blit_shader(gpu_video_out_overlay gpu_video_out_overlay.frag)
++add_gpu_blit_shader(gpu_video_out_fsr gpu_video_out_fsr.frag)
+ add_gpu_blit_shader(gpu_imgui_hdr gpu_video_out_overlay.frag -DIMGUI_HDR=1)
+ add_gpu_blit_shader(gpu_pssr_linear gpu_pssr_linear.comp)
+ # At SPIR-V 1.6 glslang declares a task shader's workgroup size with LocalSizeId, which needs maintenance4.
+--- a/src/graphics/presentation/window/swapchain.cpp
++++ b/src/graphics/presentation/window/swapchain.cpp
+@@ -6,6 +6,7 @@
+ #include "common/profiler.h"
+ #include "common/threads.h"
+ #include "gpu_blit_shaders/gpu_blit_fs_triangle_spv.h"
++#include "gpu_blit_shaders/gpu_video_out_fsr_spv.h"
+ #include "gpu_blit_shaders/gpu_video_out_overlay_spv.h"
+ #include "graphics/host_gpu/graphicContext.h"
+ #include "graphics/host_gpu/renderer/render.h"
+@@ -21,8 +22,10 @@
+ #include <algorithm>
+ #include <array>
+ #include <atomic>
++#include <cstdlib>
+ #include <limits>
+ #include <memory>
++#include <string>
+ #include <vector>
+ #include <vulkan/vk_platform.h>
+ 
+@@ -262,7 +265,7 @@
+ 	vk::SurfaceFormatKHR SelectFormat();
+ 	void Destroy();
+ 	void DrawLayer(vk::CommandBuffer command, const Presenter::Layer& layer,
+-	               const vk::Rect2D& rect);
++	               const vk::Rect2D& rect, bool fsr = false);
+ 
+ 	WindowContext&   m_window;
+ 	vk::SwapchainKHR m_handle = nullptr;
+@@ -282,6 +285,7 @@
+ 	vk::DescriptorSetLayout        m_overlay_descriptors = nullptr;
+ 	vk::PipelineLayout             m_overlay_layout      = nullptr;
+ 	vk::Pipeline                   m_overlay_pipeline    = nullptr;
++	vk::Pipeline                   m_fsr_pipeline        = nullptr; // KYTY_FSR: FSR 1 EASU upscale.
+ 	vk::Sampler                    m_overlay_sampler     = nullptr;
+ 	uint32_t                       m_image_index         = 0;
+ 	uint32_t                       m_frame_index         = 0;
+@@ -508,6 +512,8 @@
+ 		m_system_overlay->ReleaseVulkan();
+ 	}
+ 	graphics.device.destroyPipeline(m_overlay_pipeline, nullptr);
++	graphics.device.destroyPipeline(m_fsr_pipeline, nullptr);
++	m_fsr_pipeline = nullptr;
+ 	graphics.device.destroyPipelineLayout(m_overlay_layout, nullptr);
+ 	graphics.device.destroyDescriptorSetLayout(m_overlay_descriptors, nullptr);
+ 	graphics.device.destroySampler(m_overlay_sampler, nullptr);
+@@ -617,8 +623,18 @@
+ 	        {w, h}};
+ }
+ 
++// KYTY_FSR: a game frame smaller than the screen is upscaled with AMD FSR 1 (EASU) instead of a
++// linear blit (with KYTY_OUTPUT_1080P on a 4K TV). SDR frames only.
++static bool FsrEnabled() {
++	static const bool enabled = [] {
++		const char* value = std::getenv("KYTY_FSR");
++		return value != nullptr && *value != '\0' && std::string(value) != "0";
++	}();
++	return enabled;
++}
++
+ void Swapchain::DrawLayer(vk::CommandBuffer command, const Presenter::Layer& layer,
+-                          const vk::Rect2D& rect) {
++                          const vk::Rect2D& rect, bool fsr) {
+ 	auto device = m_window.graphic_ctx.device;
+ 	if (m_overlay_pipeline == nullptr) {
+ 		vk::SamplerCreateInfo sampler {};
+@@ -699,6 +715,14 @@
+ 		RequireVulkanSuccess(
+ 		    device.createGraphicsPipelines(nullptr, 1, &create, nullptr, &m_overlay_pipeline),
+ 		    "create video-out overlay pipeline");
++		if (FsrEnabled()) {
++			const auto fsr = CompileSPV(GPU_VIDEO_OUT_FSR_SPV, device);
++			stages[1].module = fsr;
++			RequireVulkanSuccess(
++			    device.createGraphicsPipelines(nullptr, 1, &create, nullptr, &m_fsr_pipeline),
++			    "create video-out FSR pipeline");
++			device.destroyShaderModule(fsr, nullptr);
++		}
+ 		device.destroyShaderModule(fragment, nullptr);
+ 		device.destroyShaderModule(vertex, nullptr);
+ 	}
+@@ -727,7 +751,8 @@
+ 	                       (layer.bus == 0 ? 16u : 0u);
+ 	command.pushConstants(m_overlay_layout, vk::ShaderStageFlagBits::eFragment, 0,
+ 	                      sizeof(flags), &flags);
+-	command.bindPipeline(vk::PipelineBindPoint::eGraphics, m_overlay_pipeline);
++	command.bindPipeline(vk::PipelineBindPoint::eGraphics,
++	                     fsr && m_fsr_pipeline != nullptr ? m_fsr_pipeline : m_overlay_pipeline);
+ 	vk::RenderingAttachmentInfo attachment {};
+ 	attachment.imageView   = m_image_views[m_image_index];
+ 	attachment.imageLayout = vk::ImageLayout::eColorAttachmentOptimal;
+@@ -754,7 +779,14 @@
+ void Swapchain::RecordPresentCommands(CommandBuffer& command, Presenter::Frame* source,
+                                       const Presenter::Layer& overlay, bool draw_system_overlay) {
+ 	auto       vk_command      = command.Handle();
+-	const bool convert_source  = source != nullptr && source->hdr && !m_hdr_active;
++	const auto* fit_source     = source != nullptr ? source : overlay.frame;
++	const auto  fit_rect       = !Config::StretchEnabled() && fit_source != nullptr
++	                                 ? FitAspect(fit_source->image.extent, m_extent)
++	                                 : vk::Rect2D {{0, 0}, m_extent};
++	// FSR 1 only when the frame is upscaled by more than a few percent, and for SDR frames.
++	const bool fsr_source = FsrEnabled() && source != nullptr && !source->hdr && !m_hdr_active &&
++	                        source->image.extent.width * 21u < fit_rect.extent.width * 20u;
++	const bool convert_source  = source != nullptr && ((source->hdr && !m_hdr_active) || fsr_source);
+ 	const bool blit_source     = source != nullptr && !convert_source;
+ 	const bool draw_overlay    = overlay.frame != nullptr;
+ 	const bool draw_attachment = convert_source || draw_overlay || draw_system_overlay;
+@@ -863,7 +895,7 @@
+ 			                           &to_present);
+ 		};
+ 		if (convert_source) {
+-			DrawLayer(vk_command, {source, 0, false}, game_rect);
++			DrawLayer(vk_command, {source, 0, false}, game_rect, fsr_source);
+ 			if (draw_overlay || draw_system_overlay) {
+ 				attachment_barrier();
+ 			}
+--- /dev/null
++++ b/src/graphics/host_gpu/shaders/gpu_video_out_fsr.frag
+@@ -0,0 +1,116 @@
++#version 450
++// AMD FidelityFX Super Resolution 1.0, EASU (the edge-adaptive upscaler), as one full-screen pass
++// from the game's frame to the screen. Written after AMD's ffx_fsr1.h (MIT license, Copyright (c)
++// 2021 Advanced Micro Devices, Inc.). Used with KYTY_FSR when the game draws smaller than the
++// screen (KYTY_OUTPUT_1080P on a 4K TV): edges stay sharp where a linear blit blurs them.
++
++layout(location = 0) in vec2 uv;
++layout(location = 0) out vec4 color;
++layout(binding = 0) uniform sampler2D source;
++layout(push_constant) uniform Flags {
++	uint flags;
++};
++
++ivec2 g_max;
++
++vec3 Fetch(ivec2 p) {
++	return texelFetch(source, clamp(p, ivec2(0), g_max), 0).rgb;
++}
++
++float Luma(vec3 c) {
++	return c.b * 0.5 + (c.r * 0.5 + c.g);
++}
++
++void Tap(inout vec3 aC, inout float aW, vec2 off, vec2 dir, vec2 len, float lob, float clp, vec3 c) {
++	vec2 v;
++	v.x = off.x * dir.x + off.y * dir.y;
++	v.y = off.x * (-dir.y) + off.y * dir.x;
++	v *= len;
++	float d2 = min(v.x * v.x + v.y * v.y, clp);
++	float wB = (2.0 / 5.0) * d2 - 1.0;
++	float wA = lob * d2 - 1.0;
++	wB *= wB;
++	wA *= wA;
++	wB = (25.0 / 16.0) * wB - (25.0 / 16.0 - 1.0);
++	float w = wB * wA;
++	aC += c * w;
++	aW += w;
++}
++
++void Set(inout vec2 dir, inout float len, float w, float lA, float lB, float lC, float lD, float lE) {
++	float dc = lD - lC;
++	float cb = lC - lB;
++	float lenX = max(abs(dc), abs(cb));
++	lenX = lenX > 0.0 ? 1.0 / lenX : 0.0;
++	float dirX = lD - lB;
++	dir.x += dirX * w;
++	lenX = clamp(abs(dirX) * lenX, 0.0, 1.0);
++	lenX *= lenX;
++	len += lenX * w;
++	float ec = lE - lC;
++	float ca = lC - lA;
++	float lenY = max(abs(ec), abs(ca));
++	lenY = lenY > 0.0 ? 1.0 / lenY : 0.0;
++	float dirY = lE - lA;
++	dir.y += dirY * w;
++	lenY = clamp(abs(dirY) * lenY, 0.0, 1.0);
++	lenY *= lenY;
++	len += lenY * w;
++}
++
++void main() {
++	g_max = textureSize(source, 0) - ivec2(1);
++	vec2 pp = uv * vec2(textureSize(source, 0)) - vec2(0.5);
++	vec2 fp = floor(pp);
++	pp -= fp;
++	ivec2 p = ivec2(fp);
++	//    b c
++	//  e f g h
++	//  i j k l
++	//    n o
++	vec3 b = Fetch(p + ivec2(0, -1)), c = Fetch(p + ivec2(1, -1));
++	vec3 e = Fetch(p + ivec2(-1, 0)), f = Fetch(p), g = Fetch(p + ivec2(1, 0)), h = Fetch(p + ivec2(2, 0));
++	vec3 i = Fetch(p + ivec2(-1, 1)), j = Fetch(p + ivec2(0, 1)), k = Fetch(p + ivec2(1, 1)), l = Fetch(p + ivec2(2, 1));
++	vec3 n = Fetch(p + ivec2(0, 2)), o = Fetch(p + ivec2(1, 2));
++	float bL = Luma(b), cL = Luma(c), eL = Luma(e), fL = Luma(f), gL = Luma(g), hL = Luma(h);
++	float iL = Luma(i), jL = Luma(j), kL = Luma(k), lL = Luma(l), nL = Luma(n), oL = Luma(o);
++
++	vec2 dir = vec2(0.0);
++	float len = 0.0;
++	Set(dir, len, (1.0 - pp.x) * (1.0 - pp.y), bL, eL, fL, gL, jL);
++	Set(dir, len, pp.x * (1.0 - pp.y), cL, fL, gL, hL, kL);
++	Set(dir, len, (1.0 - pp.x) * pp.y, fL, iL, jL, kL, nL);
++	Set(dir, len, pp.x * pp.y, gL, jL, kL, lL, oL);
++
++	vec2 dir2 = dir * dir;
++	float dirR = dir2.x + dir2.y;
++	bool zro = dirR < 1.0 / 32768.0;
++	dirR = zro ? 1.0 : inversesqrt(dirR);
++	dir.x = zro ? 1.0 : dir.x;
++	dir *= dirR;
++	len = len * 0.5;
++	len *= len;
++	float stretch = (dir.x * dir.x + dir.y * dir.y) / max(abs(dir.x), abs(dir.y));
++	vec2 len2 = vec2(1.0 + (stretch - 1.0) * len, 1.0 - 0.5 * len);
++	float lob = 0.5 + ((1.0 / 4.0 - 0.04) - 0.5) * len;
++	float clp = 1.0 / lob;
++
++	vec3 min4 = min(min(f, g), min(j, k));
++	vec3 max4 = max(max(f, g), max(j, k));
++	vec3 aC = vec3(0.0);
++	float aW = 0.0;
++	Tap(aC, aW, vec2(0.0, -1.0) - pp, dir, len2, lob, clp, b);
++	Tap(aC, aW, vec2(1.0, -1.0) - pp, dir, len2, lob, clp, c);
++	Tap(aC, aW, vec2(-1.0, 1.0) - pp, dir, len2, lob, clp, i);
++	Tap(aC, aW, vec2(0.0, 1.0) - pp, dir, len2, lob, clp, j);
++	Tap(aC, aW, vec2(0.0, 0.0) - pp, dir, len2, lob, clp, f);
++	Tap(aC, aW, vec2(-1.0, 0.0) - pp, dir, len2, lob, clp, e);
++	Tap(aC, aW, vec2(1.0, 1.0) - pp, dir, len2, lob, clp, k);
++	Tap(aC, aW, vec2(2.0, 1.0) - pp, dir, len2, lob, clp, l);
++	Tap(aC, aW, vec2(2.0, 0.0) - pp, dir, len2, lob, clp, h);
++	Tap(aC, aW, vec2(1.0, 0.0) - pp, dir, len2, lob, clp, g);
++	Tap(aC, aW, vec2(1.0, 2.0) - pp, dir, len2, lob, clp, o);
++	Tap(aC, aW, vec2(0.0, 2.0) - pp, dir, len2, lob, clp, n);
++	vec3 rgb = min(max4, max(min4, aC / aW));
++	color = vec4(rgb, 1.0);
++}
