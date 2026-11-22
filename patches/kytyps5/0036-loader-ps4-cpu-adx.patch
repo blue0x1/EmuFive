@@ -1,0 +1,119 @@
+From: Chokri Hammedi <52697989+blue0x1@users.noreply.github.com>
+Subject: [PATCH] loader: replace ADX (ADCX, ADOX) on the PS4's CPU
+
+The PS5's Zen 2 has ADX, the PS4's Jaguar doesn't. Dispatch (EmuFive#64)
+stopped on its first ADCX with an illegal instruction. ADCX and ADOX are now
+replaced like the AVX2/FMA/BMI2 instructions of 0004: the guest's RFLAGS are
+saved, the carry in (CF for ADCX, OF for ADOX) comes from the saved copy,
+ADC does the sum, and the carry out goes back into the saved copy, so only
+that one flag changes. tools/jaguar-test checks every register, flag and
+memory form against the real instructions.
+--- a/src/loader/jaguarCompat.cpp
++++ b/src/loader/jaguarCompat.cpp
+@@ -1,5 +1,5 @@
+ // SPDX-License-Identifier: GPL-2.0-or-later
+-// Replacements for AVX2, FMA and BMI2 instructions built from what the PS4's Jaguar CPU has
++// Replacements for AVX2, FMA, BMI2 and ADX instructions built from what the PS4's Jaguar CPU has
+ // (SSE4.2, AVX, BMI1, F16C). See jaguarCompat.h.
+ 
+ #include "loader/jaguarCompat.h"
+@@ -1244,6 +1244,43 @@
+ 	}
+ }
+ 
++// ---------------------------------------------------------------------------------------------
++// ADX. ADCX dst, src: dst = dst + src + CF, and only CF changes; ADOX does the same with OF.
++// The guest's RFLAGS are saved, the carry in is taken from the saved copy, ADC does the sum and
++// the carry out goes into the saved copy, which is restored at the end. Bignum code (crypto)
++// chains these with MULX.
++
++bool GenerateAdx(Emitter& e) {
++	if (UsesStackPointer(e) || e.in.operand_count_visible != 2 ||
++	    e.ops[0].type != ZYDIS_OPERAND_TYPE_REGISTER) {
++		return false;
++	}
++	const int bits = e.ops[0].size;
++	if (bits != 32 && bits != 64) {
++		return false;
++	}
++	const int bit = e.in.mnemonic == ZYDIS_MNEMONIC_ADCX ? 0 : 11; // CF or OF.
++	GprWork   w(e, {ZYDIS_REGISTER_RAX, ZYDIS_REGISTER_RCX, ZYDIS_REGISTER_RDX}, true);
++	const int flags = 3 * 8; // The saved RFLAGS sit above the three saved registers.
++	// The source first: a memory source may be addressed through RAX.
++	w.Read(ZYDIS_REGISTER_RCX, 1, bits);
++	w.Read(ZYDIS_REGISTER_RAX, 0, bits);
++	e.g.bt(qword[rsp + flags], bit);
++	if (bits == 64) {
++		e.g.adc(rax, rcx);
++	} else {
++		e.g.adc(eax, ecx);
++	}
++	e.g.setc(dl);
++	e.g.movzx(edx, dl);
++	e.g.shl(edx, bit);
++	e.g.btr(qword[rsp + flags], bit);
++	e.g.or_(qword[rsp + flags], rdx);
++	w.Write(0, ZYDIS_REGISTER_RAX, bits);
++	w.Finish();
++	return e.ok;
++}
++
+ } // namespace
+ 
+ bool TrapTest() {
+@@ -1261,7 +1298,7 @@
+ 		}
+ 		const Xbyak::util::Cpu cpu;
+ 		return !(cpu.has(Xbyak::util::Cpu::tAVX2) && cpu.has(Xbyak::util::Cpu::tFMA) &&
+-		         cpu.has(Xbyak::util::Cpu::tBMI2));
++		         cpu.has(Xbyak::util::Cpu::tBMI2) && cpu.has(Xbyak::util::Cpu::tADX));
+ 	}();
+ 	return enabled;
+ }
+@@ -1271,13 +1308,18 @@
+ 		case ZYDIS_ISA_EXT_AVX2:
+ 		case ZYDIS_ISA_EXT_AVX2GATHER:
+ 		case ZYDIS_ISA_EXT_FMA:
+-		case ZYDIS_ISA_EXT_BMI2: return true;
++		case ZYDIS_ISA_EXT_BMI2:
++		case ZYDIS_ISA_EXT_ADOX_ADCX: return true;
+ 		default: return false;
+ 	}
+ }
+ 
+ bool Generate(const ZydisDecodedInstruction& instruction, const ZydisDecodedOperand* operands,
+               uint64_t address, Xbyak::CodeGenerator& generator, bool flags_live) {
++	if (instruction.meta.isa_ext == ZYDIS_ISA_EXT_ADOX_ADCX) {
++		Emitter e(instruction, operands, address, generator);
++		return GenerateAdx(e);
++	}
+ 	if (instruction.encoding != ZYDIS_INSTRUCTION_ENCODING_VEX) {
+ 		return false;
+ 	}
+--- a/src/loader/jaguarCompat.h
++++ b/src/loader/jaguarCompat.h
+@@ -1,5 +1,5 @@
+ // SPDX-License-Identifier: GPL-2.0-or-later
+-// Runs PS5 guest code on CPUs without AVX2, FMA and BMI2, such as the PS4's AMD Jaguar.
++// Runs PS5 guest code on CPUs without AVX2, FMA, BMI2 and ADX, such as the PS4's AMD Jaguar.
+ 
+ #ifndef KYTY_LOADER_JAGUAR_COMPAT_H_
+ #define KYTY_LOADER_JAGUAR_COMPAT_H_
+@@ -13,7 +13,7 @@
+ 
+ namespace Loader::JaguarCompat {
+ 
+-// True when the host lacks AVX2, FMA or BMI2, so guest code that uses them must be rewritten.
++// True when the host lacks AVX2, FMA, BMI2 or ADX, so guest code that uses them must be rewritten.
+ // The environment variable KYTY_JAGUAR_COMPAT=1 turns it on anyway (to test on a newer CPU),
+ // KYTY_JAGUAR_COMPAT=0 turns it off.
+ bool Enabled();
+@@ -22,7 +22,7 @@
+ // instructions at load time, make them fault, so that every one goes through the run-time path.
+ bool TrapTest();
+ 
+-// Whether the instruction needs AVX2, FMA or BMI2.
++// Whether the instruction needs AVX2, FMA, BMI2 or ADX (ADCX, ADOX).
+ bool IsMissing(const ZydisDecodedInstruction& instruction);
+ 
+ // Appends host code that has the same effect as the guest instruction at `address`: the same
