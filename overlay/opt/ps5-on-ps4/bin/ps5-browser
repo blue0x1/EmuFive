@@ -835,6 +835,9 @@ class Browser:
         s.set_enable_developer_extras(False)
         s.set_enable_webrtc(False)
         s.set_enable_media_stream(False)
+        # 2D canvases are drawn by Skia on the GPU too, with black blocks on the PS4's GPU like the
+        # page tiles (a canvas game: #74); WEBKIT_SKIA_ENABLE_CPU_RENDERING does not cover them.
+        s.set_enable_2d_canvas_acceleration(False)
         s.set_media_playback_requires_user_gesture(True) # No videos playing by themselves.
         s.set_javascript_can_open_windows_automatically(False)
         self.default_agent = s.get_user_agent()
