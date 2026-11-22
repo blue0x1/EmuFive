@@ -2729,89 +2729,6 @@ class CopyView(Modal):
         return [("circle", "Cancel")]
 
 
-class ReportView(Modal):
-    """Report a test: the game's details and how it ran, as a QR code that opens a ready GitHub
-    issue on a phone (lib/ps5/report.py). Square saves it to the USB drive. The FPS and how the
-    game ended come from its last run, when that was this game."""
-
-    def __init__(self, home, game, result):
-        super().__init__(home)
-        self.result = result
-        last = report.last_game()
-        if last is not None and last.get("title_id") == game.title_id and last.get("title") == game.title:
-            self.record = last
-            self.has_log = True
-        else:
-            entry = home.games_store.get(game.key)
-            self.record = report.record_for(game, entry.get("play_seconds", 0), 0, "", [], "")
-            self.record["played"] = int(entry.get("play_seconds", 0))
-            self.has_log = False
-        self.lines = report.details(self.record, result)
-        self.qr = None
-        self.error = None
-        self.saved = None
-        try:
-            import segno
-        except ImportError:
-            self.error = "The QR code needs the python3-segno package. Square still saves the report."
-            return
-        matrix = list(segno.make(report.issue_url(self.record, result), error="l").matrix)
-        n = len(matrix)
-        quiet = 4
-        surface = pygame.Surface((n + 2 * quiet, n + 2 * quiet))
-        surface.fill((255, 255, 255))
-        for y, row in enumerate(matrix):
-            for x, dark in enumerate(row):
-                if dark:
-                    surface.set_at((x + quiet, y + quiet), (10, 10, 16))
-        side = px(300)
-        self.qr = pygame.transform.scale(surface, (side - side % (n + 2 * quiet) or side, ) * 2)
-
-    def act(self, action):
-        h = self.home
-        if action in (BACK, OK):
-            h.sounds.play("back")
-            self.close()
-        elif action == SQUARE:
-            h.sounds.play("select")
-
-            def work():
-                if not system.mounted(system.USB_MOUNT):
-                    return False, "Plug in a USB drive first."
-                _, usb = report.save(self.record, self.result, self.has_log)
-                if usb is None:
-                    return False, "Could not write to the USB drive."
-                return True, "The report is in PS5-logs on the USB drive."
-
-            h.push(Busy(h, "Saving the report…", work))
-
-    def draw(self, c):
-        a = ease_out(self.appear)
-        c.dim(190 * a)
-        box_w, box_h = 1040, 500
-        x = ui.W / 2 - box_w / 2
-        y = ui.H / 2 - box_h / 2 + (1 - a) * 20
-        c.rect(DIALOG, x, y, box_w, box_h, 20)
-        c.text("Report a test", 26, x + 40, y + 34, WHITE, True)
-        ty = y + 90
-        for line in self.lines:
-            for part in c.t.wrap(line, 17, 560)[:2]:
-                c.text(part, 17, x + 40, ty, WHITE)
-                ty += 25
-        note = ("Scan the code with your phone: it opens a ready GitHub issue to post. "
-                "Square saves the report on the USB drive.")
-        ty = max(ty + 16, y + box_h - 110)
-        for part in c.t.wrap(self.error or note, 16, 560)[:3]:
-            c.text(part, 16, x + 40, ty, SOFT)
-            ty += 23
-        if self.qr is not None:
-            qx = x + box_w - 40 - self.qr.get_width() / ui.S
-            c.blit(self.qr, qx, y + box_h / 2 - self.qr.get_height() / ui.S / 2)
-
-    def hints(self):
-        return [("square", "Save to USB"), ("circle", "Back")]
-
-
 class GameInfo(GameMenu):
     """A game's details (its param.json) and its size on the drive, from its menu (OPTIONS on the home screen)."""
     WIDTH = 640
@@ -4094,6 +4011,175 @@ class ShareView(Modal):
 
     def hints(self):
         return [("circle", "Close")]
+
+
+class ReportView(ShareView):
+    """Report a test, in the Share screen's glass card: the game's art blurred behind, its picture,
+    how it ran and the details on the left; on the right a QR code that opens a ready GitHub issue
+    on a phone (lib/ps5/report.py). Square saves the report to the USB drive. The FPS and how the
+    game ended come from its last run, when that was this game."""
+    PICTURE = (180, 153, 507, 200)
+
+    def __init__(self, home, game, result):
+        Modal.__init__(self, home)
+        self.game = game
+        self.result = result
+        self.qr = None
+        self.error = None
+        self.frame = None
+        self.server = None
+        last = report.last_game()
+        if last is not None and last.get("title_id") == game.title_id and last.get("title") == game.title:
+            self.record = last
+            self.has_log = True
+        else:
+            entry = home.games_store.get(game.key)
+            self.record = report.record_for(game, entry.get("play_seconds", 0), 0, "", [], "")
+            self.has_log = False
+        self.picture_path = None
+        for name in ("pic0.png", "pic1.png", "icon0.png"):
+            path = os.path.join(game.sys_dir, name)
+            if os.path.isfile(path):
+                self.picture_path = path
+                break
+        palette = picture_palette(self.picture_path) if self.picture_path else None
+        self.vivid = palette[0] if palette else ACCENT
+        try:
+            import segno
+        except ImportError:
+            self.error = "The QR code needs the python3-segno package. Square still saves the report."
+            return
+        matrix = list(segno.make(report.issue_url(self.record, result), error="l").matrix)
+        n = len(matrix)
+        quiet = 4
+        surface = pygame.Surface((n + 2 * quiet, n + 2 * quiet))
+        surface.fill((255, 255, 255))
+        for y, row in enumerate(matrix):
+            for x, dark in enumerate(row):
+                if dark:
+                    surface.set_at((x + quiet, y + quiet), (10, 10, 16))
+        side = px(self.CODE_SIDE)
+        self.qr = pygame.transform.scale(surface, (side - side % (n + 2 * quiet) or side, ) * 2)
+
+    def details(self):
+        """(label, value) lines shown under the picture."""
+        r = self.record
+        fps = r.get("fps")
+        lines = [("FPS", i18n.Final(f"{fps['avg']}  ({fps['min']} – {fps['max']})") if fps else "Not measured"),
+                 ("Console", i18n.Final(f"{r.get('console', 'PS4')}  ·  EmuFive {r.get('emufive', '?')}")),
+                 ("Played", system.play_time_text(r.get("played", 0)))]
+        if r.get("ended"):
+            lines.append(("Ended", r["ended"]))
+        if r.get("settings"):
+            lines.append(("Settings", i18n.Final(", ".join(i18n.translate(x) for x in r["settings"]))))
+        return lines
+
+    def compose(self, size, text):
+        frame = pygame.Surface(size).convert()
+        c = ui.Canvas(frame, text)
+        vivid = self.vivid
+        try:
+            picture = pygame.image.load(self.picture_path).convert() if self.picture_path else None
+        except (pygame.error, OSError):
+            picture = None
+        # Behind: the game's art, blurred and darkened, with the Aurora's ribbons of light.
+        if picture is not None:
+            scale = max(size[0] / picture.get_width(), size[1] / picture.get_height())
+            big = pygame.transform.smoothscale(picture, (int(picture.get_width() * scale) + 1,
+                                                         int(picture.get_height() * scale) + 1))
+            frame.blit(soft_blur(big, 14), big.get_rect(center=frame.get_rect().center))
+        else:
+            frame.fill(ui.mix(vivid, (6, 5, 14), 0.85))
+        c.dim(165, (6, 5, 14))
+        frame.blit(aurora_light(size[0], size[1], vivid), (0, 0), special_flags=pygame.BLEND_RGB_ADD)
+        card = self.rect_px(*self.CARD)
+        self.glass(frame, card, px(27))
+        x, y, w, h = self.CARD
+        # The game's picture, its name and how it ran.
+        pr = self.rect_px(*self.PICTURE)
+        if picture is not None:
+            scale = max(pr.w / picture.get_width(), pr.h / picture.get_height())
+            shot = pygame.transform.smoothscale(picture, (max(pr.w, int(picture.get_width() * scale)),
+                                                          max(pr.h, int(picture.get_height() * scale))))
+            shot = shot.subsurface(pygame.Rect((shot.get_width() - pr.w) // 2, (shot.get_height() - pr.h) // 2,
+                                               pr.w, pr.h))
+            frame.blit(self.cut(shot, px(15)), pr.topleft)
+        frame.blit(gradient_border(pr.w, pr.h, px(15), vivid, CHAMPAGNE, max(1, px(1.4))), pr.topleft)
+        px_, py_, pw, ph = self.PICTURE
+        ty = py_ + ph + 18
+        c.text(c.t.fit(self.game.title, 21, pw, True), 21, px_, ty, WHITE, True)
+        ty += 34
+        label = compat.LABELS.get(self.result, self.result)
+        pill_w = c.t.width(label, 14, True) + 24
+        c.rect(compat.COLORS.get(self.result, ACCENT), px_, ty, pill_w, 24, 12)
+        c.text(label, 14, px_ + pill_w / 2, ty + 12, WHITE, True, "center")
+        sub = self.game.subtitle()
+        if sub:
+            c.text(c.t.fit(i18n.Final(sub), 14, pw - pill_w - 14), 14, px_ + pill_w + 14, ty + 12, SOFT, False, "midleft")
+        ty += 40
+        label_w = max(c.t.width(i18n.translate(lbl), 15) for lbl, _ in self.details()) + 18
+        for lbl, value in self.details():
+            if ty > y + h - 30:
+                break
+            c.text(lbl, 15, px_, ty, DIM)
+            c.text(c.t.fit(value, 15, pw - label_w), 15, px_ + label_w, ty, WHITE)
+            ty += 24
+        cx, cy = self.CODE
+        if self.error:
+            for n, line in enumerate(c.t.wrap(self.error, 17, 300)):
+                c.text(line, 17, cx, cy - 40 + n * 26, SOFT, False, "midtop")
+            self.tile = None
+        else:
+            # The code on a white tile.
+            side = self.qr.get_width() / ui.S
+            pad = 17
+            tile = self.rect_px(cx - side / 2 - pad, cy - side / 2 - pad, side + 2 * pad, side + 2 * pad)
+            ui.draw_round(frame, (255, 255, 255), tile, px(17))
+            frame.blit(self.qr, self.qr.get_rect(center=tile.center))
+            self.tile = tile
+            # How to.
+            top = cy + side / 2 + pad + 30
+            c.text("Post it on GitHub", 23, cx, top, WHITE, True, "midtop")
+            ink = (14, 12, 20) if sum(vivid) > 300 else WHITE
+            sx = cx - 140
+            for n, line in enumerate(("Open your phone's camera", "Point it at the code", "Post the ready issue")):
+                yy = top + 46 + n * 35
+                c.circle(vivid, sx + 12, yy + 12, 12)
+                c.text(str(n + 1), 13, sx + 12, yy + 12, ink, True, "center")
+                c.text(line, 16, sx + 35, yy + 12, WHITE, False, "midleft")
+        c.text("Square saves the report and the game's log on the USB drive.", 13, ui.W / 2, y + h + 22, DIM,
+               False, "midtop")
+        return frame
+
+    def draw(self, c):
+        if self.error is None:
+            super().draw(c)
+            return
+        size = c.s.get_size()
+        if self.frame is None or self.frame.get_size() != size:
+            self.frame = self.compose(size, c.t)
+        c.s.blit(self.frame, (0, 0))
+
+    def act(self, action):
+        h = self.home
+        if action in (BACK, OK):
+            h.sounds.play("back")
+            self.close()
+        elif action == SQUARE:
+            h.sounds.play("select")
+
+            def work():
+                if not system.mounted(system.USB_MOUNT):
+                    return False, "Plug in a USB drive first."
+                _, usb = report.save(self.record, self.result, self.has_log)
+                if usb is None:
+                    return False, "Could not write to the USB drive."
+                return True, "The report is in PS5-logs on the USB drive."
+
+            h.push(Busy(h, "Saving the report…", work))
+
+    def hints(self):
+        return [("square", "Save to USB"), ("circle", "Close")]
 
 
 # --------------------------------------------------------------------------------------------

@@ -919,9 +919,11 @@ def system_info():
     except OSError:
         cores = 0
     gpu = ""
-    for path in glob.glob("/sys/class/drm/card*/device/device"):
-        gpu = read_first(path).lower()
-        break
+    # card0, not card0-HDMI-A-1 (a connector: its device is not the GPU).
+    for path in sorted(glob.glob("/sys/class/drm/card[0-9]*/device/device")):
+        if "-" not in os.path.basename(os.path.dirname(os.path.dirname(path))):
+            gpu = read_first(path).lower()
+            break
     # Gladius is the Pro's GPU; Liverpool is in the original PS4 (0x9920) and the Slim (0x9923).
     model = {"0x9924": "PS4 Pro", "0x9923": "PS4 Slim", "0x9920": "PS4"}.get(gpu, "PS4")
     info.append(("Console", model + (f", {cores} CPU cores" if cores else "")))

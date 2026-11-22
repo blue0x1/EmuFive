@@ -6577,5 +6577,77 @@
 "de": "Jetzt speichern. Noch {n} MB frei.",
 "it": "Salva ora la partita. Restano {n} MB.",
 "pt": "Salve o jogo agora. Restam {n} MB."
+},
+"Post it on GitHub": {
+"ar": "انشره على GitHub",
+"fr": "Publiez-le sur GitHub",
+"tr": "GitHub'da paylaş",
+"es": "Publícalo en GitHub",
+"de": "Auf GitHub posten",
+"it": "Pubblicalo su GitHub",
+"pt": "Publique no GitHub"
+},
+"Post the ready issue": {
+"ar": "انشر البلاغ الجاهز",
+"fr": "Publiez le ticket prêt",
+"tr": "Hazır kaydı gönder",
+"es": "Publica la incidencia lista",
+"de": "Fertiges Issue absenden",
+"it": "Pubblica la segnalazione pronta",
+"pt": "Envie a issue pronta"
+},
+"Square saves the report and the game's log on the USB drive.": {
+"ar": "زر المربع يحفظ التقرير وسجل اللعبة على وحدة USB.",
+"fr": "Carré enregistre le rapport et le journal du jeu sur la clé USB.",
+"tr": "Kare, raporu ve oyun günlüğünü USB sürücüsüne kaydeder.",
+"es": "Cuadrado guarda el informe y el registro del juego en la unidad USB.",
+"de": "Quadrat speichert Bericht und Spielprotokoll auf dem USB-Laufwerk.",
+"it": "Quadrato salva il rapporto e il registro del gioco sull'unità USB.",
+"pt": "Quadrado salva o relatório e o log do jogo no pendrive."
+},
+"Not measured": {
+"ar": "لم يُقَس",
+"fr": "Non mesuré",
+"tr": "Ölçülmedi",
+"es": "Sin medir",
+"de": "Nicht gemessen",
+"it": "Non misurato",
+"pt": "Não medido"
+},
+"Ended": {
+"ar": "الانتهاء",
+"fr": "Fin",
+"tr": "Bitiş",
+"es": "Final",
+"de": "Ende",
+"it": "Fine",
+"pt": "Fim"
+},
+"Closed from the PS button menu": {
+"ar": "أُغلقت من قائمة زر PS",
+"fr": "Fermé depuis le menu du bouton PS",
+"tr": "PS düğmesi menüsünden kapatıldı",
+"es": "Cerrado desde el menú del botón PS",
+"de": "Über das PS-Tasten-Menü geschlossen",
+"it": "Chiuso dal menu del tasto PS",
+"pt": "Fechado pelo menu do botão PS"
+},
+"The game ended by itself": {
+"ar": "انتهت اللعبة من تلقاء نفسها",
+"fr": "Le jeu s'est arrêté de lui-même",
+"tr": "Oyun kendiliğinden kapandı",
+"es": "El juego terminó por sí solo",
+"de": "Das Spiel hat sich selbst beendet",
+"it": "Il gioco si è chiuso da solo",
+"pt": "O jogo terminou sozinho"
+},
+"Closed by EmuFive: out of memory": {
+"ar": "أغلقها EmuFive: نفدت الذاكرة",
+"fr": "Fermé par EmuFive : mémoire pleine",
+"tr": "EmuFive kapattı: bellek bitti",
+"es": "Cerrado por EmuFive: sin memoria",
+"de": "Von EmuFive geschlossen: Speicher voll",
+"it": "Chiuso da EmuFive: memoria esaurita",
+"pt": "Fechado pelo EmuFive: sem memória"
 }
 }
