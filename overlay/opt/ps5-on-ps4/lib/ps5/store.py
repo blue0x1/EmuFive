@@ -41,7 +41,7 @@ DEFAULT_SETTINGS = {
     "tile_size": "medium",     # small, medium, large
     "tile_shape": "rounded",   # rounded, square, circle
     "source_labels": True,
-    "compat_badges": True,     # Works / Slow / Doesn't work on tested games (lib/ps5/compat.py).
+    "show_compat_badges": False,   # Works / Slow / Doesn't work on tested games (lib/ps5/compat.py).
     "text_size": 100,          # 90-130 percent
     "font": "modern",          # ui.FONTS
     "clock_date": False,

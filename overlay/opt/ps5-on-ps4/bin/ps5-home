@@ -1412,7 +1412,7 @@ class SettingsScreen(RowList):
             self.setting_choice("Tile shape", "tile_shape", [("rounded", "Rounded"), ("square", "Square"),
                                                               ("circle", "Circle")]),
             self.setting_toggle("Source labels (USB, PS4, PC)", "source_labels"),
-            self.setting_toggle("Compatibility badges", "compat_badges"),
+            self.setting_toggle("Compatibility badges", "show_compat_badges"),
             Row("header", "Text"),
             self.setting_choice("Text size", "text_size", [(v, f"{v}%") for v in (90, 100, 110, 120, 130)],
                                 reload=True),
@@ -3832,52 +3832,113 @@ def picture_palette(path):
         return None
 
 
+def blurred_backdrop(picture, size, amount=14):
+    """`picture` covering `size`, very blurred: scaled straight down to the blur's size, then up
+    (a 4K screen in a tenth of the time of scaling up first)."""
+    w, h = size
+    scale = max(w / picture.get_width(), h / picture.get_height())
+    cover = (int(picture.get_width() * scale) + 1, int(picture.get_height() * scale) + 1)
+    small = pygame.transform.smoothscale(picture, (max(1, cover[0] // amount), max(1, cover[1] // amount)))
+    big = pygame.transform.smoothscale(small, cover)
+    out = pygame.Surface(size).convert()
+    out.blit(big, big.get_rect(center=out.get_rect().center))
+    return out
+
+
+def soft_aurora_light(w, h, vivid):
+    """aurora_light drawn at a third of the size and scaled up: it is soft light, so it looks the
+    same, in a ninth of the time."""
+    small = aurora_light(max(1, w // 3), max(1, h // 3), vivid)
+    return pygame.transform.smoothscale(small, (w, h))
+
+
+def qr_surface(data, side, error="m"):
+    """A QR code (dark on white, with its quiet zone) `side` pixels wide, or None without segno."""
+    try:
+        import segno
+    except ImportError:
+        return None
+    matrix = list(segno.make(data, error=error).matrix)
+    n = len(matrix)
+    quiet = 4
+    surface = pygame.Surface((n + 2 * quiet, n + 2 * quiet))
+    surface.fill((255, 255, 255))
+    for y, row in enumerate(matrix):
+        for x, dark in enumerate(row):
+            if dark:
+                surface.set_at((x + quiet, y + quiet), (10, 10, 16))
+    return pygame.transform.scale(surface, (side - side % (n + 2 * quiet) or side, ) * 2)
+
+
 class ShareView(Modal):
     """A QR code for a phone: it opens the screenshot in the phone's browser, to save or share.
     The Glass card design: the screenshot blurred behind, and on a glass card the picture, the code
-    on a white tile and three steps. The still screen is made once; only the soft light around
-    the code breathes."""
-    covers = True
+    on a white tile and three steps. The screen dims at once; the pictures, the light and the code
+    are made in the background (prepare, compose_base), the text is added on the main thread
+    (compose_text), then the card fades in. Only the soft light around the code breathes."""
     CARD = (140, 113, 1000, 493)          # Units.
     PICTURE = (180, 160, 507, 285)
     CODE = (927, 280)                     # The code's center.
     CODE_SIDE = 220
 
-    def __init__(self, home, path):
+    def __init__(self, home, path=None):
         super().__init__(home)
         self.path = path
         self.qr = None
         self.error = None
-        self.frame = None
+        self.picture = None
+        self.vivid = ACCENT
         self.url = None
-        palette = picture_palette(path)
+        self.server = None
+        self.tile = None
+        self.base = None          # The still screen without its text (made in the background).
+        self.frame = None         # With its text.
+        self.shown = 0.0          # The card's fade in, from when it is ready.
+        size = home.c.s.get_size()
+        threading.Thread(target=self._work, args=(size,), daemon=True).start()
+
+    @property
+    def covers(self):
+        return self.frame is not None and self.shown >= 1.0
+
+    def _work(self, size):
+        try:
+            self.prepare()
+            self.base = self.compose_base(size)
+        except Exception as error:          # Shown on the card rather than lost in a thread.
+            self.error = self.error or str(error)
+            if self.base is None:
+                plain = pygame.Surface(size)
+                plain.fill((12, 10, 28))
+                self.base = plain
+
+    def load_picture(self, path):
+        try:
+            return pygame.image.load(path).convert()
+        except (pygame.error, OSError):
+            return None
+
+    def prepare(self):
+        """Background: the picture, its colors, the phone page and the code."""
+        self.video = system.is_video(self.path)
+        self.picture = self.load_picture(system.video_thumb(self.path) if self.video else self.path)
+        palette = surface_palette(self.picture) if self.picture is not None else None
         self.vivid = palette[0] if palette else ACCENT
         try:
-            import segno
+            import segno  # noqa: F401
         except ImportError:
             self.error = "Sharing needs the python3-segno package."
             return
-        self.video = system.is_video(path)
-        self.server = system.ShareServer(path, i18n.translate("Video" if self.video else "Screenshot"),
+        self.server = system.ShareServer(self.path, i18n.translate("Video" if self.video else "Screenshot"),
                                          i18n.translate("Download"), ACCENT, palette)
         self.url = self.server.start()
         if self.url is None:
             self.error = "Connect the PS4 to a network first."
             return
-        matrix = list(segno.make(self.url, error="m").matrix)
-        n = len(matrix)
-        quiet = 4
-        surface = pygame.Surface((n + 2 * quiet, n + 2 * quiet))
-        surface.fill((255, 255, 255))
-        for y, row in enumerate(matrix):
-            for x, dark in enumerate(row):
-                if dark:
-                    surface.set_at((x + quiet, y + quiet), (10, 10, 16))
-        side = px(self.CODE_SIDE)
-        self.qr = pygame.transform.scale(surface, (side - side % (n + 2 * quiet) or side, ) * 2)
+        self.qr = qr_surface(self.url, px(self.CODE_SIDE))
 
     def close(self):
-        if getattr(self, "server", None) is not None:
+        if self.server is not None:
             self.server.stop()
         super().close()
 
@@ -3904,48 +3965,78 @@ class ShareView(Modal):
         tint.fill((255, 255, 255, 0))
         ui.draw_round(tint, (255, 255, 255, 20), tint.get_rect(), radius, 0, True)
         frame.blit(tint, rect.topleft)
-        frame.blit(gradient_border(rect.w, rect.h, radius, self.vivid, CHAMPAGNE, max(1, px(1.4))), rect.topleft)
 
-    def compose(self, size, text):
-        frame = pygame.Surface(size).convert()
-        c = ui.Canvas(frame, text)
+    def compose_base(self, size):
+        """Background: everything but the text. The soft layers (the blurred picture, the light,
+        the frosted card) are made at half size and scaled up; the sharp ones at full size."""
         vivid = self.vivid
-        video = system.is_video(self.path)
-        try:
-            picture = pygame.image.load(system.video_thumb(self.path) if video else self.path).convert()
-        except (pygame.error, OSError):
-            picture = None
-        # Behind: the screenshot, blurred and darkened, with the Aurora's ribbons of light.
+        picture = self.picture
+        half = (max(1, size[0] // 2), max(1, size[1] // 2))
+        # Behind: the picture, blurred and darkened, with the Aurora's ribbons of light.
         if picture is not None:
-            scale = max(size[0] / picture.get_width(), size[1] / picture.get_height())
-            big = pygame.transform.smoothscale(picture, (int(picture.get_width() * scale) + 1,
-                                                         int(picture.get_height() * scale) + 1))
-            frame.blit(soft_blur(big, 14), big.get_rect(center=frame.get_rect().center))
+            back = blurred_backdrop(picture, half, 7)
         else:
-            frame.fill(ui.mix(vivid, (6, 5, 14), 0.85))
-        c.dim(165, (6, 5, 14))
-        frame.blit(aurora_light(size[0], size[1], vivid), (0, 0), special_flags=pygame.BLEND_RGB_ADD)
+            back = pygame.Surface(half).convert()
+            back.fill(ui.mix(vivid, (6, 5, 14), 0.85))
+        veil = pygame.Surface(half)
+        veil.fill((6, 5, 14))
+        veil.set_alpha(165)
+        back.blit(veil, (0, 0))
+        back.blit(soft_aurora_light(half[0], half[1], vivid), (0, 0), special_flags=pygame.BLEND_RGB_ADD)
         card = self.rect_px(*self.CARD)
-        self.glass(frame, card, px(27))
+        scale = half[0] / size[0]
+        small_card = pygame.Rect(int(card.x * scale), int(card.y * scale), int(card.w * scale), int(card.h * scale))
+        self.glass(back, small_card, max(1, int(px(27) * scale)))
+        frame = pygame.transform.smoothscale(back, size).convert()
+        frame.blit(gradient_border(card.w, card.h, px(27), vivid, CHAMPAGNE, max(1, px(1.4))), card.topleft)
+        if self.error is None or isinstance(self, ReportView):
+            pr = self.rect_px(*self.PICTURE)
+            if picture is not None:
+                scale = max(pr.w / picture.get_width(), pr.h / picture.get_height())
+                shot = pygame.transform.smoothscale(picture, (max(pr.w, int(picture.get_width() * scale)),
+                                                              max(pr.h, int(picture.get_height() * scale))))
+                shot = shot.subsurface(pygame.Rect((shot.get_width() - pr.w) // 2,
+                                                   (shot.get_height() - pr.h) // 2, pr.w, pr.h))
+                frame.blit(self.cut(shot, px(15)), pr.topleft)
+            frame.blit(gradient_border(pr.w, pr.h, px(15), vivid, CHAMPAGNE, max(1, px(1.4))), pr.topleft)
+        if self.qr is not None and self.error is None:
+            # The code on a white tile.
+            cx, cy = self.CODE
+            side = self.qr.get_width() / ui.S
+            pad = 17
+            tile = self.rect_px(cx - side / 2 - pad, cy - side / 2 - pad, side + 2 * pad, side + 2 * pad)
+            ui.draw_round(frame, (255, 255, 255), tile, px(17))
+            frame.blit(self.qr, self.qr.get_rect(center=tile.center))
+            self.tile = tile
+        return frame
+
+    def steps(self, c, title, lines):
+        """The title under the code and its numbered steps."""
+        cx, cy = self.CODE
+        side = self.qr.get_width() / ui.S
+        top = cy + side / 2 + 17 + 30
+        c.text(title, 23, cx, top, WHITE, True, "midtop")
+        ink = (14, 12, 20) if sum(self.vivid) > 300 else WHITE
+        sx = cx - 140
+        for n, line in enumerate(lines):
+            yy = top + 46 + n * 35
+            c.circle(self.vivid, sx + 12, yy + 12, 12)
+            c.text(str(n + 1), 13, sx + 12, yy + 12, ink, True, "center")
+            c.text(line, 16, sx + 35, yy + 12, WHITE, False, "midleft")
+
+    def compose_text(self, frame, c):
+        """Main thread: the text (fonts are not drawn from two threads)."""
         x, y, w, h = self.CARD
         if self.error:
             c.text("Share", 26, ui.W / 2, y + 60, WHITE, True, "midtop")
             for n, line in enumerate(c.t.wrap(self.error, 18, w - 160)):
                 c.text(line, 18, ui.W / 2, y + 130 + n * 28, SOFT, False, "midtop")
-            return frame
-        # The picture, its game and when it was taken.
+            return
+        video = self.video
+        px_, py_, pw, ph = self.PICTURE
         pr = self.rect_px(*self.PICTURE)
-        if picture is not None:
-            scale = max(pr.w / picture.get_width(), pr.h / picture.get_height())
-            shot = pygame.transform.smoothscale(picture, (max(pr.w, int(picture.get_width() * scale)),
-                                                          max(pr.h, int(picture.get_height() * scale))))
-            shot = shot.subsurface(pygame.Rect((shot.get_width() - pr.w) // 2, (shot.get_height() - pr.h) // 2,
-                                               pr.w, pr.h))
-            frame.blit(self.cut(shot, px(15)), pr.topleft)
-        frame.blit(gradient_border(pr.w, pr.h, px(15), vivid, CHAMPAGNE, max(1, px(1.4))), pr.topleft)
         if video:
             draw_play_badge(c, pr.centerx / ui.S, pr.centery / ui.S, 26)
-        px_, py_, pw, ph = self.PICTURE
         name = os.path.basename(os.path.dirname(self.path))
         when = os.path.splitext(os.path.basename(self.path))[0]
         parts = when.split(" ")
@@ -3958,49 +4049,40 @@ class ShareView(Modal):
             seconds = int(system.video_seconds(self.path) or 0)
             size_text = f"{size[0]} × {size[1]}  ·  MP4  ·  {seconds // 60}:{seconds % 60:02d}"
             c.text(i18n.Final(size_text), 15, px_, py_ + ph + 74, DIM)
-        elif picture is not None:
-            size_text = f"{picture.get_width()} × {picture.get_height()}  ·  PNG"
+        elif self.picture is not None:
+            size_text = f"{self.picture.get_width()} × {self.picture.get_height()}  ·  PNG"
             c.text(i18n.Final(size_text), 15, px_, py_ + ph + 74, DIM)
-        # The code on a white tile.
-        cx, cy = self.CODE
-        side = self.qr.get_width() / ui.S
-        pad = 17
-        tile = self.rect_px(cx - side / 2 - pad, cy - side / 2 - pad, side + 2 * pad, side + 2 * pad)
-        ui.draw_round(frame, (255, 255, 255), tile, px(17))
-        frame.blit(self.qr, self.qr.get_rect(center=tile.center))
-        self.tile = tile
-        # How to.
-        top = cy + side / 2 + pad + 30
-        c.text("Share to your phone", 23, cx, top, WHITE, True, "midtop")
-        ink = (14, 12, 20) if sum(vivid) > 300 else WHITE
-        sx = cx - 140
-        last = "Save or share the video" if video else "Save or share the picture"
-        for n, line in enumerate(("Open your phone's camera", "Point it at the code", last)):
-            yy = top + 46 + n * 35
-            c.circle(vivid, sx + 12, yy + 12, 12)
-            c.text(str(n + 1), 13, sx + 12, yy + 12, ink, True, "center")
-            c.text(line, 16, sx + 35, yy + 12, WHITE, False, "midleft")
+        self.steps(c, "Share to your phone", ("Open your phone's camera", "Point it at the code",
+                                              "Save or share the video" if video else "Save or share the picture"))
         # The address, for typing it in.
         width = c.t.width(self.url, 13) + 30
         c.rect((255, 255, 255, 18), ui.W / 2 - width / 2, y + h + 18, width, 27, 13)
         c.rect((255, 255, 255, 40), ui.W / 2 - width / 2, y + h + 18, width, 27, 13, 1)
         c.text(i18n.Final(self.url), 13, ui.W / 2, y + h + 31, SOFT, False, "center")
         c.text("Your phone must be on the same network as the PS4.", 13, ui.W / 2, y + h + 56, DIM, False, "midtop")
-        return frame
+
+    def update(self, dt):
+        super().update(dt)
+        if self.frame is not None:
+            self.shown = min(1.0, self.shown + dt / 0.22)
 
     def draw(self, c):
-        size = c.s.get_size()
-        if self.frame is None or self.frame.get_size() != size:
-            self.frame = self.compose(size, c.t)
-        a = ease_out(self.appear)
+        if self.frame is None and self.base is not None:
+            self.frame = self.base
+            self.base = None
+            self.compose_text(self.frame, ui.Canvas(self.frame, c.t))
+        # The screen dims at once, while the card is made.
+        c.dim(165 * ease_out(self.appear), (6, 5, 14))
+        if self.frame is None:
+            return
+        a = ease_out(self.shown)
         if a < 1.0:
-            c.s.fill((0, 0, 0))
             self.frame.set_alpha(int(255 * a))
             c.s.blit(self.frame, (0, 0))
             self.frame.set_alpha(None)
         else:
             c.s.blit(self.frame, (0, 0))
-        if self.error is None and self.home.settings["animations"] != "off":
+        if self.tile is not None and self.error is None and self.home.settings["animations"] != "off":
             # The light around the code breathes (8 cached strengths).
             k = (math.sin(self.home.t * 2.2) + 1) / 2
             k = round((0.35 + 0.65 * k) * a * 7) / 7
@@ -4021,13 +4103,8 @@ class ReportView(ShareView):
     PICTURE = (180, 153, 507, 200)
 
     def __init__(self, home, game, result):
-        Modal.__init__(self, home)
         self.game = game
         self.result = result
-        self.qr = None
-        self.error = None
-        self.frame = None
-        self.server = None
         last = report.last_game()
         if last is not None and last.get("title_id") == game.title_id and last.get("title") == game.title:
             self.record = last
@@ -4036,30 +4113,23 @@ class ReportView(ShareView):
             entry = home.games_store.get(game.key)
             self.record = report.record_for(game, entry.get("play_seconds", 0), 0, "", [], "")
             self.has_log = False
-        self.picture_path = None
+        super().__init__(home)
+
+    def prepare(self):
+        """Background: the game's art (its colors are known from the home screen), and the code."""
         for name in ("pic0.png", "pic1.png", "icon0.png"):
-            path = os.path.join(game.sys_dir, name)
+            path = os.path.join(self.game.sys_dir, name)
             if os.path.isfile(path):
-                self.picture_path = path
-                break
-        palette = picture_palette(self.picture_path) if self.picture_path else None
+                self.picture = self.load_picture(path)
+                if self.picture is not None:
+                    break
+        palette = getattr(self.game, "palette", None)
+        if palette is None and self.picture is not None:
+            palette = surface_palette(self.picture)
         self.vivid = palette[0] if palette else ACCENT
-        try:
-            import segno
-        except ImportError:
+        self.qr = qr_surface(report.issue_url(self.record, self.result), px(self.CODE_SIDE), "l")
+        if self.qr is None:
             self.error = "The QR code needs the python3-segno package. Square still saves the report."
-            return
-        matrix = list(segno.make(report.issue_url(self.record, result), error="l").matrix)
-        n = len(matrix)
-        quiet = 4
-        surface = pygame.Surface((n + 2 * quiet, n + 2 * quiet))
-        surface.fill((255, 255, 255))
-        for y, row in enumerate(matrix):
-            for x, dark in enumerate(row):
-                if dark:
-                    surface.set_at((x + quiet, y + quiet), (10, 10, 16))
-        side = px(self.CODE_SIDE)
-        self.qr = pygame.transform.scale(surface, (side - side % (n + 2 * quiet) or side, ) * 2)
 
     def details(self):
         """(label, value) lines shown under the picture."""
@@ -4074,37 +4144,8 @@ class ReportView(ShareView):
             lines.append(("Settings", i18n.Final(", ".join(i18n.translate(x) for x in r["settings"]))))
         return lines
 
-    def compose(self, size, text):
-        frame = pygame.Surface(size).convert()
-        c = ui.Canvas(frame, text)
-        vivid = self.vivid
-        try:
-            picture = pygame.image.load(self.picture_path).convert() if self.picture_path else None
-        except (pygame.error, OSError):
-            picture = None
-        # Behind: the game's art, blurred and darkened, with the Aurora's ribbons of light.
-        if picture is not None:
-            scale = max(size[0] / picture.get_width(), size[1] / picture.get_height())
-            big = pygame.transform.smoothscale(picture, (int(picture.get_width() * scale) + 1,
-                                                         int(picture.get_height() * scale) + 1))
-            frame.blit(soft_blur(big, 14), big.get_rect(center=frame.get_rect().center))
-        else:
-            frame.fill(ui.mix(vivid, (6, 5, 14), 0.85))
-        c.dim(165, (6, 5, 14))
-        frame.blit(aurora_light(size[0], size[1], vivid), (0, 0), special_flags=pygame.BLEND_RGB_ADD)
-        card = self.rect_px(*self.CARD)
-        self.glass(frame, card, px(27))
+    def compose_text(self, frame, c):
         x, y, w, h = self.CARD
-        # The game's picture, its name and how it ran.
-        pr = self.rect_px(*self.PICTURE)
-        if picture is not None:
-            scale = max(pr.w / picture.get_width(), pr.h / picture.get_height())
-            shot = pygame.transform.smoothscale(picture, (max(pr.w, int(picture.get_width() * scale)),
-                                                          max(pr.h, int(picture.get_height() * scale))))
-            shot = shot.subsurface(pygame.Rect((shot.get_width() - pr.w) // 2, (shot.get_height() - pr.h) // 2,
-                                               pr.w, pr.h))
-            frame.blit(self.cut(shot, px(15)), pr.topleft)
-        frame.blit(gradient_border(pr.w, pr.h, px(15), vivid, CHAMPAGNE, max(1, px(1.4))), pr.topleft)
         px_, py_, pw, ph = self.PICTURE
         ty = py_ + ph + 18
         c.text(c.t.fit(self.game.title, 21, pw, True), 21, px_, ty, WHITE, True)
@@ -4117,48 +4158,23 @@ class ReportView(ShareView):
         if sub:
             c.text(c.t.fit(i18n.Final(sub), 14, pw - pill_w - 14), 14, px_ + pill_w + 14, ty + 12, SOFT, False, "midleft")
         ty += 40
-        label_w = max(c.t.width(i18n.translate(lbl), 15) for lbl, _ in self.details()) + 18
-        for lbl, value in self.details():
+        details = self.details()
+        label_w = max(c.t.width(i18n.translate(lbl), 15) for lbl, _ in details) + 18
+        for lbl, value in details:
             if ty > y + h - 30:
                 break
             c.text(lbl, 15, px_, ty, DIM)
             c.text(c.t.fit(value, 15, pw - label_w), 15, px_ + label_w, ty, WHITE)
             ty += 24
-        cx, cy = self.CODE
         if self.error:
+            cx, cy = self.CODE
             for n, line in enumerate(c.t.wrap(self.error, 17, 300)):
                 c.text(line, 17, cx, cy - 40 + n * 26, SOFT, False, "midtop")
-            self.tile = None
         else:
-            # The code on a white tile.
-            side = self.qr.get_width() / ui.S
-            pad = 17
-            tile = self.rect_px(cx - side / 2 - pad, cy - side / 2 - pad, side + 2 * pad, side + 2 * pad)
-            ui.draw_round(frame, (255, 255, 255), tile, px(17))
-            frame.blit(self.qr, self.qr.get_rect(center=tile.center))
-            self.tile = tile
-            # How to.
-            top = cy + side / 2 + pad + 30
-            c.text("Post it on GitHub", 23, cx, top, WHITE, True, "midtop")
-            ink = (14, 12, 20) if sum(vivid) > 300 else WHITE
-            sx = cx - 140
-            for n, line in enumerate(("Open your phone's camera", "Point it at the code", "Post the ready issue")):
-                yy = top + 46 + n * 35
-                c.circle(vivid, sx + 12, yy + 12, 12)
-                c.text(str(n + 1), 13, sx + 12, yy + 12, ink, True, "center")
-                c.text(line, 16, sx + 35, yy + 12, WHITE, False, "midleft")
+            self.steps(c, "Post it on GitHub", ("Open your phone's camera", "Point it at the code",
+                                                "Post the ready issue"))
         c.text("Square saves the report and the game's log on the USB drive.", 13, ui.W / 2, y + h + 22, DIM,
                False, "midtop")
-        return frame
-
-    def draw(self, c):
-        if self.error is None:
-            super().draw(c)
-            return
-        size = c.s.get_size()
-        if self.frame is None or self.frame.get_size() != size:
-            self.frame = self.compose(size, c.t)
-        c.s.blit(self.frame, (0, 0))
 
     def act(self, action):
         h = self.home
@@ -5173,7 +5189,7 @@ class Home:
                     self.draw_badge(c, game.source, x, y + size, size if shape == "circle" else None)
                 if entry.get("favorite"):
                     ui.draw_star(c, x + size - 16, y + 16, 10, GOLD)
-                if self.settings["compat_badges"] and shape != "circle":
+                if self.settings["show_compat_badges"] and shape != "circle":
                     self.draw_compat(c, game, x, y)
             if focused:
                 if settled and shape != "circle":
