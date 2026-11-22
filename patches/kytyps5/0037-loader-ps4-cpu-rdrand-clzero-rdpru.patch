@@ -1,0 +1,201 @@
+From: Chokri Hammedi <52697989+blue0x1@users.noreply.github.com>
+Subject: [PATCH] loader: emulate RDRAND, RDSEED, CLFLUSHOPT, CLZERO, RDPRU and
+ RDFSBASE/RDGSBASE on the PS4's CPU
+
+The PS5's Zen 2 has these, the PS4's Jaguar stops on each with an illegal
+instruction (checked on the PS4). None of the tested games use them; they are
+added so a game that does keeps running. They are rare, so they are emulated
+when they trap rather than rewritten at load time:
+
+- RDRAND, RDSEED: a SplitMix64 number from a random seed (getrandom) and a
+  counter, CF set and OF/SF/ZF/AF/PF clear. Not for cryptographic keys.
+- CLFLUSHOPT: CLFLUSH of the same line, as CLWB already was.
+- CLZERO: zeroes the 64-byte line rAX points into.
+- RDPRU: MPERF and APERF (ECX 0 and 1) both read the TSC; other registers
+  read 0 with CF clear.
+- RDFSBASE, RDGSBASE: the thread's base from arch_prctl, what the
+  instruction gives on a PC that has it.
+
+XSAVEC and WRFSBASE/WRGSBASE are not emulated.
+--- a/src/loader/x64InstructionEmulator.cpp
++++ b/src/loader/x64InstructionEmulator.cpp
+@@ -3,8 +3,10 @@
+ #include "common/common.h"
+ 
+ #include <Zydis/Zydis.h>
++#include <atomic>
+ #include <bit>
+ #include <cstring>
++#include <x86intrin.h>
+ #include <emmintrin.h>
+ #include <xmmintrin.h>
+ #include <cpuid.h>
+@@ -15,8 +17,11 @@
+ #include <sched.h>
+ #include <sys/ucontext.h>
+ #else
++#include <asm/prctl.h>
+ #include <sched.h>
++#include <sys/syscall.h>
+ #include <ucontext.h>
++#include <unistd.h>
+ #endif
+ 
+ namespace Loader::X64InstructionEmulator {
+@@ -405,6 +410,8 @@
+ 
+ 	[[nodiscard]] uint64_t Rip() const { return native->Rip; }
+ 	void                   Advance(size_t length) { native->Rip += length; }
++	[[nodiscard]] uint64_t Flags() const { return native->EFlags; }
++	void                   SetFlags(uint64_t value) { native->EFlags = static_cast<DWORD>(value); }
+ 	[[nodiscard]] void*    Xmm(uint8_t index) const { return &native->Xmm0 + index; }
+ 
+ 	[[nodiscard]] auto& Gpr(uint8_t index) const {
+@@ -438,6 +445,8 @@
+ 	void Advance(size_t length) {
+ 		native->uc_mcontext->__ss.__rip += static_cast<uint64_t>(length);
+ 	}
++	[[nodiscard]] uint64_t Flags() const { return native->uc_mcontext->__ss.__rflags; }
++	void                   SetFlags(uint64_t value) { native->uc_mcontext->__ss.__rflags = value; }
+ 	[[nodiscard]] auto& Gpr(uint8_t index) const {
+ 		auto*     state       = &native->uc_mcontext->__ss;
+ 		uint64_t* registers[] = {&state->__rax, &state->__rcx, &state->__rdx, &state->__rbx,
+@@ -488,6 +497,10 @@
+ 	void Advance(size_t length) {
+ 		native->uc_mcontext.gregs[REG_RIP] += static_cast<greg_t>(length);
+ 	}
++	[[nodiscard]] uint64_t Flags() const {
++		return static_cast<uint64_t>(native->uc_mcontext.gregs[REG_EFL]);
++	}
++	void SetFlags(uint64_t value) { native->uc_mcontext.gregs[REG_EFL] = static_cast<greg_t>(value); }
+ 	[[nodiscard]] void* Xmm(uint8_t index) const {
+ 		if (native->uc_mcontext.fpregs == nullptr) {
+ 			return nullptr;
+@@ -671,6 +684,67 @@
+ 	}
+ }
+ 
++// RDRAND and RDSEED: numbers from a random seed and a counter, mixed with SplitMix64. Fine for
++// what games use them for (seeds, IDs); not a source for cryptographic keys.
++static uint64_t RandomNumber() {
++	static std::atomic<uint64_t> seed {0};
++	static std::atomic<uint64_t> counter {0};
++	uint64_t                     base = seed.load(std::memory_order_relaxed);
++	if (base == 0) {
++		uint64_t fresh = __rdtsc() ^ reinterpret_cast<uintptr_t>(&base);
++#if KYTY_PLATFORM != KYTY_PLATFORM_WINDOWS && !defined(__APPLE__)
++		uint64_t random = 0;
++		if (syscall(SYS_getrandom, &random, sizeof(random), 1 /* GRND_NONBLOCK */) == sizeof(random)) {
++			fresh ^= random;
++		}
++#endif
++		fresh |= 1u;
++		// The first thread's seed is kept.
++		base = seed.compare_exchange_strong(base, fresh) ? fresh : base;
++	}
++	uint64_t z = base + (counter.fetch_add(1, std::memory_order_relaxed) + 1) * 0x9e3779b97f4a7c15ull;
++	z = (z ^ (z >> 30u)) * 0xbf58476d1ce4e5b9ull;
++	z = (z ^ (z >> 27u)) * 0x94d049bb133111ebull;
++	return z ^ (z >> 31u);
++}
++
++// Writes a result the way a general-purpose register write does: a 32-bit write clears the upper
++// half, a 16-bit or 8-bit write keeps the rest.
++static bool WriteGpr(Context& context, ZydisRegister reg, uint64_t value) {
++	const auto reg_class = ZydisRegisterGetClass(reg);
++	const auto index     = ZydisRegisterGetId(reg);
++	if (index < 0 || index >= 16) {
++		return false;
++	}
++	auto&          target = context.Gpr(static_cast<uint8_t>(index));
++	const uint64_t old    = static_cast<uint64_t>(target);
++	switch (reg_class) {
++		case ZYDIS_REGCLASS_GPR64: target = value; break;
++		case ZYDIS_REGCLASS_GPR32: target = static_cast<uint32_t>(value); break;
++		case ZYDIS_REGCLASS_GPR16: target = (old & ~0xffffull) | (value & 0xffffu); break;
++		default: return false;
++	}
++	return true;
++}
++
++// CF set or clear, and OF, SF, ZF, AF and PF clear (RDRAND, RDSEED and RDPRU).
++static void SetCarryOnly(Context& context, bool carry) {
++	constexpr uint64_t status = 0x8d5u; // OF SF ZF AF PF CF
++	context.SetFlags((context.Flags() & ~status) | (carry ? 1u : 0u));
++}
++
++static bool MemoryAddress(const Context& context, const ZydisDecodedInstruction& instruction,
++                          const ZydisDecodedOperand& operand, uint64_t& address) {
++	ZydisRegisterContext registers {};
++	for (uint8_t i = 0; i < 16; ++i) {
++		const auto value                         = static_cast<uint64_t>(context.Gpr(i));
++		registers.values[ZYDIS_REGISTER_RAX + i] = value;
++		registers.values[ZYDIS_REGISTER_EAX + i] = static_cast<uint32_t>(value);
++	}
++	return ZYAN_SUCCESS(
++	    ZydisCalcAbsoluteAddressEx(&instruction, &operand, context.Rip(), &registers, &address));
++}
++
+ static bool TryEmulateCpuExtensions(Context& context) {
+ 	ZydisDecoder            decoder {};
+ 	ZydisDecodedInstruction instruction {};
+@@ -693,20 +767,50 @@
+ 		}
+ 		// RDPID and guest RDTSCP observe the same host TSC_AUX; only RDPID's destination changes.
+ 		context.Gpr(static_cast<uint8_t>(index)) = auxiliary;
+-	} else if (instruction.mnemonic == ZYDIS_MNEMONIC_CLWB &&
++	} else if ((instruction.mnemonic == ZYDIS_MNEMONIC_CLWB ||
++	            instruction.mnemonic == ZYDIS_MNEMONIC_CLFLUSHOPT) &&
+ 	           operands[0].type == ZYDIS_OPERAND_TYPE_MEMORY) {
+-		ZydisRegisterContext registers {};
+-		for (uint8_t i = 0; i < 16; ++i) {
+-			const auto value                         = static_cast<uint64_t>(context.Gpr(i));
+-			registers.values[ZYDIS_REGISTER_RAX + i] = value;
+-			registers.values[ZYDIS_REGISTER_EAX + i] = static_cast<uint32_t>(value);
+-		}
+ 		uint64_t address = 0;
+-		if (!ZYAN_SUCCESS(ZydisCalcAbsoluteAddressEx(&instruction, &operands[0], context.Rip(),
+-		                                             &registers, &address))) {
++		if (!MemoryAddress(context, instruction, operands[0], address)) {
+ 			return false;
+ 		}
+ 		FlushCacheLine(address, operands[0].mem.segment);
++	} else if ((instruction.mnemonic == ZYDIS_MNEMONIC_RDRAND ||
++	            instruction.mnemonic == ZYDIS_MNEMONIC_RDSEED) &&
++	           operands[0].type == ZYDIS_OPERAND_TYPE_REGISTER) {
++		if (!WriteGpr(context, operands[0].reg.value, RandomNumber())) {
++			return false;
++		}
++		SetCarryOnly(context, true);
++	} else if (instruction.mnemonic == ZYDIS_MNEMONIC_CLZERO) {
++		// Zeroes the 64-byte cache line that rAX points into (EAX with an address-size prefix).
++		if ((instruction.attributes & (ZYDIS_ATTRIB_HAS_SEGMENT_FS | ZYDIS_ATTRIB_HAS_SEGMENT_GS)) != 0) {
++			return false;
++		}
++		uint64_t address = static_cast<uint64_t>(context.Gpr(0));
++		if (instruction.address_width == 32) {
++			address = static_cast<uint32_t>(address);
++		}
++		std::memset(reinterpret_cast<void*>(address & ~uint64_t {63}), 0, 64);
++	} else if (instruction.mnemonic == ZYDIS_MNEMONIC_RDPRU) {
++		// ECX 0 is MPERF and 1 is APERF: both count at the TSC rate here (the CPU at its base
++		// clock), so their ratio is 1. Other registers read as 0 with CF clear.
++		const auto selector = static_cast<uint32_t>(context.Gpr(1));
++		const uint64_t value = selector <= 1 ? __rdtsc() : 0;
++		context.Gpr(0) = static_cast<uint32_t>(value);
++		context.Gpr(2) = static_cast<uint32_t>(value >> 32u);
++		SetCarryOnly(context, selector <= 1);
++#if KYTY_PLATFORM != KYTY_PLATFORM_WINDOWS && !defined(__APPLE__)
++	} else if ((instruction.mnemonic == ZYDIS_MNEMONIC_RDFSBASE ||
++	            instruction.mnemonic == ZYDIS_MNEMONIC_RDGSBASE) &&
++	           operands[0].type == ZYDIS_OPERAND_TYPE_REGISTER) {
++		// The thread's FS or GS base, the value the instruction gives on a CPU that has it.
++		uint64_t base = 0;
++		const int code = instruction.mnemonic == ZYDIS_MNEMONIC_RDFSBASE ? ARCH_GET_FS : ARCH_GET_GS;
++		if (syscall(SYS_arch_prctl, code, &base) != 0 || !WriteGpr(context, operands[0].reg.value, base)) {
++			return false;
++		}
++#endif
+ 	} else {
+ 		return false;
+ 	}
