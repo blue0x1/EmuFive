@@ -1806,9 +1806,10 @@ class SettingsScreen(RowList):
                 played.append((entry["play_seconds"], g, entry))
         for seconds, g, entry in sorted(played, key=lambda x: -x[0]):
             when = time.strftime("%d %b %Y", time.localtime(entry["last_played"])) if entry.get("last_played") else ""
-            rows.append(Row("info", g.title, system.play_time_text(seconds) + (f"  ·  last {when}" if when else "")))
+            # Buttons with nothing to do, so the list scrolls down to them (info rows are skipped).
+            rows.append(Row("button", g.title, system.play_time_text(seconds) + (f"  ·  last {when}" if when else "")))
         if not rows:
-            rows.append(Row("info", "No play time yet: it is counted from now on."))
+            rows.append(Row("button", "No play time yet: it is counted from now on."))
         return rows
 
     def pick_trophies(self):
