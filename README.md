@@ -172,12 +172,13 @@ Tested a game? Open an [issue](https://github.com/blue0x1/EmuFive/issues) with t
 
 ## Changelog
 
-### 1.0.13 (2026-11-21)
+### 1.0.14 (2026-11-22)
 
-- New: a cheat manager. Turn it on in Settings, Games, and a Cheats tile shows on the home screen. It downloads the PS5 cheats of the [HEN Cheats Collection](https://github.com/TeeKay87/HEN-Cheats-Collection) and lists your games that have cheats for their version; pick the cheats you want and they are applied when the game starts. A game's menu shows how many are on.
-- Fixed: checkered blocks on web pages in Internet (#61).
-- Keyboard: R1 is Shift, L1 is Space, and Shift twice is caps lock (#61).
-- `.zar` games show their name, icon and background on the home screen (#54).
+- Fixed: games that stopped on the PS5 CPU's ADX instructions (`ADCX`, `ADOX`), such as Invincible VS and Dispatch (#64). The PS4's CPU doesn't have them, so EmuFive now replaces them.
+- More PS5 CPU instructions work on the PS4: `RDRAND`, `RDSEED`, `CLFLUSHOPT`, `CLWB`, `CLZERO`, `RDPRU`, `RDFSBASE` and `RDGSBASE`.
+- When the PS4 runs so low on memory that it stalls (under 64 MB free for a minute), the game is closed with a memory message, instead of the PS4 freezing.
+- The home screen uses less memory (about 170 MB less at 4K), leaving more for games.
+- Fixed: black blocks in canvas games in Internet (#74).
 
 To update from 1.0.3 or earlier, start the update once by hand, since the old Software update cannot: turn on SSH in Settings, connect with `ssh ps5@<PS4 address>` (password `ps5` unless you changed it) and run
 
@@ -185,7 +186,7 @@ To update from 1.0.3 or earlier, start the update once by hand, since the old So
 sudo systemd-run --unit=emufive-update --collect /opt/ps5-on-ps4/bin/ps5-update install
 ```
 
-It installs every update you are missing (from 1.0.0 or 1.0.1 that includes 1.0.2's browser packages, about 110 MB), then restart from the home screen. From 1.0.4 on, Software update in Settings works. New installs use the `ps5-ps4-rootfs.tar.xz` of the 1.0.13 release.
+It installs every update you are missing (from 1.0.0 or 1.0.1 that includes 1.0.2's browser packages, about 110 MB), then restart from the home screen. From 1.0.4 on, Software update in Settings works. New installs use the `ps5-ps4-rootfs.tar.xz` of the 1.0.14 release.
 
 ## Project layout
 

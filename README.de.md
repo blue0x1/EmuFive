@@ -181,12 +181,13 @@ Ein Spiel getestet? Eröffne ein [Issue](https://github.com/blue0x1/EmuFive/issu
 <a id="changelog"></a>
 ## Änderungsprotokoll
 
-### 1.0.13 (2026-11-21)
+### 1.0.14 (2026-11-22)
 
-- Neu: ein Cheat-Manager. In Einstellungen, Spiele einschalten, dann erscheint eine Cheats-Kachel auf dem Startbildschirm. Er lädt die PS5-Cheats der [HEN Cheats Collection](https://github.com/TeeKay87/HEN-Cheats-Collection) herunter und listet deine Spiele mit Cheats für ihre Version; wähle die gewünschten Cheats aus, sie werden beim Spielstart angewendet. Das Menü eines Spiels zeigt, wie viele an sind.
-- Behoben: Schachbrett-Blöcke auf Webseiten in Internet (#61).
-- Tastatur: R1 ist Umschalt, L1 ist Leertaste, zweimal Umschalt ist die Feststelltaste (#61).
-- `.zar`-Spiele zeigen ihren Namen, ihr Symbol und ihren Hintergrund auf dem Startbildschirm (#54).
+- Behoben: Spiele, die an den ADX-Befehlen der PS5-CPU (`ADCX`, `ADOX`) stoppten, etwa Invincible VS und Dispatch (#64). Die CPU der PS4 hat sie nicht, deshalb ersetzt EmuFive sie jetzt.
+- Mehr Befehle der PS5-CPU laufen auf der PS4: `RDRAND`, `RDSEED`, `CLFLUSHOPT`, `CLWB`, `CLZERO`, `RDPRU`, `RDFSBASE` und `RDGSBASE`.
+- Wenn der PS4 so wenig Speicher bleibt, dass sie hängt (eine Minute lang unter 64 MB frei), wird das Spiel mit einer Speichermeldung beendet, statt dass die PS4 einfriert.
+- Der Startbildschirm braucht weniger Speicher (etwa 170 MB weniger bei 4K), so bleibt mehr für Spiele.
+- Behoben: schwarze Blöcke in Canvas-Spielen in Internet (#74).
 
 Um von 1.0.3 oder älter zu aktualisieren, starte das Update einmal von Hand, da die alte Softwareaktualisierung es nicht kann: SSH in den Einstellungen einschalten, mit `ssh ps5@<Adresse der PS4>` verbinden (Passwort `ps5`, falls nicht geändert) und ausführen:
 
@@ -194,7 +195,7 @@ Um von 1.0.3 oder älter zu aktualisieren, starte das Update einmal von Hand, da
 sudo systemd-run --unit=emufive-update --collect /opt/ps5-on-ps4/bin/ps5-update install
 ```
 
-Es installiert alle fehlenden Updates (von 1.0.0 oder 1.0.1 aus gehören die Browser-Pakete von 1.0.2 dazu, etwa 110 MB); danach über den Startbildschirm neu starten. Ab 1.0.4 funktioniert die Softwareaktualisierung in den Einstellungen. Neuinstallationen verwenden die `ps5-ps4-rootfs.tar.xz` der Version 1.0.13.
+Es installiert alle fehlenden Updates (von 1.0.0 oder 1.0.1 aus gehören die Browser-Pakete von 1.0.2 dazu, etwa 110 MB); danach über den Startbildschirm neu starten. Ab 1.0.4 funktioniert die Softwareaktualisierung in den Einstellungen. Neuinstallationen verwenden die `ps5-ps4-rootfs.tar.xz` der Version 1.0.14.
 
 ## Projektaufbau
 

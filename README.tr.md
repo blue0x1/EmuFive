@@ -181,12 +181,13 @@ Bir oyun mu denediniz? Oyunu, oyun kimliğini, konsol modelinizi, EmuFive sürü
 <a id="changelog"></a>
 ## Değişiklik günlüğü
 
-### 1.0.13 (2026-11-21)
+### 1.0.14 (2026-11-22)
 
-- Yeni: hile yöneticisi. Ayarlar, Oyunlar'dan açın; ana ekranda bir Hileler kutucuğu çıkar. [HEN Cheats Collection](https://github.com/TeeKay87/HEN-Cheats-Collection) içindeki PS5 hilelerini indirir ve sürümüne uygun hilesi olan oyunlarınızı listeler; istediğiniz hileleri seçin, oyun başlarken uygulanır. Bir oyunun menüsü kaçının açık olduğunu gösterir.
-- Düzeltildi: İnternet'teki web sayfalarında dama tahtası blokları (#61).
-- Klavye: R1 Shift, L1 Boşluk, iki kez Shift büyük harf kilidi (#61).
-- `.zar` oyunları ana ekranda adlarını, simgelerini ve arka planlarını gösteriyor (#54).
+- Düzeltildi: PS5 CPU'sunun ADX komutlarında (`ADCX`, `ADOX`) duran oyunlar, örneğin Invincible VS ve Dispatch (#64). PS4'ün CPU'sunda bu komutlar yok, EmuFive artık onların yerine başka kod kullanıyor.
+- PS5 CPU'sunun daha fazla komutu PS4'te çalışıyor: `RDRAND`, `RDSEED`, `CLFLUSHOPT`, `CLWB`, `CLZERO`, `RDPRU`, `RDFSBASE` ve `RDGSBASE`.
+- PS4'ün belleği takılacak kadar azaldığında (bir dakika boyunca 64 MB'tan az boş), PS4 donmak yerine oyun bir bellek mesajıyla kapatılır.
+- Ana ekran daha az bellek kullanıyor (4K'da yaklaşık 170 MB daha az), oyunlara daha fazla kalıyor.
+- Düzeltildi: İnternet'teki canvas oyunlarında siyah bloklar (#74).
 
 1.0.3 veya önceki bir sürümden güncellemek için, eski yazılım güncellemesi bunu yapamadığından güncellemeyi bir kez elle başlatın: Ayarlar'da SSH'yi açın, `ssh ps5@<PS4 adresi>` ile bağlanın (değiştirmediyseniz parola `ps5`) ve çalıştırın:
 
@@ -194,7 +195,7 @@ Bir oyun mu denediniz? Oyunu, oyun kimliğini, konsol modelinizi, EmuFive sürü
 sudo systemd-run --unit=emufive-update --collect /opt/ps5-on-ps4/bin/ps5-update install
 ```
 
-Eksik tüm güncellemeleri kurar (1.0.0 veya 1.0.1'den buna 1.0.2'nin yaklaşık 110 MB'lık tarayıcı paketleri dahildir); ardından ana ekrandan yeniden başlatın. 1.0.4'ten itibaren Ayarlar'daki yazılım güncellemesi çalışır. Yeni kurulumlar 1.0.13 sürümündeki `ps5-ps4-rootfs.tar.xz` dosyasını kullanır.
+Eksik tüm güncellemeleri kurar (1.0.0 veya 1.0.1'den buna 1.0.2'nin yaklaşık 110 MB'lık tarayıcı paketleri dahildir); ardından ana ekrandan yeniden başlatın. 1.0.4'ten itibaren Ayarlar'daki yazılım güncellemesi çalışır. Yeni kurulumlar 1.0.14 sürümündeki `ps5-ps4-rootfs.tar.xz` dosyasını kullanır.
 
 ## Proje yapısı
 

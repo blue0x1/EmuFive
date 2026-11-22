@@ -181,12 +181,13 @@ Testou um jogo? Abra uma [issue](https://github.com/blue0x1/EmuFive/issues) com 
 <a id="changelog"></a>
 ## Registro de alterações
 
-### 1.0.13 (2026-11-21)
+### 1.0.14 (2026-11-22)
 
-- Novo: um gerenciador de trapaças. Ative em Configurações, Jogos, e um bloco Trapaças aparece na tela inicial. Ele baixa as trapaças de PS5 da [HEN Cheats Collection](https://github.com/TeeKay87/HEN-Cheats-Collection) e lista seus jogos que têm trapaças para a versão deles; escolha as que quiser e elas são aplicadas quando o jogo inicia. O menu de um jogo mostra quantas estão ativadas.
-- Corrigido: blocos quadriculados nas páginas da web na Internet (#61).
-- Teclado: R1 é Shift, L1 é Espaço, e Shift duas vezes é o Caps Lock (#61).
-- Jogos `.zar` mostram nome, ícone e fundo na tela inicial (#54).
+- Corrigido: jogos que paravam nas instruções ADX da CPU do PS5 (`ADCX`, `ADOX`), como Invincible VS e Dispatch (#64). A CPU do PS4 não as tem, então o EmuFive agora as substitui.
+- Mais instruções da CPU do PS5 funcionam no PS4: `RDRAND`, `RDSEED`, `CLFLUSHOPT`, `CLWB`, `CLZERO`, `RDPRU`, `RDFSBASE` e `RDGSBASE`.
+- Quando o PS4 fica com tão pouca memória que trava (menos de 64 MB livres por um minuto), o jogo é fechado com uma mensagem de memória, em vez de o PS4 congelar.
+- A tela inicial usa menos memória (cerca de 170 MB a menos em 4K), deixando mais para os jogos.
+- Corrigido: blocos pretos em jogos de canvas no Internet (#74).
 
 Para atualizar a partir da 1.0.3 ou anterior, inicie a atualização uma vez à mão, pois a atualização de software antiga não consegue: ative o SSH nas Configurações, conecte com `ssh ps5@<endereço do PS4>` (senha `ps5`, se não a mudou) e execute
 
@@ -194,7 +195,7 @@ Para atualizar a partir da 1.0.3 ou anterior, inicie a atualização uma vez à 
 sudo systemd-run --unit=emufive-update --collect /opt/ps5-on-ps4/bin/ps5-update install
 ```
 
-Ela instala todas as atualizações que faltam (a partir da 1.0.0 ou 1.0.1 isso inclui os pacotes do navegador da 1.0.2, cerca de 110 MB); depois reinicie pela tela inicial. A partir da 1.0.4, a atualização de software nas Configurações funciona. Instalações novas usam o `ps5-ps4-rootfs.tar.xz` da versão 1.0.13.
+Ela instala todas as atualizações que faltam (a partir da 1.0.0 ou 1.0.1 isso inclui os pacotes do navegador da 1.0.2, cerca de 110 MB); depois reinicie pela tela inicial. A partir da 1.0.4, a atualização de software nas Configurações funciona. Instalações novas usam o `ps5-ps4-rootfs.tar.xz` da versão 1.0.14.
 
 ## Estrutura do projeto
 

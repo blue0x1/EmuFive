@@ -181,12 +181,13 @@ Vous avez testé un jeu ? Ouvrez une [issue](https://github.com/blue0x1/EmuFive/
 <a id="changelog"></a>
 ## Journal des modifications
 
-### 1.0.13 (2026-11-21)
+### 1.0.14 (2026-11-22)
 
-- Nouveau : un gestionnaire de triches. Activez-le dans Paramètres, Jeux, et une tuile Triches apparaît sur l'écran d'accueil. Il télécharge les triches PS5 de la [HEN Cheats Collection](https://github.com/TeeKay87/HEN-Cheats-Collection) et liste vos jeux qui ont des triches pour leur version ; choisissez celles que vous voulez, elles s'appliquent au lancement du jeu. Le menu d'un jeu indique combien sont activées.
-- Corrigé : des blocs en damier sur les pages web dans Internet (#61).
-- Clavier : R1 est Maj, L1 est Espace, et Maj deux fois verrouille les majuscules (#61).
-- Les jeux `.zar` affichent leur nom, leur icône et leur fond sur l'écran d'accueil (#54).
+- Corrigé : les jeux qui s'arrêtaient sur les instructions ADX du processeur PS5 (`ADCX`, `ADOX`), comme Invincible VS et Dispatch (#64). Le processeur de la PS4 ne les a pas, EmuFive les remplace maintenant.
+- Plus d'instructions du processeur PS5 fonctionnent sur la PS4 : `RDRAND`, `RDSEED`, `CLFLUSHOPT`, `CLWB`, `CLZERO`, `RDPRU`, `RDFSBASE` et `RDGSBASE`.
+- Quand la PS4 manque tellement de mémoire qu'elle se bloque (moins de 64 Mo libres pendant une minute), le jeu est fermé avec un message de mémoire, au lieu que la PS4 se fige.
+- L'écran d'accueil utilise moins de mémoire (environ 170 Mo de moins en 4K), ce qui en laisse plus aux jeux.
+- Corrigé : des blocs noirs dans les jeux en canvas dans Internet (#74).
 
 Pour mettre à jour depuis la 1.0.3 ou avant, lancez la mise à jour une fois à la main, car l'ancienne mise à jour du logiciel n'y arrive pas : activez SSH dans les Paramètres, connectez-vous avec `ssh ps5@<adresse de la PS4>` (mot de passe `ps5` si vous ne l'avez pas changé) et lancez
 
@@ -194,7 +195,7 @@ Pour mettre à jour depuis la 1.0.3 ou avant, lancez la mise à jour une fois à
 sudo systemd-run --unit=emufive-update --collect /opt/ps5-on-ps4/bin/ps5-update install
 ```
 
-Elle installe toutes les mises à jour manquantes (depuis la 1.0.0 ou la 1.0.1, cela inclut les paquets du navigateur de la 1.0.2, environ 110 Mo), puis redémarrez depuis l'écran d'accueil. À partir de la 1.0.4, la mise à jour du logiciel dans les Paramètres fonctionne. Les nouvelles installations utilisent le `ps5-ps4-rootfs.tar.xz` de la version 1.0.13.
+Elle installe toutes les mises à jour manquantes (depuis la 1.0.0 ou la 1.0.1, cela inclut les paquets du navigateur de la 1.0.2, environ 110 Mo), puis redémarrez depuis l'écran d'accueil. À partir de la 1.0.4, la mise à jour du logiciel dans les Paramètres fonctionne. Les nouvelles installations utilisent le `ps5-ps4-rootfs.tar.xz` de la version 1.0.14.
 
 ## Organisation du projet
 
