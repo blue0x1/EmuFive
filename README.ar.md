@@ -24,7 +24,7 @@
 <p align="center"><img src="assets/home-screen.png" alt="الشاشة الرئيسية لـ EmuFive على PS4 Pro، ولعبة God of War Sons of Sparta محددة" width="900"></p>
 
 <p align="center">
-  <b><a href="#installing">التثبيت</a></b> · <b><a href="#games">الألعاب</a></b> · <b><a href="#changelog">سجل التغييرات</a></b> · <a href="#how-it-works">كيف يعمل</a> · <a href="#the-cpu-problem">مشكلة المعالج</a> · <a href="#plan">الخطة</a> · <a href="#building">البناء</a> · <a href="#credits">شكر وتقدير</a>
+  <b><a href="#installing">التثبيت</a></b> · <b><a href="#games">الألعاب</a></b> · <b><a href="#changelog">سجل التغييرات</a></b> · <b><a href="TROUBLESHOOTING.ar.md">حل المشاكل</a></b> · <a href="#how-it-works">كيف يعمل</a> · <a href="#the-cpu-problem">مشكلة المعالج</a> · <a href="#plan">الخطة</a> · <a href="#building">البناء</a> · <a href="#credits">شكر وتقدير</a>
 </p>
 
 <div dir="rtl">
@@ -123,6 +123,8 @@ scripts/build-rootfs.sh    # out/ps5-ps4-rootfs.tar.xz
 
 بعد ذلك، شغّل الحمولة (payload) لبدء EmuFive (إذا كانت هناك أنظمة أخرى مثبتة تظهر قائمة PS4 Multiboot أولًا). لإعادة التثبيت، احذف `/user/home/ps5-ps4.img` عبر FTP ثم شغّل الحمولة. التحديثات: الإعدادات، النظام، تحديث البرنامج.
 
+هناك شيء لا يعمل؟ راجع [حل المشاكل](TROUBLESHOOTING.ar.md): حلول المشاكل التي أبلغ عنها الناس، وطريقة حفظ السجلات.
+
 ### الاستخدام
 
 - **الشاشة الرئيسية:** ألعابك على شكل مربعات. اختر لعبة واضغط تشغيل. زر OPTIONS على لعبة: مفضلة، إخفاء، إعداداتها، الجوائز ومدة اللعب ومعلومات اللعبة.
@@ -140,6 +142,7 @@ scripts/build-rootfs.sh    # out/ps5-ps4-rootfs.tar.xz
 - **قرص PS4:** المسار `/user/home/PS5`، يُنسخ إليه عبر FTP في GoldHEN (غير متاح إذا كان EmuFive نفسه مثبتًا على وحدة USB).
 - **حاسوب:** مجلد مشترك على Windows أو Linux. في الإعدادات فعّل **استخدام ألعاب الحاسوب**، وأدخل العنوان والمجلد المشترك وبيانات الدخول، ثم اتصال.
 
+<a id="games"></a>
 ## الألعاب
 
 لا يحتوي هذا المشروع على أي برامج نظام PS5 ولا على أي ألعاب. استخدم فقط الألعاب التي تملكها ونسختها بنفسك.

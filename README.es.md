@@ -20,7 +20,7 @@ Creado por **[Chokri Hammedi (blue0x1)](https://github.com/blue0x1)**. Basado en
 <p align="center"><img src="assets/home-screen.png" alt="La pantalla de inicio de EmuFive en una PS4 Pro, con God of War Sons of Sparta seleccionado" width="900"></p>
 
 <p align="center">
-  <b><a href="#installing">Instalación</a></b> · <b><a href="#games">Juegos</a></b> · <b><a href="#changelog">Registro de cambios</a></b> · <a href="#how-it-works">Cómo funciona</a> · <a href="#the-cpu-problem">El problema de la CPU</a> · <a href="#plan">Plan</a> · <a href="#building">Compilación</a> · <a href="#credits">Créditos</a>
+  <b><a href="#installing">Instalación</a></b> · <b><a href="#games">Juegos</a></b> · <b><a href="#changelog">Registro de cambios</a></b> · <b><a href="TROUBLESHOOTING.es.md">Solución de problemas</a></b> · <a href="#how-it-works">Cómo funciona</a> · <a href="#the-cpu-problem">El problema de la CPU</a> · <a href="#plan">Plan</a> · <a href="#building">Compilación</a> · <a href="#credits">Créditos</a>
 </p>
 
 <a id="how-it-works"></a>
@@ -113,6 +113,8 @@ Pasos:
 
 Después, ejecuta el payload para iniciar EmuFive (con otros sistemas instalados, primero aparece el menú de PS4 Multiboot). Para reinstalar, borra `/user/home/ps5-ps4.img` por FTP y ejecuta el payload. Actualizaciones: Ajustes, Sistema, Actualización de software.
 
+¿Algo no funciona? Mira [Solución de problemas](TROUBLESHOOTING.es.md): las soluciones a los problemas que la gente contó, y cómo guardar los registros.
+
 ### Uso
 
 - **Pantalla de inicio:** tus juegos como mosaicos. Elige uno y pulsa Jugar. OPTIONS sobre un juego: favorito, ocultar, sus ajustes, trofeos, tiempo de juego e información del juego.
@@ -130,6 +132,7 @@ Después, ejecuta el payload para iniciar EmuFive (con otros sistemas instalados
 - **Disco de la PS4:** `/user/home/PS5`, copiado con el FTP de GoldHEN (no si EmuFive está instalado en una unidad USB).
 - **Un PC:** una carpeta compartida en Windows o Linux. En Ajustes, activa **Usar juegos del PC**, pon la dirección, la carpeta compartida y el usuario, y luego Conectar.
 
+<a id="games"></a>
 ## Juegos
 
 Este proyecto no contiene software de sistema de PS5 ni juegos. Usa solo juegos que tengas y que hayas volcado tú mismo.

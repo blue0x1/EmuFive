@@ -20,7 +20,7 @@ Criado por **[Chokri Hammedi (blue0x1)](https://github.com/blue0x1)**. Baseado n
 <p align="center"><img src="assets/home-screen.png" alt="A tela inicial do EmuFive em um PS4 Pro, com God of War Sons of Sparta selecionado" width="900"></p>
 
 <p align="center">
-  <b><a href="#installing">Instalação</a></b> · <b><a href="#games">Jogos</a></b> · <b><a href="#changelog">Registro de alterações</a></b> · <a href="#how-it-works">Como funciona</a> · <a href="#the-cpu-problem">O problema da CPU</a> · <a href="#plan">Plano</a> · <a href="#building">Compilação</a> · <a href="#credits">Créditos</a>
+  <b><a href="#installing">Instalação</a></b> · <b><a href="#games">Jogos</a></b> · <b><a href="#changelog">Registro de alterações</a></b> · <b><a href="TROUBLESHOOTING.pt-BR.md">Solução de problemas</a></b> · <a href="#how-it-works">Como funciona</a> · <a href="#the-cpu-problem">O problema da CPU</a> · <a href="#plan">Plano</a> · <a href="#building">Compilação</a> · <a href="#credits">Créditos</a>
 </p>
 
 <a id="how-it-works"></a>
@@ -113,6 +113,8 @@ Passos:
 
 Depois, rode o payload para iniciar o EmuFive (com outros sistemas instalados, o menu do PS4 Multiboot aparece primeiro). Para reinstalar, apague `/user/home/ps5-ps4.img` por FTP e rode o payload. Atualizações: Configurações, Sistema, Atualização de software.
 
+Algo não funciona? Veja [Solução de problemas](TROUBLESHOOTING.pt-BR.md): as soluções para os problemas relatados, e como salvar os registros.
+
 ### Uso
 
 - **Tela inicial:** seus jogos como blocos. Escolha um e aperte Jogar. OPTIONS num jogo: favorito, ocultar, configurações dele, troféus, tempo de jogo e informações do jogo.
@@ -130,6 +132,7 @@ Depois, rode o payload para iniciar o EmuFive (com outros sistemas instalados, o
 - **Disco do PS4:** `/user/home/PS5`, copiado pelo FTP do GoldHEN (não quando o próprio EmuFive está numa unidade USB).
 - **Um PC:** uma pasta compartilhada no Windows ou Linux. Em Configurações, ative **Usar jogos do PC**, informe o endereço, o compartilhamento e o login, e depois Conectar.
 
+<a id="games"></a>
 ## Jogos
 
 Este projeto não contém software de sistema do PS5 nem jogos. Use apenas jogos que você possui e dos quais você mesmo fez o dump.

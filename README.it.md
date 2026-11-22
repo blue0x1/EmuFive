@@ -20,7 +20,7 @@ Creato da **[Chokri Hammedi (blue0x1)](https://github.com/blue0x1)**. Basato su 
 <p align="center"><img src="assets/home-screen.png" alt="La schermata Home di EmuFive su una PS4 Pro, con God of War Sons of Sparta selezionato" width="900"></p>
 
 <p align="center">
-  <b><a href="#installing">Installazione</a></b> · <b><a href="#games">Giochi</a></b> · <b><a href="#changelog">Registro delle modifiche</a></b> · <a href="#how-it-works">Come funziona</a> · <a href="#the-cpu-problem">Il problema della CPU</a> · <a href="#plan">Piano</a> · <a href="#building">Compilazione</a> · <a href="#credits">Riconoscimenti</a>
+  <b><a href="#installing">Installazione</a></b> · <b><a href="#games">Giochi</a></b> · <b><a href="#changelog">Registro delle modifiche</a></b> · <b><a href="TROUBLESHOOTING.it.md">Risoluzione dei problemi</a></b> · <a href="#how-it-works">Come funziona</a> · <a href="#the-cpu-problem">Il problema della CPU</a> · <a href="#plan">Piano</a> · <a href="#building">Compilazione</a> · <a href="#credits">Riconoscimenti</a>
 </p>
 
 <a id="how-it-works"></a>
@@ -113,6 +113,8 @@ Passi:
 
 Dopo, avvia il payload per far partire EmuFive (con altri sistemi installati, compare prima il menu di PS4 Multiboot). Per reinstallare, elimina `/user/home/ps5-ps4.img` via FTP e avvia il payload. Aggiornamenti: Impostazioni, Sistema, Aggiornamento software.
 
+Qualcosa non funziona? Vedi [Risoluzione dei problemi](TROUBLESHOOTING.it.md): le soluzioni ai problemi segnalati, e come salvare i registri.
+
 ### Uso
 
 - **Schermata Home:** i tuoi giochi come riquadri. Scegline uno e premi Gioca. OPTIONS su un gioco: preferito, nascondi, le sue impostazioni, trofei, tempo di gioco e info sul gioco.
@@ -130,6 +132,7 @@ Dopo, avvia il payload per far partire EmuFive (con altri sistemi installati, co
 - **Disco della PS4:** `/user/home/PS5`, copiato con l'FTP di GoldHEN (non quando EmuFive stesso è su un'unità USB).
 - **Un PC:** una cartella condivisa su Windows o Linux. In Impostazioni attiva **Usa giochi dal PC**, inserisci indirizzo, condivisione e credenziali, poi Connetti.
 
+<a id="games"></a>
 ## Giochi
 
 Questo progetto non contiene software di sistema PS5 né giochi. Usa solo giochi che possiedi e di cui hai fatto il dump tu stesso.

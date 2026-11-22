@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Troubleshooting guide (read this first)
+    url: https://github.com/blue0x1/EmuFive/blob/main/TROUBLESHOOTING.md
+    about: Black screen, "No signal", games not showing, controller, error 65, and how to save the logs. Most reported problems have a fix there.

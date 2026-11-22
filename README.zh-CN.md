@@ -20,7 +20,7 @@
 <p align="center"><img src="assets/home-screen.png" alt="PS4 Pro 上的 EmuFive 主屏幕，选中了 God of War Sons of Sparta" width="900"></p>
 
 <p align="center">
-  <b><a href="#installing">安装</a></b> · <b><a href="#games">游戏</a></b> · <b><a href="#changelog">更新日志</a></b> · <a href="#how-it-works">工作原理</a> · <a href="#the-cpu-problem">CPU 问题</a> · <a href="#plan">计划</a> · <a href="#building">构建</a> · <a href="#credits">致谢</a>
+  <b><a href="#installing">安装</a></b> · <b><a href="#games">游戏</a></b> · <b><a href="#changelog">更新日志</a></b> · <b><a href="TROUBLESHOOTING.zh-CN.md">故障排除</a></b> · <a href="#how-it-works">工作原理</a> · <a href="#the-cpu-problem">CPU 问题</a> · <a href="#plan">计划</a> · <a href="#building">构建</a> · <a href="#credits">致谢</a>
 </p>
 
 <a id="how-it-works"></a>
@@ -113,6 +113,8 @@ EmuFive 和其他 Linux 系统一样，通过 [PS4 Multiboot](https://github.com
 
 之后运行 payload 即可启动 EmuFive（如果还装了其他系统，会先出现 PS4 Multiboot 菜单）。要重装，用 FTP 删除 `/user/home/ps5-ps4.img` 再运行 payload。更新：Settings（设置）、System（系统）、Software update（软件更新）。
 
+遇到问题？请看[故障排除](TROUBLESHOOTING.zh-CN.md)：大家报告过的问题的解决方法，以及如何保存日志。
+
 ### 使用
 
 - **主屏幕：** 游戏以磁贴显示。选一个按 Play 即可。在游戏上按 OPTIONS：收藏、隐藏、单独设置、奖杯、游玩时间和游戏信息。
@@ -130,6 +132,7 @@ EmuFive 和其他 Linux 系统一样，通过 [PS4 Multiboot](https://github.com
 - **PS4 硬盘：** `/user/home/PS5`，用 GoldHEN FTP 复制进去（EmuFive 本身装在 USB 驱动器上时不可用）。
 - **电脑：** Windows 或 Linux 上的共享文件夹。在设置中打开 **Use games from PC**（使用电脑上的游戏），填写地址、共享和登录信息，然后 Connect（连接）。
 
+<a id="games"></a>
 ## 游戏
 
 本项目不包含任何 PS5 系统软件，也不包含任何游戏。请只使用你自己拥有并亲自转储的游戏。

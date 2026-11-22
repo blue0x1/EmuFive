@@ -20,7 +20,7 @@ Geliştiren: **[Chokri Hammedi (blue0x1)](https://github.com/blue0x1)**. [PS4 Mu
 <p align="center"><img src="assets/home-screen.png" alt="Bir PS4 Pro'da EmuFive ana ekranı, God of War Sons of Sparta seçili" width="900"></p>
 
 <p align="center">
-  <b><a href="#installing">Kurulum</a></b> · <b><a href="#games">Oyunlar</a></b> · <b><a href="#changelog">Değişiklik günlüğü</a></b> · <a href="#how-it-works">Nasıl çalışır</a> · <a href="#the-cpu-problem">CPU sorunu</a> · <a href="#plan">Plan</a> · <a href="#building">Derleme</a> · <a href="#credits">Katkıda bulunanlar</a>
+  <b><a href="#installing">Kurulum</a></b> · <b><a href="#games">Oyunlar</a></b> · <b><a href="#changelog">Değişiklik günlüğü</a></b> · <b><a href="TROUBLESHOOTING.tr.md">Sorun giderme</a></b> · <a href="#how-it-works">Nasıl çalışır</a> · <a href="#the-cpu-problem">CPU sorunu</a> · <a href="#plan">Plan</a> · <a href="#building">Derleme</a> · <a href="#credits">Katkıda bulunanlar</a>
 </p>
 
 <a id="how-it-works"></a>
@@ -113,6 +113,8 @@ Adımlar:
 
 Ardından EmuFive'ı başlatmak için payload'ı çalıştırın (başka sistemler de kuruluysa önce PS4 Multiboot menüsü açılır). Yeniden kurmak için FTP ile `/user/home/ps5-ps4.img` dosyasını silip payload'ı çalıştırın. Güncellemeler: Ayarlar, Sistem, Yazılım güncellemesi.
 
+Bir şey çalışmıyor mu? [Sorun giderme](TROUBLESHOOTING.tr.md) sayfasına bakın: bildirilen sorunların çözümleri ve günlüklerin nasıl kaydedileceği.
+
 ### Kullanım
 
 - **Ana ekran:** oyunlarınız kutucuk olarak. Birini seçip Oyna'ya basın. Bir oyunda OPTIONS: favori, gizle, oyunun ayarları, kupaları, oynama süresi ve oyun bilgisi.
@@ -130,6 +132,7 @@ Ardından EmuFive'ı başlatmak için payload'ı çalıştırın (başka sisteml
 - **PS4 diski:** GoldHEN FTP ile kopyalanan `/user/home/PS5` (EmuFive'ın kendisi USB sürücüdeyse olmaz).
 - **Bir PC:** Windows veya Linux'ta paylaşılan bir klasör. Ayarlar'da **PC'deki oyunları kullan**'ı açın, adresi, paylaşımı ve girişi yazın, sonra Bağlan.
 
+<a id="games"></a>
 ## Oyunlar
 
 Bu proje hiçbir PS5 sistem yazılımı ve hiçbir oyun içermez. Yalnızca sahip olduğunuz ve dökümünü kendiniz aldığınız oyunları kullanın.

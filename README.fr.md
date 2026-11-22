@@ -20,7 +20,7 @@ Créé par **[Chokri Hammedi (blue0x1)](https://github.com/blue0x1)**. Basé sur
 <p align="center"><img src="assets/home-screen.png" alt="L'écran d'accueil d'EmuFive sur une PS4 Pro, avec God of War Sons of Sparta sélectionné" width="900"></p>
 
 <p align="center">
-  <b><a href="#installing">Installation</a></b> · <b><a href="#games">Jeux</a></b> · <b><a href="#changelog">Journal des modifications</a></b> · <a href="#how-it-works">Fonctionnement</a> · <a href="#the-cpu-problem">Le problème du processeur</a> · <a href="#plan">Feuille de route</a> · <a href="#building">Compilation</a> · <a href="#credits">Crédits</a>
+  <b><a href="#installing">Installation</a></b> · <b><a href="#games">Jeux</a></b> · <b><a href="#changelog">Journal des modifications</a></b> · <b><a href="TROUBLESHOOTING.fr.md">Dépannage</a></b> · <a href="#how-it-works">Fonctionnement</a> · <a href="#the-cpu-problem">Le problème du processeur</a> · <a href="#plan">Feuille de route</a> · <a href="#building">Compilation</a> · <a href="#credits">Crédits</a>
 </p>
 
 <a id="how-it-works"></a>
@@ -113,6 +113,8 @@ Il vous faut :
 
 Ensuite, lancez le payload pour démarrer EmuFive (si d'autres systèmes sont installés, le menu de PS4 Multiboot apparaît d'abord). Pour réinstaller, supprimez `/user/home/ps5-ps4.img` par FTP et lancez le payload. Mises à jour : Paramètres, Système, Mise à jour logicielle.
 
+Quelque chose ne marche pas ? Voir [Dépannage](TROUBLESHOOTING.fr.md) : les solutions aux problèmes signalés, et comment enregistrer les journaux.
+
 ### Utilisation
 
 - **Écran d'accueil :** vos jeux en tuiles. Choisissez-en un et appuyez sur Jouer. OPTIONS sur un jeu : favori, masquer, ses paramètres, trophées, temps de jeu et infos sur le jeu.
@@ -130,6 +132,7 @@ Ensuite, lancez le payload pour démarrer EmuFive (si d'autres systèmes sont in
 - **Disque de la PS4 :** `/user/home/PS5`, copié avec le FTP de GoldHEN (pas quand EmuFive lui-même est sur un disque USB).
 - **Un PC :** un dossier partagé sous Windows ou Linux. Dans Paramètres, activez **Utiliser les jeux du PC**, indiquez l'adresse, le partage et l'identifiant, puis Connecter.
 
+<a id="games"></a>
 ## Jeux
 
 Ce projet ne contient aucun logiciel système PS5 ni aucun jeu. N'utilisez que des jeux que vous possédez et que vous avez dumpés vous-même.

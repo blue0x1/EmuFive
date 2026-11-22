@@ -20,7 +20,7 @@ Erstellt von **[Chokri Hammedi (blue0x1)](https://github.com/blue0x1)**. Basiert
 <p align="center"><img src="assets/home-screen.png" alt="Der EmuFive-Startbildschirm auf einer PS4 Pro, mit God of War Sons of Sparta ausgewählt" width="900"></p>
 
 <p align="center">
-  <b><a href="#installing">Installation</a></b> · <b><a href="#games">Spiele</a></b> · <b><a href="#changelog">Änderungsprotokoll</a></b> · <a href="#how-it-works">So funktioniert es</a> · <a href="#the-cpu-problem">Das CPU-Problem</a> · <a href="#plan">Plan</a> · <a href="#building">Kompilieren</a> · <a href="#credits">Danksagungen</a>
+  <b><a href="#installing">Installation</a></b> · <b><a href="#games">Spiele</a></b> · <b><a href="#changelog">Änderungsprotokoll</a></b> · <b><a href="TROUBLESHOOTING.de.md">Fehlerbehebung</a></b> · <a href="#how-it-works">So funktioniert es</a> · <a href="#the-cpu-problem">Das CPU-Problem</a> · <a href="#plan">Plan</a> · <a href="#building">Kompilieren</a> · <a href="#credits">Danksagungen</a>
 </p>
 
 <a id="how-it-works"></a>
@@ -113,6 +113,8 @@ Schritte:
 
 Danach startet die Payload EmuFive (sind weitere Systeme installiert, erscheint zuerst das PS4-Multiboot-Menü). Zum Neuinstallieren `/user/home/ps5-ps4.img` per FTP löschen und die Payload starten. Updates: Einstellungen, System, Softwareaktualisierung.
 
+Etwas klappt nicht? Siehe [Fehlerbehebung](TROUBLESHOOTING.de.md): die Lösungen für gemeldete Probleme, und wie man Protokolle speichert.
+
 ### Bedienung
 
 - **Startbildschirm:** deine Spiele als Kacheln. Eines wählen und Spielen drücken. OPTIONS auf einem Spiel: Favorit, ausblenden, eigene Einstellungen, Trophäen, Spielzeit und Spielinfo.
@@ -130,6 +132,7 @@ Danach startet die Payload EmuFive (sind weitere Systeme installiert, erscheint 
 - **PS4-Laufwerk:** `/user/home/PS5`, per GoldHEN-FTP kopiert (nicht, wenn EmuFive selbst auf einem USB-Laufwerk ist).
 - **Ein PC:** ein freigegebener Ordner unter Windows oder Linux. In den Einstellungen **Spiele vom PC verwenden** einschalten, Adresse, Freigabe und Anmeldung eintragen, dann Verbinden.
 
+<a id="games"></a>
 ## Spiele
 
 Dieses Projekt enthält keine PS5-Systemsoftware und keine Spiele. Verwende nur Spiele, die du besitzt und selbst gedumpt hast.

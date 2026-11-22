@@ -20,7 +20,7 @@ Created by **[Chokri Hammedi (blue0x1)](https://github.com/blue0x1)**. Built on 
 <p align="center"><img src="assets/home-screen.png" alt="The EmuFive home screen on a PS4 Pro, with God of War Sons of Sparta selected" width="900"></p>
 
 <p align="center">
-  <b><a href="#installing">Installing</a></b> · <b><a href="#games">Games</a></b> · <b><a href="#changelog">Changelog</a></b> · <a href="#how-it-works">How it works</a> · <a href="#the-cpu-problem">The CPU problem</a> · <a href="#plan">Plan</a> · <a href="#building">Building</a> · <a href="#credits">Credits</a>
+  <b><a href="#installing">Installing</a></b> · <b><a href="#games">Games</a></b> · <b><a href="#changelog">Changelog</a></b> · <b><a href="TROUBLESHOOTING.md">Troubleshooting</a></b> · <a href="#how-it-works">How it works</a> · <a href="#the-cpu-problem">The CPU problem</a> · <a href="#plan">Plan</a> · <a href="#building">Building</a> · <a href="#credits">Credits</a>
 </p>
 
 ## How it works
@@ -104,6 +104,8 @@ Steps:
 6. Put your games in one of the places below. A game is a folder with `eboot.bin` (and `sce_sys`), or a ZArchive (`.zar`) dump. Package files (`.pkg`, fpkg) can't be installed or run: extract the game first.
 
 After installing, run the payload to start EmuFive (with other systems installed, the PS4 Multiboot menu comes first). To reinstall, delete `/user/home/ps5-ps4.img` over FTP and run the payload. Updates: Settings, System, Software update.
+
+Something not working? See [Troubleshooting](TROUBLESHOOTING.md): the fixes for the problems people reported, and how to save the logs.
 
 ### Using it
 
