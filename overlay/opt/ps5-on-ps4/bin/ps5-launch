@@ -7,8 +7,8 @@
 #     (OPTIONS on its tile) become KytyPS5 options,
 #   - $XDG_RUNTIME_DIR/ps5-game.json says which game runs and its process (for ps5-guide),
 #   - the time played is added to the game (minus the time it spent paused by the PS button),
-#   - memory is watched: when memory and swap are almost used up, the game is closed before the
-#     PS4 freezes, and the home screen says why,
+#   - memory is watched: when memory and swap are almost used up, or free memory stays so low that
+#     the PS4 stalls, the game is closed before the PS4 freezes, and the home screen says why,
 #   - with the cheat manager on, the cheats turned on for this game version go to KytyPS5
 #     (--game-patch $XDG_RUNTIME_DIR/ps5-cheats.json).
 # Exits with KytyPS5's exit code (128 + the signal when it was stopped by one).
@@ -27,6 +27,12 @@ KYTY = "/opt/kytyps5/kyty_emulator"
 STATE = os.path.join(system.RUNTIME, "ps5-game.json")
 LOW_MEMORY_MB = 160         # Memory plus swap left when the game is closed...
 LOW_MEMORY_SECONDS = 3      # ...for this long.
+# A stall: free memory (MemAvailable) below STALL_MB for STALL_SECONDS. Swap may still be free
+# then, but Linux keeps reading the game's pages back from the hard disk, so slowly that the game
+# and the home screen stop for minutes (Invincible VS: 14 to 67 MB free, 6 FPS down to no frames
+# at all). Under normal memory pressure Linux keeps about 340 MB free.
+STALL_MB = 64
+STALL_SECONDS = 60
 PAUSED = os.path.join(system.RUNTIME, "ps5-game-paused")   # Seconds paused, added by ps5-guide.
 CHEATS = os.path.join(system.RUNTIME, "ps5-cheats.json")
 
@@ -37,8 +43,8 @@ def user_name(name):
     return data.decode("utf-8", errors="ignore").strip() or "Player"
 
 
-def memory_left_mb():
-    """Memory that can still be had (MemAvailable) plus free swap, in MB."""
+def memory_mb():
+    """(memory that can still be had (MemAvailable), free swap) in MB, or None."""
     values = {}
     try:
         with open("/proc/meminfo") as f:
@@ -47,26 +53,49 @@ def memory_left_mb():
                 values[key] = int(rest.split()[0])
     except (OSError, ValueError, IndexError):
         return None
-    return (values.get("MemAvailable", 0) + values.get("SwapFree", 0)) // 1024
+    return values.get("MemAvailable", 0) // 1024, values.get("SwapFree", 0) // 1024
+
+
+class MemoryWatch:
+    """Says why the game should be closed for memory, or None (called about once a second)."""
+
+    def __init__(self):
+        self.low_since = None
+        self.stall_since = None
+
+    def check(self, now):
+        memory = memory_mb()
+        if memory is None:
+            return None
+        available, swap_free = memory
+        left = available + swap_free
+        if left <= LOW_MEMORY_MB:
+            self.low_since = self.low_since or now
+            if now - self.low_since >= LOW_MEMORY_SECONDS:
+                return f"only {left} MB of memory left"
+        else:
+            self.low_since = None
+        if available >= STALL_MB:
+            self.stall_since = None
+            return None
+        self.stall_since = self.stall_since or now
+        if now - self.stall_since >= STALL_SECONDS:
+            return f"only {available} MB of memory free for {int(now - self.stall_since)} s"
+        return None
 
 
 def wait_watching_memory(child):
     """Waits for the game; closes it when memory runs out. Returns (exit code, closed for memory)."""
-    low_since = None
+    watch = MemoryWatch()
     while True:
         try:
             return child.wait(timeout=1.0), False
         except subprocess.TimeoutExpired:
             pass
-        left = memory_left_mb()
-        if left is None or left > LOW_MEMORY_MB:
-            low_since = None
+        why = watch.check(time.monotonic())
+        if why is None:
             continue
-        now = time.monotonic()
-        low_since = low_since or now
-        if now - low_since < LOW_MEMORY_SECONDS:
-            continue
-        print(f"ps5-launch: only {left} MB of memory left; closing the game", flush=True)
+        print(f"ps5-launch: {why}; closing the game", flush=True)
         child.terminate()
         try:
             child.wait(timeout=5)
