@@ -188,6 +188,9 @@ def main():
     os.environ["KYTY_FPS_LOG"] = "1"             # Patch 0038: the FPS in the log, for test reports.
     # Patch 0033: GPU-shared guest memory, on unless turned off in Settings > Games.
     os.environ["KYTY_GPU_SHARED_MEMORY"] = "1" if settings["gpu_shared_memory"] else "0"
+    # Patches 0040 and 0041: the GPU submit thread and fewer memory traps, on unless turned off.
+    os.environ["KYTY_GPU_SUBMIT_THREAD"] = "1" if settings["gpu_submit_thread"] else "0"
+    os.environ["KYTY_FEWER_TRAPS"] = "1" if settings["fewer_memory_traps"] else "0"
     # The PS4 GPU's colour fast clears, depth HiZ and MSAA FMASK leave 8x8-pixel blocks of
     # stale data when a game reads the target back (white dashes in Blue Prince). Mesa's
     # switches turn those shortcuts off.
@@ -230,7 +233,9 @@ def main():
 
 def settings_used(settings, games, game):
     """The settings worth knowing in a report, in words."""
-    used = ["GPU-shared memory " + ("on" if settings["gpu_shared_memory"] else "off")]
+    used = ["GPU-shared memory " + ("on" if settings["gpu_shared_memory"] else "off"),
+            "GPU submit thread " + ("on" if settings["gpu_submit_thread"] else "off"),
+            "Fewer memory traps " + ("on" if settings["fewer_memory_traps"] else "off")]
     entry = games.get(game.key)
     for name, label, _ in store.GAME_OPTIONS:
         if entry.get(name) or settings.data.get("default_" + name):

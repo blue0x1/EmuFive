@@ -25,6 +25,8 @@ DEFAULT_SETTINGS = {
     "auto_off_minutes": 0,     # 0: never. Only while the home screen is idle.
     "fps_counter": False,      # A small FPS counter in the bottom-left corner of games.
     "gpu_shared_memory": True, # Patch 0033: game memory the GPU uses in place (KYTY_GPU_SHARED_MEMORY).
+    "gpu_submit_thread": True, # Patch 0040: GPU work is handed to Vulkan from a second core (KYTY_GPU_SUBMIT_THREAD).
+    "fewer_memory_traps": True, # Patch 0041: small changing buffers are copied, not write-protected (KYTY_FEWER_TRAPS).
     "cheats": False,           # The cheat manager (a Cheats tile on the home screen; lib/ps5/cheats.py).
     "menu_language": "en",     # i18n.LANGUAGES
     # Appearance.
@@ -71,8 +73,6 @@ DEFAULT_SETTINGS = {
     "default_full_hd": False,
     "default_output_1080p": False,
     "default_fsr": False,
-    "default_submit_thread": False,
-    "default_fewer_traps": False,
     "default_emulate_psn": False,
     "console_language": 1,     # 1: English (US); LANGUAGES
     "hdr": False,
@@ -125,10 +125,6 @@ GAME_OPTIONS = [
     # Patch 0025: the game sees a 1080p TV, so it draws a quarter of the pixels of 4K.
     ("output_1080p", "Tell the game the TV is 1080p", {"KYTY_OUTPUT_1080P": "1"}),
     ("fsr", "FSR 1 upscaling", {"KYTY_FSR": "1"}),
-    # Patch 0040: command buffers go to the GPU from a second thread (test, off by default).
-    ("submit_thread", "GPU submit thread (test)", {"KYTY_GPU_SUBMIT_THREAD": "1"}),
-    # Patch 0041: small buffers outside GPU-shared memory are copied, not write-protected.
-    ("fewer_traps", "Fewer memory traps (test)", {"KYTY_FEWER_TRAPS": "1"}),
     # KytyPS5 answers the game's PSN sign-in checks as if a user were signed in.
     ("emulate_psn", "Simulated PSN sign-in", ["--emulate-psn"]),
 ]

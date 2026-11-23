@@ -6650,40 +6650,40 @@
 "it": "Chiuso da EmuFive: memoria esaurita",
 "pt": "Fechado pelo EmuFive: sem memória"
 },
-"GPU submit thread (test)": {
-"ar": "إرسال العمل للمعالج الرسومي من خيط ثانٍ (تجريبي)",
-"fr": "Envoi au GPU sur un 2e fil (test)",
-"tr": "GPU gönderim iş parçacığı (test)",
-"es": "Hilo de envío a la GPU (prueba)",
-"de": "GPU-Sende-Thread (Test)",
-"it": "Thread di invio GPU (test)",
-"pt": "Thread de envio à GPU (teste)"
+"GPU submit thread": {
+"ar": "خيط إرسال المعالج الرسومي",
+"fr": "Thread d'envoi GPU",
+"tr": "GPU gönderim iş parçacığı",
+"es": "Hilo de envío de GPU",
+"de": "GPU-Sende-Thread",
+"it": "Thread di invio GPU",
+"pt": "Thread de envio da GPU"
 },
-"Sends the game's work to the GPU from a second CPU core, so the core that prepares the work has more time. For slow 3D games. Being tested: turn it off if a game hangs or flickers.": {
-"ar": "يرسل عمل اللعبة إلى المعالج الرسومي من نواة معالج ثانية، فيبقى وقت أكثر للنواة التي تجهّز العمل. لألعاب 3D البطيئة. قيد التجربة: أوقفه إذا تجمدت لعبة أو ومضت.",
-"fr": "Envoie le travail du jeu au GPU depuis un second cœur du CPU, pour laisser plus de temps au cœur qui le prépare. Pour les jeux 3D lents. En test : désactivez-le si un jeu se bloque ou scintille.",
-"tr": "Oyunun işini GPU'ya ikinci bir CPU çekirdeğinden gönderir, böylece işi hazırlayan çekirdeğe daha çok zaman kalır. Yavaş 3D oyunlar için. Test aşamasında: bir oyun donar veya titrerse kapatın.",
-"es": "Envía el trabajo del juego a la GPU desde un segundo núcleo de la CPU, para que el núcleo que lo prepara tenga más tiempo. Para juegos 3D lentos. En pruebas: desactívalo si un juego se cuelga o parpadea.",
-"de": "Schickt die Arbeit des Spiels von einem zweiten CPU-Kern an die GPU, damit der Kern, der sie vorbereitet, mehr Zeit hat. Für langsame 3D-Spiele. Im Test: ausschalten, wenn ein Spiel hängt oder flackert.",
-"it": "Invia il lavoro del gioco alla GPU da un secondo core della CPU, così il core che lo prepara ha più tempo. Per i giochi 3D lenti. In prova: disattivalo se un gioco si blocca o sfarfalla.",
-"pt": "Envia o trabalho do jogo à GPU a partir de um segundo núcleo da CPU, para sobrar mais tempo ao núcleo que o prepara. Para jogos 3D lentos. Em teste: desligue se um jogo travar ou piscar."
+"Fewer memory traps": {
+"ar": "حجز أقل للذاكرة",
+"fr": "Moins de pièges mémoire",
+"tr": "Daha az bellek tuzağı",
+"es": "Menos trampas de memoria",
+"de": "Weniger Speicherfallen",
+"it": "Meno trappole di memoria",
+"pt": "Menos armadilhas de memória"
 },
-"Fewer memory traps (test)": {
-"ar": "حجز أقل للذاكرة (تجريبي)",
-"fr": "Moins de pièges mémoire (test)",
-"tr": "Daha az bellek tuzağı (test)",
-"es": "Menos trampas de memoria (prueba)",
-"de": "Weniger Speicherfallen (Test)",
-"it": "Meno trappole di memoria (test)",
-"pt": "Menos armadilhas de memória (teste)"
+"Sends the game's work to the GPU from a second CPU core, so the core that prepares the work has more time. Faster in 3D games. Turn it off if a game hangs or flickers.": {
+"ar": "يرسل عمل اللعبة إلى المعالج الرسومي من نواة ثانية، فتبقى للنواة التي تجهّز العمل مدة أطول. أسرع في الألعاب ثلاثية الأبعاد. أوقفه إذا علقت لعبة أو ومضت.",
+"fr": "Envoie le travail du jeu au GPU depuis un second cœur, pour laisser plus de temps au cœur qui le prépare. Plus rapide dans les jeux 3D. Désactivez-le si un jeu se bloque ou scintille.",
+"tr": "Oyunun işini GPU'ya ikinci bir CPU çekirdeğinden gönderir, böylece işi hazırlayan çekirdeğe daha çok zaman kalır. 3D oyunlarda daha hızlı. Bir oyun donarsa veya titrerse kapatın.",
+"es": "Envía el trabajo del juego a la GPU desde un segundo núcleo, para que el núcleo que lo prepara tenga más tiempo. Más rápido en juegos 3D. Desactívalo si un juego se cuelga o parpadea.",
+"de": "Schickt die Arbeit des Spiels von einem zweiten CPU-Kern an die GPU, damit der vorbereitende Kern mehr Zeit hat. Schneller in 3D-Spielen. Ausschalten, wenn ein Spiel hängt oder flackert.",
+"it": "Invia il lavoro del gioco alla GPU da un secondo core, così il core che lo prepara ha più tempo. Più veloce nei giochi 3D. Disattivalo se un gioco si blocca o sfarfalla.",
+"pt": "Envia o trabalho do jogo para a GPU a partir de um segundo núcleo, para o núcleo que o prepara ter mais tempo. Mais rápido em jogos 3D. Desligue se um jogo travar ou piscar."
 },
-"Small game data that changes every frame is copied for the GPU instead of being watched for changes, so the CPU stops less often. Being tested: turn it off if a game shows wrong or flickering graphics.": {
-"ar": "بيانات اللعبة الصغيرة التي تتغير كل إطار تُنسخ للمعالج الرسومي بدل مراقبة تغيّرها، فيتوقف المعالج أقل. قيد التجربة: أوقفه إذا ظهرت رسومات خاطئة أو وامضة.",
-"fr": "Les petites données du jeu qui changent à chaque image sont copiées pour le GPU au lieu d'être surveillées, donc le CPU s'arrête moins souvent. En test : désactivez-le si un jeu affiche des graphismes faux ou qui scintillent.",
-"tr": "Her karede değişen küçük oyun verileri izlenmek yerine GPU için kopyalanır, böylece CPU daha az durur. Test aşamasında: bir oyunda yanlış veya titreyen grafikler görürseniz kapatın.",
-"es": "Los datos pequeños del juego que cambian cada fotograma se copian para la GPU en lugar de vigilarlos, así la CPU se detiene menos. En pruebas: desactívalo si un juego muestra gráficos erróneos o que parpadean.",
-"de": "Kleine Spieldaten, die sich jedes Bild ändern, werden für die GPU kopiert statt überwacht, so hält die CPU seltener an. Im Test: ausschalten, wenn ein Spiel falsche oder flackernde Grafik zeigt.",
-"it": "I piccoli dati del gioco che cambiano a ogni fotogramma vengono copiati per la GPU invece di essere sorvegliati, così la CPU si ferma meno. In prova: disattivalo se un gioco mostra grafica errata o che sfarfalla.",
-"pt": "Dados pequenos do jogo que mudam a cada quadro são copiados para a GPU em vez de vigiados, então a CPU para menos. Em teste: desligue se um jogo mostrar gráficos errados ou piscando."
+"Small game data that changes every frame is copied for the GPU instead of being watched for changes, so the CPU stops less often. Turn it off if a game shows wrong or flickering graphics.": {
+"ar": "بيانات اللعبة الصغيرة التي تتغير كل إطار تُنسخ للمعالج الرسومي بدل مراقبة تغيّرها، فيتوقف المعالج أقل. أوقفه إذا ظهرت رسومات خاطئة أو وامضة.",
+"fr": "Les petites données du jeu qui changent à chaque image sont copiées pour le GPU au lieu d'être surveillées, donc le CPU s'arrête moins souvent. Désactivez-le si un jeu affiche des graphismes faux ou qui scintillent.",
+"tr": "Her karede değişen küçük oyun verileri izlenmek yerine GPU için kopyalanır, böylece CPU daha az durur. Bir oyunda yanlış veya titreyen grafikler görürseniz kapatın.",
+"es": "Los datos pequeños del juego que cambian cada fotograma se copian para la GPU en lugar de vigilarlos, así la CPU se detiene menos. Desactívalo si un juego muestra gráficos erróneos o que parpadean.",
+"de": "Kleine Spieldaten, die sich jedes Bild ändern, werden für die GPU kopiert statt überwacht, so hält die CPU seltener an. Ausschalten, wenn ein Spiel falsche oder flackernde Grafik zeigt.",
+"it": "I piccoli dati del gioco che cambiano a ogni fotogramma vengono copiati per la GPU invece di essere sorvegliati, così la CPU si ferma meno. Disattivalo se un gioco mostra grafica errata o che sfarfalla.",
+"pt": "Dados pequenos do jogo que mudam a cada quadro são copiados para a GPU em vez de vigiados, então a CPU para menos. Desligue se um jogo mostrar gráficos errados ou piscando."
 }
 }

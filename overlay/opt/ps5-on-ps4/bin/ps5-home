@@ -1759,6 +1759,14 @@ class SettingsScreen(RowList):
             Row("info", "Games keep their memory where the GPU reads and writes it, so less is copied. "
                         "Much faster in 3D games like Teardown. Turn it off if a game hangs or runs out of memory. "
                         "It is used from the next game you start."),
+            self.setting_toggle("GPU submit thread", "gpu_submit_thread"),
+            Row("info", "Sends the game's work to the GPU from a second CPU core, so the core that "
+                        "prepares the work has more time. Faster in 3D games. Turn it off if a game hangs "
+                        "or flickers."),
+            self.setting_toggle("Fewer memory traps", "fewer_memory_traps"),
+            Row("info", "Small game data that changes every frame is copied for the GPU instead of being "
+                        "watched for changes, so the CPU stops less often. Turn it off if a game shows "
+                        "wrong or flickering graphics."),
             self.setting_toggle("Cheat manager", "cheats", after=lambda: h.refresh_games(force=True)),
             Row("info", "Adds a Cheats tile to the home screen, to turn on cheats for your games. "
                         "Cheats can break saves and online play, so back up your saves first."),
@@ -1771,14 +1779,6 @@ class SettingsScreen(RowList):
             self.setting_toggle("Tell the game the TV is 1080p", "default_output_1080p"),
             Row("info", "Games draw for a 1080p TV instead of 4K: much less work for the PS4's GPU, "
                         "so heavy 3D games run faster. The picture is a little softer."),
-            self.setting_toggle("GPU submit thread (test)", "default_submit_thread"),
-            Row("info", "Sends the game's work to the GPU from a second CPU core, so the core that "
-                        "prepares the work has more time. For slow 3D games. Being tested: turn it off "
-                        "if a game hangs or flickers."),
-            self.setting_toggle("Fewer memory traps (test)", "default_fewer_traps"),
-            Row("info", "Small game data that changes every frame is copied for the GPU instead of being "
-                        "watched for changes, so the CPU stops less often. Being tested: turn it off if "
-                        "a game shows wrong or flickering graphics."),
             self.setting_toggle("FSR 1 upscaling", "default_fsr"),
             Row("info", "AMD FSR 1 enlarges a game picture that is smaller than the TV, with sharper "
                         "edges than plain scaling. Use it with the 1080p setting on a 4K TV."),
