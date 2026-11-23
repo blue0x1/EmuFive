@@ -1,0 +1,48 @@
+From: Chokri Hammedi <52697989+blue0x1@users.noreply.github.com>
+Subject: [PATCH] graphics: KYTY_FEWER_TRAPS streams small buffers outside
+ GPU-shared memory again
+
+Patch 0033 turned the stream path off whenever GPU-shared memory is on. Memory
+that cannot be shared (no linear backing, or off a shared page boundary) then
+went back to write-watching: in DREDGE about 135 buffers a frame were synced
+and write-protected again by the GPU thread (mprotect was 18% of it), and the
+game threads took about 300 write faults a frame. With KYTY_FEWER_TRAPS set,
+small read-only buffers in such memory stream again (copied at each use, not
+protected); shared memory is unchanged.
+---
+--- a/src/graphics/host_gpu/renderer/cache/bufferCache.cpp
++++ b/src/graphics/host_gpu/renderer/cache/bufferCache.cpp
+@@ -21,6 +21,7 @@
+ #include <algorithm>
+ #include <cinttypes>
+ #include <cstdlib>
++#include <string>
+ #include <cstring>
+ #include <memory>
+ #include <utility>
+@@ -590,9 +591,23 @@
+ 	EXIT_IF(!(GuestRange {vaddr, size}.Valid()));
+ 
+ 	static const uint64_t stream_max = EnvSize("KYTY_STREAM_MAX_KB", 1024, 256 * 1024);
+-	if (m_direct_page == 0 && !is_written && size <= stream_max &&
++	// KYTY_FEWER_TRAPS: with GPU-shared memory on, memory that cannot be shared (no linear
++	// backing, or not on a shared page boundary) still streams, as it did before: a small
++	// buffer the CPU rewrites every frame is copied at each use instead of being write-protected
++	// again after every sync (DREDGE: about 135 protects and 300 write faults a frame).
++	static const bool fewer_traps = [] {
++		const char* value = std::getenv("KYTY_FEWER_TRAPS");
++		return value != nullptr && *value != '\0' && std::string(value) != "0";
++	}();
++	const auto can_be_direct = [&] {
++		uint64_t backing = 0;
++		return LibKernel::Memory::GetLinearBacking(vaddr, size, &backing) &&
++		       (vaddr - backing) % m_direct_page == 0;
++	};
++	if (!is_written && size <= stream_max && (m_direct_page == 0 || fewer_traps) &&
+ 	    !m_memory_tracker.IsRegionGpuModified(vaddr, size) &&
+-	    m_memory_tracker.IsRegionCpuModified(vaddr, size)) {
++	    m_memory_tracker.IsRegionCpuModified(vaddr, size) &&
++	    (m_direct_page == 0 || !can_be_direct())) {
+ 		const auto alignment = std::max<uint64_t>(
+ 		    m_graphics.physical_device_properties.limits.minUniformBufferOffsetAlignment, 1);
+ 		const auto tick = m_scheduler.CurrentTick();

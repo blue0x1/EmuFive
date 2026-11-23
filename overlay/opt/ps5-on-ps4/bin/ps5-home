@@ -1775,6 +1775,10 @@ class SettingsScreen(RowList):
             Row("info", "Sends the game's work to the GPU from a second CPU core, so the core that "
                         "prepares the work has more time. For slow 3D games. Being tested: turn it off "
                         "if a game hangs or flickers."),
+            self.setting_toggle("Fewer memory traps (test)", "default_fewer_traps"),
+            Row("info", "Small game data that changes every frame is copied for the GPU instead of being "
+                        "watched for changes, so the CPU stops less often. Being tested: turn it off if "
+                        "a game shows wrong or flickering graphics."),
             self.setting_toggle("FSR 1 upscaling", "default_fsr"),
             Row("info", "AMD FSR 1 enlarges a game picture that is smaller than the TV, with sharper "
                         "edges than plain scaling. Use it with the 1080p setting on a 4K TV."),
