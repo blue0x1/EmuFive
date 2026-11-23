@@ -159,7 +159,7 @@ Bu proje hiçbir PS5 sistem yazılımı ve hiçbir oyun içermez. Yalnızca sahi
 | Iron Lung | PS4 Pro | 1.0.12 | Oynanabilir, 60 FPS |
 | The King is Watching | PS4 Pro | 1.0.12 | Oynanabilir, 55–60 FPS |
 | Wizard with a Gun | PS4 Pro | 1.0.12 | Çalışıyor, 20–30 FPS, takılmalar var; bir portal parıltısı ekranda kalıyor |
-| Another Crab's Treasure | PS4 Pro | 1.0.12 | Çalışıyor, 4–10 FPS; görüntü bozulmaları ekranda kalıyor |
+| Another Crab's Treasure | PS4 Pro | 1.0.15 | Çalışıyor, 12–17 FPS; görüntü bozulmaları ekranda kalıyor |
 | Minecraft Dungeons 2 | PS4 Slim | 1.0.12 | İnternet kapalıyken çalışıyor, 20–30 FPS |
 
 </details>
@@ -184,13 +184,16 @@ Bir oyun mu denediniz? Oyunu, oyun kimliğini, konsol modelinizi, EmuFive sürü
 <a id="changelog"></a>
 ## Değişiklik günlüğü
 
-### 1.0.14 (2026-11-22)
+### 1.0.15 (2026-11-23)
 
-- Düzeltildi: PS5 CPU'sunun ADX komutlarında (`ADCX`, `ADOX`) duran oyunlar, örneğin Invincible VS ve Dispatch (#64). PS4'ün CPU'sunda bu komutlar yok, EmuFive artık onların yerine başka kod kullanıyor.
-- PS5 CPU'sunun daha fazla komutu PS4'te çalışıyor: `RDRAND`, `RDSEED`, `CLFLUSHOPT`, `CLWB`, `CLZERO`, `RDPRU`, `RDFSBASE` ve `RDGSBASE`.
-- PS4'ün belleği takılacak kadar azaldığında (bir dakika boyunca 64 MB'tan az boş), PS4 donmak yerine oyun bir bellek mesajıyla kapatılır.
-- Ana ekran daha az bellek kullanıyor (4K'da yaklaşık 170 MB daha az), oyunlara daha fazla kalıyor.
-- Düzeltildi: İnternet'teki canvas oyunlarında siyah bloklar (#74).
+- Daha hızlı 3D oyunlar: iki yeni hız ayarı, GPU gönderim iş parçacığı ve Daha az bellek tuzağı, tüm oyunlar için açık (Ayarlar, Oyunlar). Another Crab's Treasure 4–10'dan 12–17 FPS'ye çıktı. Her biri tek bir oyun için o oyunun OPTIONS menüsünden kapatılabilir; Teardown onlarsız daha hızlı çalıştığı için ikisi kapalı başlar.
+- Test bildir, oyunun menüsünde: FPS, konsol ve ayarları gösteren bir kart ve telefonunuzda hazır bir GitHub issue'su açan bir QR kodu.
+- Hatayla duran bir oyun, günlüğüyle birlikte bir çökme raporu kaydeder (`~/PS5-reports` içinde ve USB sürücüde `PS5-logs`).
+- Bellek neredeyse dolduğunda bir bildirim oyunu kaydetmenizi söyler.
+- Bir USB oyunu, menüsünden EmuFive diskine kopyalanabilir ve oradan tekrar silinebilir.
+- Yeni oyun ayarları: Oyuna TV'nin 1080p olduğunu söyle, FSR 1 büyütme ve sanal PSN girişi.
+- Oyun kutucuklarında uyumluluk rozetleri (Çalışıyor, Yavaş, Çalışmıyor), varsayılan olarak kapalı (Ayarlar, Görünüm).
+- Düzeltildi: Ayarlar, Oyunlar'daki oynama süresi listesine ulaşılamıyordu; bir PS4 Pro veya Slim yanlış model olarak görünüyordu.
 
 1.0.3 veya önceki bir sürümden güncellemek için, eski yazılım güncellemesi bunu yapamadığından güncellemeyi bir kez elle başlatın: Ayarlar'da SSH'yi açın, `ssh ps5@<PS4 adresi>` ile bağlanın (değiştirmediyseniz parola `ps5`) ve çalıştırın:
 
@@ -198,7 +201,7 @@ Bir oyun mu denediniz? Oyunu, oyun kimliğini, konsol modelinizi, EmuFive sürü
 sudo systemd-run --unit=emufive-update --collect /opt/ps5-on-ps4/bin/ps5-update install
 ```
 
-Eksik tüm güncellemeleri kurar (1.0.0 veya 1.0.1'den buna 1.0.2'nin yaklaşık 110 MB'lık tarayıcı paketleri dahildir); ardından ana ekrandan yeniden başlatın. 1.0.4'ten itibaren Ayarlar'daki yazılım güncellemesi çalışır. Yeni kurulumlar 1.0.14 sürümündeki `ps5-ps4-rootfs.tar.xz` dosyasını kullanır.
+Eksik tüm güncellemeleri kurar (1.0.0 veya 1.0.1'den buna 1.0.2'nin yaklaşık 110 MB'lık tarayıcı paketleri dahildir); ardından ana ekrandan yeniden başlatın. 1.0.4'ten itibaren Ayarlar'daki yazılım güncellemesi çalışır. Yeni kurulumlar 1.0.15 sürümündeki `ps5-ps4-rootfs.tar.xz` dosyasını kullanır.
 
 ## Proje yapısı
 

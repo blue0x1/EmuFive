@@ -159,7 +159,7 @@ EmuFive 和其他 Linux 系统一样，通过 [PS4 Multiboot](https://github.com
 | Iron Lung | PS4 Pro | 1.0.12 | 可玩，60 FPS |
 | The King is Watching | PS4 Pro | 1.0.12 | 可玩，55–60 FPS |
 | Wizard with a Gun | PS4 Pro | 1.0.12 | 可运行，20–30 FPS，有卡顿；传送门光效会留在屏幕上 |
-| Another Crab's Treasure | PS4 Pro | 1.0.12 | 可运行，4–10 FPS；画面残留伪影 |
+| Another Crab's Treasure | PS4 Pro | 1.0.15 | 可运行，12–17 FPS；画面残留伪影 |
 | Minecraft Dungeons 2 | PS4 Slim | 1.0.12 | 断开网络后可运行，20–30 FPS |
 
 </details>
@@ -184,13 +184,16 @@ EmuFive 和其他 Linux 系统一样，通过 [PS4 Multiboot](https://github.com
 <a id="changelog"></a>
 ## 更新日志
 
-### 1.0.14 (2026-11-22)
+### 1.0.15 (2026-11-23)
 
-- 修复：在 PS5 CPU 的 ADX 指令（`ADCX`、`ADOX`）上停止的游戏，例如 Invincible VS 和 Dispatch（#64）。PS4 的 CPU 没有这些指令，现在由 EmuFive 替换。
-- 更多 PS5 CPU 指令可在 PS4 上运行：`RDRAND`、`RDSEED`、`CLFLUSHOPT`、`CLWB`、`CLZERO`、`RDPRU`、`RDFSBASE` 和 `RDGSBASE`。
-- 当 PS4 内存少到卡住（一分钟内可用内存低于 64 MB）时，游戏会关闭并显示内存提示，而不是让 PS4 冻结。
-- 主屏幕占用更少内存（4K 下约少 170 MB），为游戏留出更多内存。
-- 修复：“互联网”中 canvas 游戏出现的黑块（#74）。
+- 3D 游戏更快：两个新的速度设置“GPU 提交线程”和“减少内存陷阱”对所有游戏默认开启（设置 > 游戏）。Another Crab's Treasure 从 4–10 FPS 提升到 12–17 FPS。两者都可以在单个游戏的 OPTIONS 菜单中为该游戏关闭；Teardown 关闭两者时运行更快，所以默认对它关闭。
+- 游戏菜单中的“报告测试”：一张显示 FPS、主机型号和设置的卡片，以及一个二维码，用手机扫描即可打开已填好的 GitHub issue。
+- 游戏因错误停止时会保存一份带日志的崩溃报告（位于 `~/PS5-reports`，以及 USB 驱动器上的 `PS5-logs`）。
+- 内存快满时会提示你保存游戏。
+- 可以从游戏菜单把 USB 上的游戏复制到 EmuFive 磁盘，也可以再从磁盘删除。
+- 新的游戏设置：告诉游戏电视为 1080p、FSR 1 放大，以及模拟 PSN 登录。
+- 游戏图块上的兼容性标记（可运行、慢、无法运行），默认关闭（设置 > 外观）。
+- 修复：设置 > 游戏中的游戏时间列表无法访问；PS4 Pro 或 Slim 被显示为错误的型号。
 
 从 1.0.3 或更早版本更新时，旧的软件更新无法完成，请手动启动一次：在设置中打开 SSH，用 `ssh ps5@<PS4 地址>` 连接（未修改时密码为 `ps5`），然后运行
 
@@ -198,7 +201,7 @@ EmuFive 和其他 Linux 系统一样，通过 [PS4 Multiboot](https://github.com
 sudo systemd-run --unit=emufive-update --collect /opt/ps5-on-ps4/bin/ps5-update install
 ```
 
-它会安装所有缺少的更新（从 1.0.0 或 1.0.1 更新时包括 1.0.2 的浏览器软件包，约 110 MB），完成后在主屏幕上重启。从 1.0.4 起，设置中的软件更新可以正常使用。新安装请使用 1.0.14 版本中的 `ps5-ps4-rootfs.tar.xz`。
+它会安装所有缺少的更新（从 1.0.0 或 1.0.1 更新时包括 1.0.2 的浏览器软件包，约 110 MB），完成后在主屏幕上重启。从 1.0.4 起，设置中的软件更新可以正常使用。新安装请使用 1.0.15 版本中的 `ps5-ps4-rootfs.tar.xz`。
 
 ## 项目结构
 

@@ -159,7 +159,7 @@ Ce projet ne contient aucun logiciel système PS5 ni aucun jeu. N'utilisez que d
 | Iron Lung | PS4 Pro | 1.0.12 | Jouable, 60 IPS |
 | The King is Watching | PS4 Pro | 1.0.12 | Jouable, 55–60 IPS |
 | Wizard with a Gun | PS4 Pro | 1.0.12 | Tourne, 20–30 IPS, saccades ; la lueur d'un portail reste à l'écran |
-| Another Crab's Treasure | PS4 Pro | 1.0.12 | Tourne, 4–10 IPS ; des artefacts restent à l'écran |
+| Another Crab's Treasure | PS4 Pro | 1.0.15 | Tourne, 12–17 IPS ; des artefacts restent à l'écran |
 | Minecraft Dungeons 2 | PS4 Slim | 1.0.12 | Tourne avec internet coupé, 20–30 IPS |
 
 </details>
@@ -184,13 +184,16 @@ Vous avez testé un jeu ? Ouvrez une [issue](https://github.com/blue0x1/EmuFive/
 <a id="changelog"></a>
 ## Journal des modifications
 
-### 1.0.14 (2026-11-22)
+### 1.0.15 (2026-11-23)
 
-- Corrigé : les jeux qui s'arrêtaient sur les instructions ADX du processeur PS5 (`ADCX`, `ADOX`), comme Invincible VS et Dispatch (#64). Le processeur de la PS4 ne les a pas, EmuFive les remplace maintenant.
-- Plus d'instructions du processeur PS5 fonctionnent sur la PS4 : `RDRAND`, `RDSEED`, `CLFLUSHOPT`, `CLWB`, `CLZERO`, `RDPRU`, `RDFSBASE` et `RDGSBASE`.
-- Quand la PS4 manque tellement de mémoire qu'elle se bloque (moins de 64 Mo libres pendant une minute), le jeu est fermé avec un message de mémoire, au lieu que la PS4 se fige.
-- L'écran d'accueil utilise moins de mémoire (environ 170 Mo de moins en 4K), ce qui en laisse plus aux jeux.
-- Corrigé : des blocs noirs dans les jeux en canvas dans Internet (#74).
+- Jeux 3D plus rapides : deux nouveaux réglages de vitesse, Thread d'envoi GPU et Moins de pièges mémoire, sont activés pour tous les jeux (Paramètres, Jeux). Another Crab's Treasure est passé de 4–10 à 12–17 IPS. Chacun peut être désactivé pour un seul jeu dans son menu OPTIONS ; Teardown démarre avec les deux désactivés, car il tourne plus vite sans eux.
+- Signaler un test, dans le menu d'un jeu : une carte avec les IPS, la console et les réglages, et un QR code qui ouvre sur votre téléphone un ticket GitHub prêt.
+- Un jeu qui s'arrête sur une erreur enregistre un rapport de plantage avec son journal (dans `~/PS5-reports`, et `PS5-logs` sur la clé USB).
+- Un avis vous demande de sauvegarder quand la mémoire est presque pleine.
+- Un jeu sur USB peut être copié sur le disque EmuFive, puis en être supprimé, depuis son menu.
+- Nouveaux réglages de jeu : Dire au jeu que la TV est en 1080p, mise à l'échelle FSR 1 et connexion PSN simulée.
+- Badges de compatibilité (Fonctionne, Lent, Ne fonctionne pas) sur les jeux, désactivés par défaut (Paramètres, Apparence).
+- Corrigé : la liste du temps de jeu dans Paramètres, Jeux était inaccessible ; une PS4 Pro ou Slim s'affichait sous le mauvais modèle.
 
 Pour mettre à jour depuis la 1.0.3 ou avant, lancez la mise à jour une fois à la main, car l'ancienne mise à jour du logiciel n'y arrive pas : activez SSH dans les Paramètres, connectez-vous avec `ssh ps5@<adresse de la PS4>` (mot de passe `ps5` si vous ne l'avez pas changé) et lancez
 
@@ -198,7 +201,7 @@ Pour mettre à jour depuis la 1.0.3 ou avant, lancez la mise à jour une fois à
 sudo systemd-run --unit=emufive-update --collect /opt/ps5-on-ps4/bin/ps5-update install
 ```
 
-Elle installe toutes les mises à jour manquantes (depuis la 1.0.0 ou la 1.0.1, cela inclut les paquets du navigateur de la 1.0.2, environ 110 Mo), puis redémarrez depuis l'écran d'accueil. À partir de la 1.0.4, la mise à jour du logiciel dans les Paramètres fonctionne. Les nouvelles installations utilisent le `ps5-ps4-rootfs.tar.xz` de la version 1.0.14.
+Elle installe toutes les mises à jour manquantes (depuis la 1.0.0 ou la 1.0.1, cela inclut les paquets du navigateur de la 1.0.2, environ 110 Mo), puis redémarrez depuis l'écran d'accueil. À partir de la 1.0.4, la mise à jour du logiciel dans les Paramètres fonctionne. Les nouvelles installations utilisent le `ps5-ps4-rootfs.tar.xz` de la version 1.0.15.
 
 ## Organisation du projet
 

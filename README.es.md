@@ -159,7 +159,7 @@ Este proyecto no contiene software de sistema de PS5 ni juegos. Usa solo juegos 
 | Iron Lung | PS4 Pro | 1.0.12 | Jugable, 60 FPS |
 | The King is Watching | PS4 Pro | 1.0.12 | Jugable, 55–60 FPS |
 | Wizard with a Gun | PS4 Pro | 1.0.12 | Funciona, 20–30 FPS con tirones; el brillo de un portal se queda en pantalla |
-| Another Crab's Treasure | PS4 Pro | 1.0.12 | Funciona, 4–10 FPS; quedan artefactos gráficos en pantalla |
+| Another Crab's Treasure | PS4 Pro | 1.0.15 | Funciona, 12–17 FPS; quedan artefactos gráficos en pantalla |
 | Minecraft Dungeons 2 | PS4 Slim | 1.0.12 | Funciona con internet desconectado, 20–30 FPS |
 
 </details>
@@ -184,13 +184,16 @@ Este proyecto no contiene software de sistema de PS5 ni juegos. Usa solo juegos 
 <a id="changelog"></a>
 ## Registro de cambios
 
-### 1.0.14 (2026-11-22)
+### 1.0.15 (2026-11-23)
 
-- Corregido: los juegos que se detenían en las instrucciones ADX de la CPU de PS5 (`ADCX`, `ADOX`), como Invincible VS y Dispatch (#64). La CPU de la PS4 no las tiene, así que EmuFive ahora las reemplaza.
-- Más instrucciones de la CPU de PS5 funcionan en la PS4: `RDRAND`, `RDSEED`, `CLFLUSHOPT`, `CLWB`, `CLZERO`, `RDPRU`, `RDFSBASE` y `RDGSBASE`.
-- Cuando a la PS4 le queda tan poca memoria que se atasca (menos de 64 MB libres durante un minuto), el juego se cierra con un mensaje de memoria, en lugar de congelarse la PS4.
-- La pantalla de inicio usa menos memoria (unos 170 MB menos en 4K), y deja más para los juegos.
-- Corregido: bloques negros en juegos de canvas en Internet (#74).
+- Juegos 3D más rápidos: dos nuevos ajustes de velocidad, Hilo de envío de GPU y Menos trampas de memoria, están activados para todos los juegos (Ajustes, Juegos). Another Crab's Treasure pasó de 4–10 a 12–17 FPS. Cada uno se puede desactivar para un juego en su menú OPTIONS; Teardown empieza con los dos desactivados, porque va más rápido sin ellos.
+- Informar de una prueba, en el menú de un juego: una tarjeta con los FPS, la consola y los ajustes, y un código QR que abre en tu móvil un issue de GitHub ya listo.
+- Un juego que se detiene con un error guarda un informe de fallo con su registro (en `~/PS5-reports`, y `PS5-logs` en la unidad USB).
+- Un aviso te pide guardar la partida cuando la memoria está casi llena.
+- Un juego del USB se puede copiar al disco de EmuFive, y borrarlo de nuevo, desde su menú.
+- Nuevos ajustes de juego: Decirle al juego que la TV es 1080p, escalado FSR 1 e inicio de sesión de PSN simulado.
+- Insignias de compatibilidad (Funciona, Lento, No funciona) en los juegos, desactivadas por defecto (Ajustes, Apariencia).
+- Corregido: no se podía llegar a la lista de tiempo de juego en Ajustes, Juegos; una PS4 Pro o Slim aparecía como otro modelo.
 
 Para actualizar desde la 1.0.3 o anteriores, inicia la actualización una vez a mano, porque la actualización de software antigua no puede: activa SSH en Ajustes, conéctate con `ssh ps5@<dirección de la PS4>` (contraseña `ps5` si no la cambiaste) y ejecuta
 
@@ -198,7 +201,7 @@ Para actualizar desde la 1.0.3 o anteriores, inicia la actualización una vez a 
 sudo systemd-run --unit=emufive-update --collect /opt/ps5-on-ps4/bin/ps5-update install
 ```
 
-Instala todas las actualizaciones que faltan (desde la 1.0.0 o la 1.0.1 eso incluye los paquetes del navegador de la 1.0.2, unos 110 MB); después reinicia desde la pantalla de inicio. Desde la 1.0.4, la actualización de software en Ajustes funciona. Las instalaciones nuevas usan el `ps5-ps4-rootfs.tar.xz` de la versión 1.0.14.
+Instala todas las actualizaciones que faltan (desde la 1.0.0 o la 1.0.1 eso incluye los paquetes del navegador de la 1.0.2, unos 110 MB); después reinicia desde la pantalla de inicio. Desde la 1.0.4, la actualización de software en Ajustes funciona. Las instalaciones nuevas usan el `ps5-ps4-rootfs.tar.xz` de la versión 1.0.15.
 
 ## Estructura del proyecto
 
