@@ -71,6 +71,7 @@ DEFAULT_SETTINGS = {
     "default_full_hd": False,
     "default_output_1080p": False,
     "default_fsr": False,
+    "default_submit_thread": False,
     "default_emulate_psn": False,
     "console_language": 1,     # 1: English (US); LANGUAGES
     "hdr": False,
@@ -123,6 +124,8 @@ GAME_OPTIONS = [
     # Patch 0025: the game sees a 1080p TV, so it draws a quarter of the pixels of 4K.
     ("output_1080p", "Tell the game the TV is 1080p", {"KYTY_OUTPUT_1080P": "1"}),
     ("fsr", "FSR 1 upscaling", {"KYTY_FSR": "1"}),
+    # Patch 0040: command buffers go to the GPU from a second thread (test, off by default).
+    ("submit_thread", "GPU submit thread (test)", {"KYTY_GPU_SUBMIT_THREAD": "1"}),
     # KytyPS5 answers the game's PSN sign-in checks as if a user were signed in.
     ("emulate_psn", "Simulated PSN sign-in", ["--emulate-psn"]),
 ]

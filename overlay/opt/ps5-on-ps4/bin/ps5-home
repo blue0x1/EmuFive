@@ -1771,6 +1771,10 @@ class SettingsScreen(RowList):
             self.setting_toggle("Tell the game the TV is 1080p", "default_output_1080p"),
             Row("info", "Games draw for a 1080p TV instead of 4K: much less work for the PS4's GPU, "
                         "so heavy 3D games run faster. The picture is a little softer."),
+            self.setting_toggle("GPU submit thread (test)", "default_submit_thread"),
+            Row("info", "Sends the game's work to the GPU from a second CPU core, so the core that "
+                        "prepares the work has more time. For slow 3D games. Being tested: turn it off "
+                        "if a game hangs or flickers."),
             self.setting_toggle("FSR 1 upscaling", "default_fsr"),
             Row("info", "AMD FSR 1 enlarges a game picture that is smaller than the TV, with sharper "
                         "edges than plain scaling. Use it with the 1080p setting on a 4K TV."),

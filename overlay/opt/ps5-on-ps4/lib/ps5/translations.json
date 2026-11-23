@@ -6649,5 +6649,23 @@
 "de": "Von EmuFive geschlossen: Speicher voll",
 "it": "Chiuso da EmuFive: memoria esaurita",
 "pt": "Fechado pelo EmuFive: sem memória"
+},
+"GPU submit thread (test)": {
+"ar": "إرسال العمل للمعالج الرسومي من خيط ثانٍ (تجريبي)",
+"fr": "Envoi au GPU sur un 2e fil (test)",
+"tr": "GPU gönderim iş parçacığı (test)",
+"es": "Hilo de envío a la GPU (prueba)",
+"de": "GPU-Sende-Thread (Test)",
+"it": "Thread di invio GPU (test)",
+"pt": "Thread de envio à GPU (teste)"
+},
+"Sends the game's work to the GPU from a second CPU core, so the core that prepares the work has more time. For slow 3D games. Being tested: turn it off if a game hangs or flickers.": {
+"ar": "يرسل عمل اللعبة إلى المعالج الرسومي من نواة معالج ثانية، فيبقى وقت أكثر للنواة التي تجهّز العمل. لألعاب 3D البطيئة. قيد التجربة: أوقفه إذا تجمدت لعبة أو ومضت.",
+"fr": "Envoie le travail du jeu au GPU depuis un second cœur du CPU, pour laisser plus de temps au cœur qui le prépare. Pour les jeux 3D lents. En test : désactivez-le si un jeu se bloque ou scintille.",
+"tr": "Oyunun işini GPU'ya ikinci bir CPU çekirdeğinden gönderir, böylece işi hazırlayan çekirdeğe daha çok zaman kalır. Yavaş 3D oyunlar için. Test aşamasında: bir oyun donar veya titrerse kapatın.",
+"es": "Envía el trabajo del juego a la GPU desde un segundo núcleo de la CPU, para que el núcleo que lo prepara tenga más tiempo. Para juegos 3D lentos. En pruebas: desactívalo si un juego se cuelga o parpadea.",
+"de": "Schickt die Arbeit des Spiels von einem zweiten CPU-Kern an die GPU, damit der Kern, der sie vorbereitet, mehr Zeit hat. Für langsame 3D-Spiele. Im Test: ausschalten, wenn ein Spiel hängt oder flackert.",
+"it": "Invia il lavoro del gioco alla GPU da un secondo core della CPU, così il core che lo prepara ha più tempo. Per i giochi 3D lenti. In prova: disattivalo se un gioco si blocca o sfarfalla.",
+"pt": "Envia o trabalho do jogo à GPU a partir de um segundo núcleo da CPU, para sobrar mais tempo ao núcleo que o prepara. Para jogos 3D lentos. Em teste: desligue se um jogo travar ou piscar."
 }
 }

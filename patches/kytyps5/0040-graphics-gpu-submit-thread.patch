@@ -1,0 +1,324 @@
+From: Chokri Hammedi <52697989+blue0x1@users.noreply.github.com>
+Subject: [PATCH] graphics: KYTY_GPU_SUBMIT_THREAD hands command buffers to Vulkan
+ from a thread of their own
+
+The GPU thread runs on one PS4 core at 100% in heavy games (DREDGE: about 850
+submits a second, and ioctl is 10% of the thread). With KYTY_GPU_SUBMIT_THREAD
+set, Submit queues the command buffer and its tick, and a submit thread calls
+vkQueueSubmit in the same order; the GPU thread goes on recording at once.
+
+- Host waits for a tick first wait until its work reached the queue
+  (MasterSemaphore before-wait hook).
+- Every other queue user (the present scheduler, waitIdle, OpenXR, RenderDoc)
+  first drains the queued submits, so the queue keeps the order of the work:
+  presenting reads frames the GPU thread copied.
+---
+--- a/src/graphics/host_gpu/graphicContext.h
++++ b/src/graphics/host_gpu/graphicContext.h
+@@ -57,6 +57,16 @@
+ 	Common::Mutex                      queue_mutex;
+ 	uint32_t                           queue_family = static_cast<uint32_t>(-1);
+ 	vk::Queue                          queue        = nullptr;
++	// KYTY_GPU_SUBMIT_THREAD: the GPU thread's command buffers reach the queue from a thread of
++	// their own. Whoever else uses the queue first waits until those queued before have reached
++	// it (DrainQueuedSubmits), so the queue keeps the order of the work. Set once at start.
++	void (*drain_queued_submits)(void* context) = nullptr;
++	void*  drain_queued_submits_context        = nullptr;
++	void   DrainQueuedSubmits() const {
++		if (drain_queued_submits != nullptr) {
++			drain_queued_submits(drain_queued_submits_context);
++		}
++	}
+ 
+ 	[[nodiscard]] const vk::PhysicalDeviceProperties& GetPhysicalDeviceProperties() const {
+ 		return physical_device_properties;
+--- a/src/graphics/host_gpu/renderer/commandScheduler.cpp
++++ b/src/graphics/host_gpu/renderer/commandScheduler.cpp
+@@ -11,6 +11,7 @@
+ #include <cstdio>
+ #include <cstdlib>
+ #include <optional>
++#include <thread>
+ 
+ namespace Libs::Graphics {
+ 
+@@ -114,6 +115,14 @@
+ 	m_master.Wait(CurrentTick() - 1);
+ 	PopPendingOperations();
+ 	DrainPriorityOperations();
++	if (m_threaded_submit) {
++		DrainSubmits();
++		m_submit_thread.request_stop();
++		m_submit_available.notify_all();
++		if (m_submit_thread.joinable()) {
++			m_submit_thread.join();
++		}
++	}
+ 	m_priority_thread.request_stop();
+ 	m_operation_available.notify_all();
+ 	if (m_priority_thread.joinable()) {
+@@ -323,15 +332,91 @@
+ 	EXIT_IF(m_command.IsInvalid());
+ 
+ 	m_command.End();
+-	const auto buffer   = m_command.m_buffer;
+-	auto&      graphics = m_graphics;
+-	EXIT_IF(graphics.queue == nullptr);
++	const auto buffer = m_command.m_buffer;
++	EXIT_IF(m_graphics.queue == nullptr);
++	uint64_t tick;
++	if (m_threaded_submit) {
++		{
++			std::lock_guard lock(m_submit_mutex);
++			tick = m_master.NextTick();
++			m_submits.push_back({buffer, submit, tick});
++		}
++		m_submit_available.notify_one();
++	} else {
++		// Work the GPU thread queued must reach the queue first (presenting reads its frames).
++		m_graphics.DrainQueuedSubmits();
++		Common::LockGuard lock(m_graphics.queue_mutex);
++		tick = m_master.NextTick();
++		QueueSubmit(buffer, submit, tick);
++	}
++	m_command.m_buffer = nullptr;
++	return tick;
++}
++
++void CommandScheduler::EnableSubmitThread() {
++	EXIT_IF(m_threaded_submit);
++	m_threaded_submit = true;
++	m_graphics.drain_queued_submits_context = this;
++	m_graphics.drain_queued_submits = [](void* context) {
++		static_cast<CommandScheduler*>(context)->DrainSubmits();
++	};
++	m_master.SetBeforeWait(
++	    [](void* context, uint64_t tick) { static_cast<CommandScheduler*>(context)->WaitSubmitted(tick); },
++	    this);
++	m_submit_thread = std::jthread([this](std::stop_token stop) { SubmitThread(stop); });
++	printf("CommandScheduler: GPU submit thread on\n");
++}
++
++void CommandScheduler::SubmitThread(std::stop_token stop) {
++	for (;;) {
++		QueuedSubmit item;
++		{
++			std::unique_lock lock(m_submit_mutex);
++			m_submit_available.wait(lock, stop, [this] { return !m_submits.empty(); });
++			if (m_submits.empty()) {
++				return; // Stop requested with nothing left.
++			}
++			item = m_submits.front();
++			m_submits.pop_front();
++			m_submit_busy = true;
++		}
++		{
++			Common::LockGuard lock(m_graphics.queue_mutex);
++			QueueSubmit(item.buffer, item.submit, item.tick);
++		}
++		{
++			std::lock_guard lock(m_submit_mutex);
++			m_submitted_tick = item.tick;
++			m_submit_busy    = false;
++		}
++		m_submit_done.notify_all();
++	}
++}
++
++void CommandScheduler::DrainSubmits() {
++	if (!m_threaded_submit || std::this_thread::get_id() == m_submit_thread.get_id()) {
++		return;
++	}
++	std::unique_lock lock(m_submit_mutex);
++	m_submit_done.wait(lock, [this] { return m_submits.empty() && !m_submit_busy; });
++}
+ 
++void CommandScheduler::WaitSubmitted(uint64_t tick) {
++	if (!m_threaded_submit || std::this_thread::get_id() == m_submit_thread.get_id()) {
++		return;
++	}
++	std::unique_lock lock(m_submit_mutex);
++	m_submit_done.wait(lock, [this, tick] {
++		// A tick still in m_submits (or being submitted) has not reached Vulkan yet.
++		return m_submitted_tick >= tick || (m_submits.empty() && !m_submit_busy);
++	});
++}
++
++// Hands one command buffer to Vulkan, signalling `tick`. queue_mutex is held by the caller.
++void CommandScheduler::QueueSubmit(vk::CommandBuffer buffer, SubmitInfo& submit, uint64_t tick) {
++	auto&      graphics = m_graphics;
+ 	vk::Result result;
+-	uint64_t   tick;
+ 	{
+-		Common::LockGuard lock(graphics.queue_mutex);
+-		tick = m_master.NextTick();
+ 		submit.AddSignal(m_master.Handle(), tick);
+ 
+ 		vk::TimelineSemaphoreSubmitInfo timeline_info {};
+@@ -389,8 +474,6 @@
+ 		EXIT("vkQueueSubmit failed: %s, tick=%" PRIu64 "\n", vk::to_string(result).c_str(), tick);
+ 	}
+ 
+-	m_command.m_buffer = nullptr;
+-	return tick;
+ }
+ 
+ void CommandScheduler::BeginNext() {
+--- a/src/graphics/host_gpu/renderer/commandScheduler.h
++++ b/src/graphics/host_gpu/renderer/commandScheduler.h
+@@ -9,6 +9,7 @@
+ 
+ #include <condition_variable>
+ #include <mutex>
++#include <deque>
+ #include <queue>
+ #include <thread>
+ #include <vector>
+@@ -21,6 +22,11 @@
+ 	~CommandScheduler();
+ 	KYTY_CLASS_NO_COPY(CommandScheduler);
+ 
++	// KYTY_GPU_SUBMIT_THREAD: Submit queues the command buffer for a thread of its own, which
++	// hands it to Vulkan; the caller goes on recording at once. For the GPU thread's scheduler.
++	void           EnableSubmitThread();
++	// Waits until every command buffer queued so far has reached the Vulkan queue.
++	void           DrainSubmits();
+ 	void           Begin(HW::Context& registers, HW::UserConfig& user_config, HW::Shader& shaders);
+ 	void           EndRendering() { m_command.EndRendering(); }
+ 	void           Flush();
+@@ -81,6 +87,9 @@
+ 	};
+ 
+ 	void BeginNext();
++	void QueueSubmit(vk::CommandBuffer buffer, SubmitInfo& submit, uint64_t tick);
++	void SubmitThread(std::stop_token stop);
++	void WaitSubmitted(uint64_t tick);
+ 	void PriorityOperationsThread(std::stop_token stop);
+ 	void QueueOperation(Common::UniqueFunction<void>&& operation, bool priority);
+ 	void RunOperation(Common::UniqueFunction<void>&& operation);
+@@ -98,6 +107,20 @@
+ 	std::jthread                 m_priority_thread;
+ 	uint64_t                     m_priority_active_tick = 0; // 0 while none runs
+ 	OperationState               m_operation_state      = OperationState::Open;
++
++	struct QueuedSubmit {
++		vk::CommandBuffer buffer = nullptr;
++		SubmitInfo        submit;
++		uint64_t          tick = 0;
++	};
++	bool                        m_threaded_submit = false;
++	std::mutex                  m_submit_mutex;
++	std::condition_variable_any m_submit_available;
++	std::condition_variable_any m_submit_done;
++	std::deque<QueuedSubmit>    m_submits;
++	uint64_t                    m_submitted_tick = 0; // Highest tick handed to Vulkan.
++	bool                        m_submit_busy    = false;
++	std::jthread                m_submit_thread;
+ };
+ 
+ } // namespace Libs::Graphics
+--- a/src/graphics/host_gpu/renderer/masterSemaphore.cpp
++++ b/src/graphics/host_gpu/renderer/masterSemaphore.cpp
+@@ -38,6 +38,9 @@
+ 	if (IsFree(tick)) {
+ 		return;
+ 	}
++	if (m_before_wait != nullptr) {
++		m_before_wait(m_before_wait_context, tick);
++	}
+ 	Refresh();
+ 	if (IsFree(tick)) {
+ 		return;
+--- a/src/graphics/host_gpu/renderer/masterSemaphore.h
++++ b/src/graphics/host_gpu/renderer/masterSemaphore.h
+@@ -30,12 +30,20 @@
+ 
+ 	void Refresh();
+ 	void Wait(uint64_t tick);
++	// Called before waiting for a tick on the host: with a submit thread, the tick's work may
++	// not have reached the queue yet.
++	void SetBeforeWait(void (*before_wait)(void* context, uint64_t tick), void* context) {
++		m_before_wait         = before_wait;
++		m_before_wait_context = context;
++	}
+ 
+ private:
+ 	GraphicContext&       m_graphics;
+ 	vk::Semaphore         m_semaphore = nullptr;
+ 	std::atomic<uint64_t> m_gpu_tick {0};
+ 	std::atomic<uint64_t> m_current_tick {1};
++	void (*m_before_wait)(void* context, uint64_t tick) = nullptr;
++	void* m_before_wait_context                         = nullptr;
+ };
+ 
+ } // namespace Libs::Graphics
+--- a/src/graphics/host_gpu/renderer/renderContext.cpp
++++ b/src/graphics/host_gpu/renderer/renderContext.cpp
+@@ -6,6 +6,8 @@
+ #include "libs/errno.h"
+ 
+ #include <algorithm>
++#include <cstdlib>
++#include <string>
+ 
+ namespace Libs::Graphics {
+ 
+@@ -17,6 +19,10 @@
+       m_texture_cache(graphics, m_command_scheduler, m_page_manager, m_buffer_cache),
+       m_image_heap(*this, m_page_manager), m_occlusion_queries(graphics, m_command_scheduler) {
+ 	EXIT_NOT_IMPLEMENTED(!Common::Thread::IsMainThread());
++	if (const char* value = std::getenv("KYTY_GPU_SUBMIT_THREAD");
++	    value != nullptr && *value != '\0' && std::string(value) != "0") {
++		m_command_scheduler.EnableSubmitThread();
++	}
+ }
+ 
+ RenderContext::~RenderContext() {
+--- a/src/graphics/presentation/openxrHeadset.cpp
++++ b/src/graphics/presentation/openxrHeadset.cpp
+@@ -427,6 +427,7 @@
+ 		(void)g.graphics->device.resetFences(1, &g.fence);
+ 		vk::Result result {};
+ 		{
++			g.graphics->DrainQueuedSubmits();
+ 			Common::LockGuard queue_lock(g.graphics->queue_mutex);
+ 			result = g.graphics->queue.submit(1, &submit, g.fence);
+ 		}
+@@ -695,6 +696,7 @@
+ 		return;
+ 	}
+ 	{
++		g.graphics->DrainQueuedSubmits();
+ 		Common::LockGuard queue_lock(g.graphics->queue_mutex);
+ 		(void)g.graphics->device.waitIdle();
+ 	}
+--- a/src/graphics/presentation/renderDoc.cpp
++++ b/src/graphics/presentation/renderDoc.cpp
+@@ -166,6 +166,7 @@
+ 
+ 	// Capture boundaries follow presentation and exclude concurrent queue access.
+ 	Common::LockGuard render_lock(renderer.GetMutex());
++	renderer.GetGraphics().DrainQueuedSubmits();
+ 	Common::LockGuard queue_lock(renderer.GetGraphics().queue_mutex);
+ 	if (state == RenderDocState::Requested) {
+ 		StartCapture();
+--- a/src/graphics/presentation/systemOverlay.cpp
++++ b/src/graphics/presentation/systemOverlay.cpp
+@@ -1040,6 +1040,7 @@
+ 	void FinishSplash() {
+ 		g_splash_active.store(false, std::memory_order_release);
+ 		if (splash_dds[0] || splash_dds[1]) {
++			graphics.DrainQueuedSubmits();
+ 			Common::LockGuard lock(graphics.queue_mutex);
+ 			RequireVulkanSuccess(graphics.queue.waitIdle(), "retire splash images");
+ 			splash_dds = {};
+--- a/src/graphics/presentation/window/swapchain.cpp
++++ b/src/graphics/presentation/window/swapchain.cpp
+@@ -505,6 +505,7 @@
+ 	auto& graphics = m_window.graphic_ctx;
+ 
+ 	{
++		graphics.DrainQueuedSubmits();
+ 		Common::LockGuard queue_lock(graphics.queue_mutex);
+ 		RequireVulkanSuccess(graphics.queue.waitIdle(), "wait for swapchain queue");
+ 	}
