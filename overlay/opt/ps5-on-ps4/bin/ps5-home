@@ -1767,6 +1767,8 @@ class SettingsScreen(RowList):
             Row("info", "Small game data that changes every frame is copied for the GPU instead of being "
                         "watched for changes, so the CPU stops less often. Turn it off if a game shows "
                         "wrong or flickering graphics."),
+            Row("info", "Press OPTIONS on a game to turn these two on or off for that game only. "
+                        "Teardown runs faster with both off, so they start off for it."),
             self.setting_toggle("Cheat manager", "cheats", after=lambda: h.refresh_games(force=True)),
             Row("info", "Adds a Cheats tile to the home screen, to turn on cheats for your games. "
                         "Cheats can break saves and online play, so back up your saves first."),
@@ -2609,6 +2611,9 @@ class GameMenu(RowList):
                 Row("header", "Game settings")]
         for key, label, _ in store.GAME_OPTIONS:
             rows.append(Row("toggle", label, entry.get(key, False), ok=lambda k=key: self.flip(k)))
+        for key, label, _ in store.SPEED_OPTIONS:
+            rows.append(Row("toggle", label, h.games_store.speed(g.key, g.title_id, h.settings, key),
+                            ok=lambda k=key: self.flip_speed(k)))
         rows.append(Row("info", "Game settings are used the next time the game starts."))
         return rows
 
@@ -2639,6 +2644,12 @@ class GameMenu(RowList):
         h.push(Dialog(h, f"How did {g.title} run?",
                       [("Works", lambda: show("works")), ("Slow", lambda: show("slow")),
                        ("Doesn't work", lambda: show("broken"))], title="Report a test"))
+
+    def flip_speed(self, key):
+        """Stores the game's own choice, the opposite of what it uses now."""
+        h, g = self.home, self.game
+        h.games_store.update(g.key, **{key: not h.games_store.speed(g.key, g.title_id, h.settings, key)})
+        h.games_changed = True
 
     def flip(self, key):
         h, g = self.home, self.game

@@ -6685,5 +6685,14 @@
 "de": "Kleine Spieldaten, die sich jedes Bild ändern, werden für die GPU kopiert statt überwacht, so hält die CPU seltener an. Ausschalten, wenn ein Spiel falsche oder flackernde Grafik zeigt.",
 "it": "I piccoli dati del gioco che cambiano a ogni fotogramma vengono copiati per la GPU invece di essere sorvegliati, così la CPU si ferma meno. Disattivalo se un gioco mostra grafica errata o che sfarfalla.",
 "pt": "Dados pequenos do jogo que mudam a cada quadro são copiados para a GPU em vez de vigiados, então a CPU para menos. Desligue se um jogo mostrar gráficos errados ou piscando."
+},
+"Press OPTIONS on a game to turn these two on or off for that game only. Teardown runs faster with both off, so they start off for it.": {
+"ar": "اضغط OPTIONS على لعبة لتشغيل هذين الخيارين أو إيقافهما لتلك اللعبة فقط. Teardown أسرع مع إيقافهما، لذا يبدآن متوقفين لها.",
+"fr": "Appuyez sur OPTIONS sur un jeu pour activer ou désactiver ces deux options pour ce jeu seulement. Teardown est plus rapide sans elles, elles y sont donc désactivées au départ.",
+"tr": "Yalnızca o oyun için bu ikisini açmak veya kapatmak üzere bir oyunda OPTIONS'a basın. Teardown ikisi kapalıyken daha hızlı, bu yüzden onda kapalı başlarlar.",
+"es": "Pulsa OPTIONS en un juego para activar o desactivar estas dos opciones solo en ese juego. Teardown va más rápido sin ellas, así que empiezan desactivadas en él.",
+"de": "Drücke OPTIONS auf einem Spiel, um diese beiden nur für dieses Spiel ein- oder auszuschalten. Teardown läuft ohne beide schneller, daher sind sie dort zu Beginn aus.",
+"it": "Premi OPTIONS su un gioco per attivare o disattivare queste due opzioni solo per quel gioco. Teardown va più veloce senza, quindi lì partono disattivate.",
+"pt": "Pressione OPTIONS em um jogo para ligar ou desligar estas duas opções só nesse jogo. Teardown roda mais rápido sem elas, então começam desligadas nele."
 }
 }

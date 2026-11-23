@@ -129,6 +129,18 @@ GAME_OPTIONS = [
     ("emulate_psn", "Simulated PSN sign-in", ["--emulate-psn"]),
 ]
 
+# Speed settings that are on for all games (Settings > Games) and can be turned off per game:
+# (name, label, KytyPS5 variable). They help games limited by the emulator's GPU thread (DREDGE)
+# and cost a little in games that mostly wait for the GPU (Teardown).
+SPEED_OPTIONS = [
+    ("gpu_submit_thread", "GPU submit thread", "KYTY_GPU_SUBMIT_THREAD"),     # Patch 0040.
+    ("fewer_memory_traps", "Fewer memory traps", "KYTY_FEWER_TRAPS"),         # Patch 0041.
+]
+# Games that run faster with a speed setting off (measured): title ID -> {name: value}.
+SPEED_DEFAULTS = {
+    "PPSA15246": {"gpu_submit_thread": False, "fewer_memory_traps": False},  # Teardown, PS4 Pro.
+}
+
 
 def write_private(path, text):
     os.makedirs(os.path.dirname(path), mode=0o700, exist_ok=True)
@@ -360,6 +372,18 @@ class Games:
             if isinstance(option, dict):
                 env.update(option)
         return env
+
+    def speed(self, key, title_id, settings, name):
+        """A SPEED_OPTIONS setting for this game: its own choice, else the game's known best, else
+        the setting for all games."""
+        entry = self.get(key)
+        if name in entry:
+            return bool(entry[name])
+        return bool(SPEED_DEFAULTS.get(title_id, {}).get(name, settings[name]))
+
+    def speed_environment(self, key, title_id, settings):
+        return {variable: "1" if self.speed(key, title_id, settings, name) else "0"
+                for name, _, variable in SPEED_OPTIONS}
 
     def _chosen(self, key, settings):
         entry = self.get(key)
