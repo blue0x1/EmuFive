@@ -1,0 +1,143 @@
+EmuFive: a GPU interrupt reached the guest before the label of the same end-of-pipe when that label
+was handed to the GPU thread (a write-protected page with GPU-shared memory on). The guest woke,
+read the old value and waited again for good: Invincible VS stopped with "GameThread timed out
+waiting for RenderThread". Such an interrupt now goes through the GPU thread too, after the label.
+Also: a command list blocked for 10 s logs what it waits for ("GPU queue N stuck for 10 s: ...").
+
+--- a/src/graphics/guest_gpu/graphicsRun.cpp
++++ b/src/graphics/guest_gpu/graphicsRun.cpp
+@@ -45,6 +45,9 @@
+ 
+ #include <fmt/format.h>
+ 
++// EmuFive: why the last command list stopped (GPU thread only), for the stuck GPU queue log.
++static thread_local std::string g_suspend_reason;
++
+ namespace Libs::Graphics {
+ 
+ static thread_local Pm4Execution* g_current_execution = nullptr;
+@@ -249,6 +252,7 @@
+ 
+ void CommandProcessor::WaitForRewind(bool valid) {
+ 	if (!valid) {
++		g_suspend_reason = "rewind";
+ 		SuspendPm4();
+ 	}
+ }
+@@ -334,6 +338,26 @@
+ 	}
+ }
+ 
++// EmuFive: runs on the priority thread after this end-of-pipe's label was published. A label
++// that went to the GPU thread is not in guest memory yet, and a guest woken by the interrupt
++// before it lands reads the old value and waits again. With no more GPU work coming it then waits
++// for good (Invincible VS: "GameThread timed out waiting for RenderThread"). Such an interrupt
++// goes through the GPU thread too, whose commands run in order, after the label.
++static void TriggerInterruptAfterLabels(RenderContext& renderer, int event_id, uint32_t context_id) {
++	if (g_gpu_thread_labels.load(std::memory_order_acquire) != 0) {
++		static std::atomic_bool noted {false};
++		if (!noted.exchange(true)) {
++			Log::WriteToConsoleAndLog("GPU interrupt sent after a label written by the GPU thread\n");
++		}
++		const bool sent = renderer.GetGpu().TrySendCommand(
++		    [&renderer, event_id, context_id] { renderer.TriggerInterrupt(event_id, context_id); });
++		if (sent) {
++			return;
++		}
++	}
++	renderer.TriggerInterrupt(event_id, context_id);
++}
++
+ template <typename T>
+ static T ReadLabel(const T* addr) {
+ 	std::lock_guard lock(g_early_labels_mutex);
+@@ -348,7 +372,13 @@
+ 		EXIT("unsupported wait_reg_mem operation: 0x%08" PRIx32 "\n", wait_op);
+ 	}
+ 
+-	if (!TestWaitRegMemValue(ReadLabel(addr), ref, mask, func)) {
++	const auto value = ReadLabel(addr);
++	if (!TestWaitRegMemValue(value, ref, mask, func)) {
++		g_suspend_reason = fmt::format("wait_reg_mem{} at 0x{:x}: value 0x{:x}, mask 0x{:x}, "
++		                               "func {}, ref 0x{:x}",
++		                               sizeof(T) * 8, reinterpret_cast<uint64_t>(addr),
++		                               static_cast<uint64_t>(value), static_cast<uint64_t>(mask),
++		                               func, static_cast<uint64_t>(ref));
+ 		SuspendPm4();
+ 	}
+ }
+@@ -362,6 +392,7 @@
+ 	if (signal) {
+ 		*counter = write ? 1u : *counter + 1u;
+ 	} else if (*counter == 0) {
++		g_suspend_reason = fmt::format("mem_semaphore at 0x{:x}", reinterpret_cast<uint64_t>(counter));
+ 		SuspendPm4();
+ 	} else {
+ 		(*counter)--;
+@@ -600,6 +631,20 @@
+ 			return gpu->Process(submission);
+ 		}();
+ 
++		if (!complete) {
++			// EmuFive: a command list that stays blocked for 10 s says what it waits for.
++			const auto now = std::chrono::steady_clock::now();
++			if (submission.execution.MadeProgress() ||
++			    submission.stuck_since == std::chrono::steady_clock::time_point {}) {
++				submission.stuck_since  = now;
++				submission.stuck_logged = false;
++			} else if (!submission.stuck_logged && now - submission.stuck_since >= std::chrono::seconds(10)) {
++				submission.stuck_logged = true;
++				Log::WriteToConsoleAndLog(fmt::format(
++				    "GPU queue {} stuck for 10 s: {}\n", submission.queue_id,
++				    g_suspend_reason.empty() ? std::string("unknown wait") : g_suspend_reason));
++			}
++		}
+ 		Common::LockGuard lock(gpu->m_queue_mutex);
+ 		if (!complete) {
+ 			submission.blocked = true;
+@@ -669,6 +714,7 @@
+ 	}
+ 	execution.m_suspended     = false;
+ 	execution.m_made_progress = false;
++	g_suspend_reason.clear();
+ 
+ 	struct ExecutionScope {
+ 		explicit ExecutionScope(Pm4Execution& execution) { g_current_execution = &execution; }
+@@ -831,6 +877,8 @@
+ 				const auto end   = results[db * 2u + 1u];
+ 				if ((begin & end & ready_bit) == 0) {
+ 					if (wait_op == 0) {
++						g_suspend_reason = fmt::format("occlusion query at 0x{:x} not ready",
++						                               reinterpret_cast<uint64_t>(address));
+ 						SuspendPm4();
+ 					} else {
+ 						m_predicate_skip = false;
+@@ -1117,7 +1165,7 @@
+ 	if (interrupt) {
+ 		GetScheduler().DeferPriorityOperation(
+ 		    [&renderer = m_renderer, event_id = m_interrupt_event_id, interrupt_context_id] {
+-			    renderer.TriggerInterrupt(event_id, interrupt_context_id);
++			    TriggerInterruptAfterLabels(renderer, event_id, interrupt_context_id);
+ 		    });
+ 	}
+ }
+--- a/src/graphics/guest_gpu/graphicsRun.h
++++ b/src/graphics/guest_gpu/graphicsRun.h
+@@ -8,6 +8,7 @@
+ #include "graphics/guest_gpu/command_processor/commandProcessor.h"
+ 
+ #include <array>
++#include <chrono>
+ #include <atomic>
+ #include <cstdint>
+ #include <deque>
+@@ -62,6 +63,9 @@
+ 		Pm4Execution              execution;
+ 		bool                      blocked         = false;
+ 		uint64_t                  flip_request_id = 0;
++		// EmuFive: when this list stopped making progress, for the stuck GPU queue log.
++		std::chrono::steady_clock::time_point stuck_since {};
++		bool                                  stuck_logged = false;
+ 	};
+ 
+ 	void              Enqueue(Submission submission);
