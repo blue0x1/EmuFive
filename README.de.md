@@ -161,6 +161,7 @@ Dieses Projekt enthält keine PS5-Systemsoftware und keine Spiele. Verwende nur 
 | Wizard with a Gun | PS4 Pro | 1.0.12 | Läuft, 20–30 FPS, ruckelt; ein Portal-Leuchten bleibt auf dem Bildschirm |
 | Another Crab's Treasure | PS4 Pro | 1.0.15 | Läuft, 12–17 FPS; Grafikfehler bleiben auf dem Bildschirm |
 | Minecraft Dungeons 2 | PS4 Slim | 1.0.12 | Läuft mit getrenntem Internet, 20–30 FPS |
+| SteamWorld Build | PS4 Slim | 1.0.15 | Läuft, 6–10 FPS; der erste Start dauert etwa 40 Min., spätere etwa 17 Min. mit Kompilierte Shader behalten |
 
 </details>
 

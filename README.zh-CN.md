@@ -161,6 +161,7 @@ EmuFive 和其他 Linux 系统一样，通过 [PS4 Multiboot](https://github.com
 | Wizard with a Gun | PS4 Pro | 1.0.12 | 可运行，20–30 FPS，有卡顿；传送门光效会留在屏幕上 |
 | Another Crab's Treasure | PS4 Pro | 1.0.15 | 可运行，12–17 FPS；画面残留伪影 |
 | Minecraft Dungeons 2 | PS4 Slim | 1.0.12 | 断开网络后可运行，20–30 FPS |
+| SteamWorld Build | PS4 Slim | 1.0.15 | 可运行，6–10 FPS；首次启动约 40 分钟，开启“保留已编译着色器”后再次启动约 17 分钟 |
 
 </details>
 

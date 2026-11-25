@@ -140,6 +140,13 @@
    "result": "Runs with the internet off, 20–30 FPS"
   },
   {
+   "title": "SteamWorld Build",
+   "status": "slow",
+   "console": "PS4 Slim",
+   "version": "1.0.15",
+   "result": "Runs, 6–10 FPS; the first start takes about 40 min, later ones about 17 min with Keep compiled shaders"
+  },
+  {
    "title": "DRAGON BALL: Sparking! ZERO",
    "status": "broken",
    "console": "PS4 Pro",

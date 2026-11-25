@@ -171,6 +171,7 @@ scripts/build-rootfs.sh    # out/ps5-ps4-rootfs.tar.xz
 | Wizard with a Gun | PS4 Pro | 1.0.12 | تعمل، 20–30 إطاراً مع تقطّع؛ يبقى توهّج البوابة على الشاشة |
 | Another Crab's Treasure | PS4 Pro | 1.0.15 | تعمل، 12–17 إطارًا؛ تبقى تشوّهات رسومية على الشاشة |
 | Minecraft Dungeons 2 | PS4 Slim | 1.0.12 | تعمل مع فصل الإنترنت، 20–30 إطاراً |
+| SteamWorld Build | PS4 Slim | 1.0.15 | تعمل، 6–10 إطارات؛ يستغرق التشغيل الأول نحو 40 دقيقة، والتالي نحو 17 دقيقة مع الاحتفاظ بالمظللات المترجمة |
 
 </details>
 

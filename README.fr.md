@@ -161,6 +161,7 @@ Ce projet ne contient aucun logiciel système PS5 ni aucun jeu. N'utilisez que d
 | Wizard with a Gun | PS4 Pro | 1.0.12 | Tourne, 20–30 IPS, saccades ; la lueur d'un portail reste à l'écran |
 | Another Crab's Treasure | PS4 Pro | 1.0.15 | Tourne, 12–17 IPS ; des artefacts restent à l'écran |
 | Minecraft Dungeons 2 | PS4 Slim | 1.0.12 | Tourne avec internet coupé, 20–30 IPS |
+| SteamWorld Build | PS4 Slim | 1.0.15 | Tourne, 6–10 IPS ; le premier lancement prend environ 40 min, les suivants environ 17 min avec Garder les shaders compilés |
 
 </details>
 

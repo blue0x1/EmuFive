@@ -161,6 +161,7 @@ Este projeto não contém software de sistema do PS5 nem jogos. Use apenas jogos
 | Wizard with a Gun | PS4 Pro | 1.0.12 | Roda, 20–30 FPS com travamentos; o brilho de um portal fica na tela |
 | Another Crab's Treasure | PS4 Pro | 1.0.15 | Roda, 12–17 FPS; artefatos gráficos ficam na tela |
 | Minecraft Dungeons 2 | PS4 Slim | 1.0.12 | Roda com a internet desligada, 20–30 FPS |
+| SteamWorld Build | PS4 Slim | 1.0.15 | Roda, 6–10 FPS; a primeira inicialização leva cerca de 40 min, as seguintes cerca de 17 min com Manter os shaders compilados |
 
 </details>
 

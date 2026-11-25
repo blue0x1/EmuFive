@@ -161,6 +161,7 @@ Bu proje hiçbir PS5 sistem yazılımı ve hiçbir oyun içermez. Yalnızca sahi
 | Wizard with a Gun | PS4 Pro | 1.0.12 | Çalışıyor, 20–30 FPS, takılmalar var; bir portal parıltısı ekranda kalıyor |
 | Another Crab's Treasure | PS4 Pro | 1.0.15 | Çalışıyor, 12–17 FPS; görüntü bozulmaları ekranda kalıyor |
 | Minecraft Dungeons 2 | PS4 Slim | 1.0.12 | İnternet kapalıyken çalışıyor, 20–30 FPS |
+| SteamWorld Build | PS4 Slim | 1.0.15 | Çalışıyor, 6–10 FPS; ilk açılış yaklaşık 40 dk, sonrakiler Derlenmiş gölgelendiricileri sakla ile yaklaşık 17 dk sürüyor |
 
 </details>
 
