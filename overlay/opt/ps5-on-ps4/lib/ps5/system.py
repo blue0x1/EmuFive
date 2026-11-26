@@ -815,18 +815,35 @@ def size_text(n):
 
 
 # --------------------------------------------------------------------------------------------
-# Saves: ~/data copied to the USB drive (PS5-saves/<date>) and back.
+# Saves: the games' saves copied to the USB drive (PS5-saves/<date>) and back. KytyPS5 keeps them
+# in _SaveData (and trophies in _Trophies) in each profile's folder; ~/data is the games' /data.
+# A backup has data/ and kytyps5/<the same folders>; older backups were only a copy of ~/data.
 
 SAVES_DIR = USB_MOUNT + "/PS5-saves"
+SAVE_FOLDERS = ("_SaveData", "_Trophies")
+BACKUP_MARK = "emufive-saves.txt"
+
+
+def save_parts():
+    """(name in a backup, folder on the PS4) for every folder with saves, all profiles."""
+    parts = [("data", DATA_DIR)]
+    profiles = [""] + sorted(os.path.join("users", n) for n in _listdir(os.path.join(store.KYTY_WORK, "users")))
+    for profile in profiles:
+        for folder in SAVE_FOLDERS:
+            relative = os.path.join(profile, folder)
+            parts.append((os.path.join("kytyps5", relative), os.path.join(store.KYTY_WORK, relative)))
+    return parts
+
+
+def _listdir(path):
+    try:
+        return [n for n in os.listdir(path) if os.path.isdir(os.path.join(path, n))]
+    except OSError:
+        return []
 
 
 def save_backups():
-    try:
-        names = sorted((n for n in os.listdir(SAVES_DIR) if os.path.isdir(os.path.join(SAVES_DIR, n))),
-                       reverse=True)
-    except OSError:
-        names = []
-    return names
+    return sorted(_listdir(SAVES_DIR), reverse=True)
 
 
 def backup_saves():
@@ -835,10 +852,14 @@ def backup_saves():
     name = time.strftime("%Y-%m-%d %H.%M.%S")
     target = os.path.join(SAVES_DIR, name)
     try:
-        os.makedirs(SAVES_DIR, exist_ok=True)
-        os.makedirs(DATA_DIR, exist_ok=True)
-        shutil.copytree(DATA_DIR, target)
+        os.makedirs(target)
+        for part, folder in save_parts():
+            if os.path.isdir(folder):
+                shutil.copytree(folder, os.path.join(target, part))
+        with open(os.path.join(target, BACKUP_MARK), "w", encoding="utf-8") as f:
+            f.write("EmuFive saves backup: data is ~/data, kytyps5 is ~/.kytyps5 (saves and trophies).\n")
     except (OSError, shutil.Error) as error:
+        shutil.rmtree(target, ignore_errors=True)
         return False, f"Backup failed: {error}"
     return True, f"Saves backed up to PS5-saves/{name} on the USB drive."
 
@@ -847,18 +868,36 @@ def restore_saves(name):
     source = os.path.join(SAVES_DIR, name)
     if not os.path.isdir(source):
         return False, "That backup is not on the USB drive any more."
-    before = DATA_DIR + ".before-restore"
+    if os.path.isfile(os.path.join(source, BACKUP_MARK)):
+        parts = [(os.path.join(source, part), folder) for part, folder in save_parts()
+                 if os.path.isdir(os.path.join(source, part))]
+        # Profiles in the backup that this PS4 does not have yet.
+        for path in glob.glob(os.path.join(source, "kytyps5", "users", "*", "_*")):
+            if os.path.basename(path) not in SAVE_FOLDERS:
+                continue
+            folder = os.path.join(store.KYTY_WORK, os.path.relpath(path, os.path.join(source, "kytyps5")))
+            if (path, folder) not in parts:
+                parts.append((path, folder))
+    else:
+        parts = [(source, DATA_DIR)]   # An older backup: a copy of ~/data.
+    done = []
     try:
-        if os.path.isdir(before):
-            shutil.rmtree(before)
-        if os.path.isdir(DATA_DIR):
-            os.rename(DATA_DIR, before)
-        shutil.copytree(source, DATA_DIR)
+        for path, folder in parts:
+            before = folder + ".before-restore"
+            if os.path.isdir(before):
+                shutil.rmtree(before)
+            os.makedirs(os.path.dirname(folder), exist_ok=True)
+            if os.path.isdir(folder):
+                os.rename(folder, before)
+            done.append((folder, before))
+            shutil.copytree(path, folder)
     except (OSError, shutil.Error) as error:
-        if not os.path.isdir(DATA_DIR) and os.path.isdir(before):
-            os.rename(before, DATA_DIR)
+        for folder, before in done:
+            if os.path.isdir(before):
+                shutil.rmtree(folder, ignore_errors=True)
+                os.rename(before, folder)
         return False, f"Restore failed: {error}"
-    return True, f"Saves restored from {name}. The ones before are in ~/data.before-restore."
+    return True, f"Saves restored from {name}. The ones before are kept as .before-restore folders."
 
 
 # --------------------------------------------------------------------------------------------

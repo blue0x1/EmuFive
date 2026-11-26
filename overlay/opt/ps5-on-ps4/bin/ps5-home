@@ -1840,7 +1840,7 @@ class SettingsScreen(RowList):
         h = self.home
         backups = h.poll.get("backups", system.save_backups, 4.0, [])
         usb = system.mounted(system.USB_MOUNT)
-        rows = [Row("info", "Game saves", "~/data on the PS4"),
+        rows = [Row("info", "Game saves", "Saves and trophies of all profiles"),
                 Row("action", "Back up saves to USB", None if usb else "Plug in a USB drive first",
                     ok=self.backup if usb else None),
                 Row("button", "Restore saves from USB", f"{len(backups)} backups" if backups else "None",
@@ -1862,8 +1862,8 @@ class SettingsScreen(RowList):
         def pick(name):
             if name is None:
                 return
-            h.push(Dialog(h, f"Restore the saves from {name}? The saves on the PS4 now are kept in "
-                             "~/data.before-restore.",
+            h.push(Dialog(h, f"Restore the saves from {name}? The saves on the PS4 now are kept "
+                             "as .before-restore folders.",
                           [("Restore", lambda: h.push(Busy(h, "Restoring saves…",
                                                            lambda: system.restore_saves(name)))),
                            ("Cancel", None)]))

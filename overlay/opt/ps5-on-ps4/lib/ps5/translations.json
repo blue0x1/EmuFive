@@ -6694,5 +6694,23 @@
 "de": "Drücke OPTIONS auf einem Spiel, um diese beiden nur für dieses Spiel ein- oder auszuschalten. Teardown läuft ohne beide schneller, daher sind sie dort zu Beginn aus.",
 "it": "Premi OPTIONS su un gioco per attivare o disattivare queste due opzioni solo per quel gioco. Teardown va più veloce senza, quindi lì partono disattivate.",
 "pt": "Pressione OPTIONS em um jogo para ligar ou desligar estas duas opções só nesse jogo. Teardown roda mais rápido sem elas, então começam desligadas nele."
+},
+"Garlic GPU memory": {
+"ar": "ذاكرة GPU من نوع Garlic",
+"fr": "Mémoire GPU Garlic",
+"tr": "Garlic GPU belleği",
+"es": "Memoria GPU Garlic",
+"de": "Garlic-GPU-Speicher",
+"it": "Memoria GPU Garlic",
+"pt": "Memória de GPU Garlic"
+},
+"Saves and trophies of all profiles": {
+"ar": "الحفظ والجوائز لكل الملفات الشخصية",
+"fr": "Sauvegardes et trophées de tous les profils",
+"tr": "Tüm profillerin kayıtları ve kupaları",
+"es": "Partidas guardadas y trofeos de todos los perfiles",
+"de": "Spielstände und Trophäen aller Profile",
+"it": "Salvataggi e trofei di tutti i profili",
+"pt": "Saves e troféus de todos os perfis"
 }
 }

@@ -125,6 +125,9 @@ GAME_OPTIONS = [
     # Patch 0025: the game sees a 1080p TV, so it draws a quarter of the pixels of 4K.
     ("output_1080p", "Tell the game the TV is 1080p", {"KYTY_OUTPUT_1080P": "1"}),
     ("fsr", "FSR 1 upscaling", {"KYTY_FSR": "1"}),
+    # Patch 0047: GPU-only game memory is write-combined and not snooped (Garlic), as the PS4's own
+    # system maps GPU data; faster GPU reads, slow CPU reads. Off by default, try it per game.
+    ("garlic_memory", "Garlic GPU memory", {"KYTY_GARLIC_MEMORY": "1"}),
     # KytyPS5 answers the game's PSN sign-in checks as if a user were signed in.
     ("emulate_psn", "Simulated PSN sign-in", ["--emulate-psn"]),
 ]
