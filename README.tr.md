@@ -185,16 +185,15 @@ Bir oyun mu denediniz? Oyunu, oyun kimliğini, konsol modelinizi, EmuFive sürü
 <a id="changelog"></a>
 ## Değişiklik günlüğü
 
-### 1.0.15 (2026-11-23)
+### 1.0.16 (2026-11-26)
 
-- Daha hızlı 3D oyunlar: iki yeni hız ayarı, GPU gönderim iş parçacığı ve Daha az bellek tuzağı, tüm oyunlar için açık (Ayarlar, Oyunlar). Another Crab's Treasure 4–10'dan 12–17 FPS'ye çıktı. Her biri tek bir oyun için o oyunun OPTIONS menüsünden kapatılabilir; Teardown onlarsız daha hızlı çalıştığı için ikisi kapalı başlar.
-- Test bildir, oyunun menüsünde: FPS, konsol ve ayarları gösteren bir kart ve telefonunuzda hazır bir GitHub issue'su açan bir QR kodu.
-- Hatayla duran bir oyun, günlüğüyle birlikte bir çökme raporu kaydeder (`~/PS5-reports` içinde ve USB sürücüde `PS5-logs`).
-- Bellek neredeyse dolduğunda bir bildirim oyunu kaydetmenizi söyler.
-- Bir USB oyunu, menüsünden EmuFive diskine kopyalanabilir ve oradan tekrar silinebilir.
-- Yeni oyun ayarları: Oyuna TV'nin 1080p olduğunu söyle, FSR 1 büyütme ve sanal PSN girişi.
-- Oyun kutucuklarında uyumluluk rozetleri (Çalışıyor, Yavaş, Çalışmıyor), varsayılan olarak kapalı (Ayarlar, Görünüm).
-- Düzeltildi: Ayarlar, Oyunlar'daki oynama süresi listesine ulaşılamıyordu; bir PS4 Pro veya Slim yanlış model olarak görünüyordu.
+- Ana ekran için yeni bir görünüm, artık varsayılan: oyun kutucukları üstte, seçilen oyunun görseli altta, Görünüm'deki vurgu renginizle. Eski düzen Ayarlar, Görünüm'de Aurora (eski) olarak kalıyor.
+- Bir profil sayfası (üstte resminizi seçin): kupa seviyesi, bildirimler, oyunlar ve kupalar; PS düğmesinde bir Kontrol Merkezi; Tüm oyunlar, PS4 sürücüsü, USB sürücü ve PC sekmeli bir Oyun Kitaplığı; hileler için bir sayfa.
+- Medya'da YouTube, kumanda için TV arayüzüyle.
+- Kayıtlar, bir oyun kapandığında kendiliğinden USB sürücüye yedeklenebilir (Ayarlar, Kayıtlar) ve yedekler artık tüm profillerin KytyPS5 kayıtlarını ve kupalarını da içeriyor.
+- Derlenmiş gölgelendiriciler bir USB sürücüye aktarılabilir ve oradan alınabilir; böylece oyunlar aynı modeldeki başka bir PS4'te ilk seferde daha hızlı yüklenir. Kendi kapaklarınız bir `PS5-covers` klasöründen alınabilir.
+- KytyPS5, upstream 93cce66'ya geçiyor: PS5 mesh çizimleri PS4'te compute olarak çalışıyor, daha yumuşak enterpolasyon ve GPU'yu sonsuza dek bekleyen oyunlar için bir düzeltme (Invincible VS "GameThread timed out"). Oyun başına yeni ayar: Garlic GPU belleği, varsayılan olarak kapalı.
+- Mesa'nın derleyemediği gölgelendiriciler saklanıyor ve Günlükleri USB'ye kopyala bunları da içeriyor (#76).
 
 1.0.3 veya önceki bir sürümden güncellemek için, eski yazılım güncellemesi bunu yapamadığından güncellemeyi bir kez elle başlatın: Ayarlar'da SSH'yi açın, `ssh ps5@<PS4 adresi>` ile bağlanın (değiştirmediyseniz parola `ps5`) ve çalıştırın:
 
@@ -202,7 +201,7 @@ Bir oyun mu denediniz? Oyunu, oyun kimliğini, konsol modelinizi, EmuFive sürü
 sudo systemd-run --unit=emufive-update --collect /opt/ps5-on-ps4/bin/ps5-update install
 ```
 
-Eksik tüm güncellemeleri kurar (1.0.0 veya 1.0.1'den buna 1.0.2'nin yaklaşık 110 MB'lık tarayıcı paketleri dahildir); ardından ana ekrandan yeniden başlatın. 1.0.4'ten itibaren Ayarlar'daki yazılım güncellemesi çalışır. Yeni kurulumlar 1.0.15 sürümündeki `ps5-ps4-rootfs.tar.xz` dosyasını kullanır.
+Eksik tüm güncellemeleri kurar (1.0.0 veya 1.0.1'den buna 1.0.2'nin yaklaşık 110 MB'lık tarayıcı paketleri dahildir); ardından ana ekrandan yeniden başlatın. 1.0.4'ten itibaren Ayarlar'daki yazılım güncellemesi çalışır. Yeni kurulumlar 1.0.16 sürümündeki `ps5-ps4-rootfs.tar.xz` dosyasını kullanır.
 
 ## Proje yapısı
 

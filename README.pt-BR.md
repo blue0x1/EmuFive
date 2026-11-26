@@ -185,16 +185,15 @@ Testou um jogo? Abra uma [issue](https://github.com/blue0x1/EmuFive/issues) com 
 <a id="changelog"></a>
 ## Registro de alterações
 
-### 1.0.15 (2026-11-23)
+### 1.0.16 (2026-11-26)
 
-- Jogos 3D mais rápidos: duas novas configurações de velocidade, Thread de envio da GPU e Menos armadilhas de memória, ficam ligadas para todos os jogos (Configurações, Jogos). Another Crab's Treasure foi de 4–10 para 12–17 FPS. Cada uma pode ser desligada para um jogo no menu OPTIONS dele; Teardown começa com as duas desligadas, porque roda mais rápido sem elas.
-- Relatar um teste, no menu de um jogo: um cartão com FPS, console e configurações, e um código QR que abre no celular uma issue do GitHub pronta.
-- Um jogo que para com um erro salva um relatório de falha com seu log (em `~/PS5-reports`, e `PS5-logs` no pendrive).
-- Um aviso pede para salvar o jogo quando a memória está quase cheia.
-- Um jogo do USB pode ser copiado para o disco do EmuFive, e apagado de lá de novo, pelo menu dele.
-- Novas configurações de jogo: Dizer ao jogo que a TV é 1080p, ampliação FSR 1 e login na PSN simulado.
-- Selos de compatibilidade (Funciona, Lento, Não funciona) nos jogos, desligados por padrão (Configurações, Aparência).
-- Corrigido: a lista de tempo de jogo em Configurações, Jogos não podia ser alcançada; um PS4 Pro ou Slim aparecia como o modelo errado.
+- Um novo visual para a tela inicial, agora o padrão: os blocos dos jogos em cima e a arte do jogo escolhido embaixo, na sua cor de destaque de Aparência. O layout antigo continua como Aurora (legado) em Configurações, Aparência.
+- Uma página de perfil (escolha sua foto no topo) com nível de troféus, notificações, jogos e troféus; uma Central de controle no botão PS; uma Biblioteca de jogos com abas Todos os jogos, Disco do PS4, Unidade USB e PC; uma página de trapaças.
+- YouTube em Mídia, com a interface de TV para o controle.
+- Os jogos salvos podem ser copiados sozinhos para a unidade USB quando um jogo fecha (Configurações, Jogos salvos), e os backups agora incluem os salvamentos e troféus do KytyPS5 de todos os perfis.
+- Shaders compilados podem ser exportados para uma unidade USB e importados dela, para os jogos carregarem mais rápido já na primeira vez em outro PS4 do mesmo modelo. Suas próprias capas podem ser importadas de uma pasta `PS5-covers`.
+- O KytyPS5 passa para o upstream 93cce66: desenhos mesh do PS5 rodam como compute no PS4, interpolação mais suave e uma correção para jogos que esperavam a GPU para sempre (Invincible VS "GameThread timed out"). Nova configuração por jogo: Memória de GPU Garlic, desligada por padrão.
+- Shaders que o Mesa não consegue compilar são guardados, e Copiar logs para USB os inclui (#76).
 
 Para atualizar a partir da 1.0.3 ou anterior, inicie a atualização uma vez à mão, pois a atualização de software antiga não consegue: ative o SSH nas Configurações, conecte com `ssh ps5@<endereço do PS4>` (senha `ps5`, se não a mudou) e execute
 
@@ -202,7 +201,7 @@ Para atualizar a partir da 1.0.3 ou anterior, inicie a atualização uma vez à 
 sudo systemd-run --unit=emufive-update --collect /opt/ps5-on-ps4/bin/ps5-update install
 ```
 
-Ela instala todas as atualizações que faltam (a partir da 1.0.0 ou 1.0.1 isso inclui os pacotes do navegador da 1.0.2, cerca de 110 MB); depois reinicie pela tela inicial. A partir da 1.0.4, a atualização de software nas Configurações funciona. Instalações novas usam o `ps5-ps4-rootfs.tar.xz` da versão 1.0.15.
+Ela instala todas as atualizações que faltam (a partir da 1.0.0 ou 1.0.1 isso inclui os pacotes do navegador da 1.0.2, cerca de 110 MB); depois reinicie pela tela inicial. A partir da 1.0.4, a atualização de software nas Configurações funciona. Instalações novas usam o `ps5-ps4-rootfs.tar.xz` da versão 1.0.16.
 
 ## Estrutura do projeto
 

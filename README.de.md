@@ -185,16 +185,15 @@ Ein Spiel getestet? Eröffne ein [Issue](https://github.com/blue0x1/EmuFive/issu
 <a id="changelog"></a>
 ## Änderungsprotokoll
 
-### 1.0.15 (2026-11-23)
+### 1.0.16 (2026-11-26)
 
-- Schnellere 3D-Spiele: zwei neue Tempo-Einstellungen, GPU-Sende-Thread und Weniger Speicherfallen, sind für alle Spiele an (Einstellungen, Spiele). Another Crab's Treasure stieg von 4–10 auf 12–17 FPS. Beide lassen sich für ein einzelnes Spiel in seinem OPTIONS-Menü ausschalten; Teardown startet mit beiden aus, da es ohne sie schneller läuft.
-- Test melden, im Menü eines Spiels: eine Karte mit FPS, Konsole und Einstellungen und einem QR-Code, der auf dem Handy ein fertiges GitHub-Issue öffnet.
-- Ein Spiel, das mit einem Fehler stoppt, speichert einen Absturzbericht mit seinem Log (in `~/PS5-reports` und `PS5-logs` auf dem USB-Laufwerk).
-- Ein Hinweis erinnert ans Speichern, wenn der Speicher fast voll ist.
-- Ein USB-Spiel lässt sich aus seinem Menü auf die EmuFive-Festplatte kopieren und dort wieder löschen.
-- Neue Spieleinstellungen: Dem Spiel einen 1080p-Fernseher melden, FSR-1-Hochskalierung und simulierte PSN-Anmeldung.
-- Kompatibilitäts-Abzeichen (Läuft, Langsam, Läuft nicht) auf den Spielkacheln, standardmäßig aus (Einstellungen, Darstellung).
-- Behoben: Die Spielzeitliste unter Einstellungen, Spiele war nicht erreichbar; eine PS4 Pro oder Slim wurde als falsches Modell angezeigt.
+- Ein neuer Look für den Startbildschirm, jetzt Standard: Spielkacheln oben und das Bild des gewählten Spiels darunter, in deiner Akzentfarbe aus Erscheinungsbild. Das alte Layout bleibt als Aurora (alt) in Einstellungen, Erscheinungsbild.
+- Eine Profilseite (dein Bild oben auswählen) mit Trophäen-Stufe, Benachrichtigungen, Spielen und Trophäen; ein Kontrollzentrum auf der PS-Taste; eine Spielebibliothek mit Tabs für Alle Spiele, PS4-Laufwerk, USB-Laufwerk und PC; eine Seite für Cheats.
+- YouTube unter Medien, mit seiner TV-Oberfläche für den Controller.
+- Spielstände können beim Schließen eines Spiels automatisch auf das USB-Laufwerk gesichert werden (Einstellungen, Spielstände), und Sicherungen enthalten jetzt die Spielstände und Trophäen von KytyPS5 aller Profile.
+- Kompilierte Shader lassen sich auf ein USB-Laufwerk exportieren und von dort importieren, damit Spiele auf einer anderen PS4 desselben Modells schon beim ersten Mal schneller laden. Eigene Cover lassen sich aus einem Ordner `PS5-covers` importieren.
+- KytyPS5 wechselt auf Upstream 93cce66: PS5-Mesh-Draws laufen auf der PS4 als Compute, weichere Interpolation und ein Fix für Spiele, die endlos auf die GPU warteten (Invincible VS „GameThread timed out“). Neue Einstellung pro Spiel: Garlic-GPU-Speicher, standardmäßig aus.
+- Shader, die Mesa nicht bauen kann, werden gespeichert, und Logs auf USB kopieren nimmt sie mit (#76).
 
 Um von 1.0.3 oder älter zu aktualisieren, starte das Update einmal von Hand, da die alte Softwareaktualisierung es nicht kann: SSH in den Einstellungen einschalten, mit `ssh ps5@<Adresse der PS4>` verbinden (Passwort `ps5`, falls nicht geändert) und ausführen:
 
@@ -202,7 +201,7 @@ Um von 1.0.3 oder älter zu aktualisieren, starte das Update einmal von Hand, da
 sudo systemd-run --unit=emufive-update --collect /opt/ps5-on-ps4/bin/ps5-update install
 ```
 
-Es installiert alle fehlenden Updates (von 1.0.0 oder 1.0.1 aus gehören die Browser-Pakete von 1.0.2 dazu, etwa 110 MB); danach über den Startbildschirm neu starten. Ab 1.0.4 funktioniert die Softwareaktualisierung in den Einstellungen. Neuinstallationen verwenden die `ps5-ps4-rootfs.tar.xz` der Version 1.0.15.
+Es installiert alle fehlenden Updates (von 1.0.0 oder 1.0.1 aus gehören die Browser-Pakete von 1.0.2 dazu, etwa 110 MB); danach über den Startbildschirm neu starten. Ab 1.0.4 funktioniert die Softwareaktualisierung in den Einstellungen. Neuinstallationen verwenden die `ps5-ps4-rootfs.tar.xz` der Version 1.0.16.
 
 ## Projektaufbau
 

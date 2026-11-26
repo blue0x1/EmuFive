@@ -185,16 +185,15 @@ Vous avez testé un jeu ? Ouvrez une [issue](https://github.com/blue0x1/EmuFive/
 <a id="changelog"></a>
 ## Journal des modifications
 
-### 1.0.15 (2026-11-23)
+### 1.0.16 (2026-11-26)
 
-- Jeux 3D plus rapides : deux nouveaux réglages de vitesse, Thread d'envoi GPU et Moins de pièges mémoire, sont activés pour tous les jeux (Paramètres, Jeux). Another Crab's Treasure est passé de 4–10 à 12–17 IPS. Chacun peut être désactivé pour un seul jeu dans son menu OPTIONS ; Teardown démarre avec les deux désactivés, car il tourne plus vite sans eux.
-- Signaler un test, dans le menu d'un jeu : une carte avec les IPS, la console et les réglages, et un QR code qui ouvre sur votre téléphone un ticket GitHub prêt.
-- Un jeu qui s'arrête sur une erreur enregistre un rapport de plantage avec son journal (dans `~/PS5-reports`, et `PS5-logs` sur la clé USB).
-- Un avis vous demande de sauvegarder quand la mémoire est presque pleine.
-- Un jeu sur USB peut être copié sur le disque EmuFive, puis en être supprimé, depuis son menu.
-- Nouveaux réglages de jeu : Dire au jeu que la TV est en 1080p, mise à l'échelle FSR 1 et connexion PSN simulée.
-- Badges de compatibilité (Fonctionne, Lent, Ne fonctionne pas) sur les jeux, désactivés par défaut (Paramètres, Apparence).
-- Corrigé : la liste du temps de jeu dans Paramètres, Jeux était inaccessible ; une PS4 Pro ou Slim s'affichait sous le mauvais modèle.
+- Un nouveau look pour l'écran d'accueil, désormais par défaut : les tuiles des jeux en haut et l'image du jeu choisi en dessous, dans votre couleur d'accent d'Apparence. L'ancienne disposition reste sous le nom Aurora (ancien) dans Paramètres, Apparence.
+- Une page de profil (choisissez votre image en haut) avec votre niveau de trophées, vos notifications, jeux et trophées ; un Centre de contrôle sur la touche PS ; une Bibliothèque de jeux avec des onglets Tous les jeux, Disque de la PS4, Clé USB et PC ; une page pour les codes de triche.
+- YouTube dans Médias, avec son interface TV pour la manette.
+- Les sauvegardes peuvent être copiées d'elles-mêmes sur la clé USB à la fermeture d'un jeu (Paramètres, Sauvegardes), et elles incluent maintenant les sauvegardes et trophées de KytyPS5 de tous les profils.
+- Les shaders compilés peuvent être exportés vers une clé USB et importés depuis elle, pour que les jeux se chargent plus vite dès la première fois sur une autre PS4 du même modèle. Vos propres jaquettes peuvent être importées depuis un dossier `PS5-covers`.
+- KytyPS5 passe à upstream 93cce66 : les dessins mesh de la PS5 tournent en compute sur la PS4, interpolation plus douce et correction des jeux qui attendaient le GPU indéfiniment (Invincible VS « GameThread timed out »). Nouveau réglage par jeu : Mémoire GPU Garlic, désactivé par défaut.
+- Les shaders que Mesa ne peut pas compiler sont gardés, et Copier les journaux sur USB les inclut (#76).
 
 Pour mettre à jour depuis la 1.0.3 ou avant, lancez la mise à jour une fois à la main, car l'ancienne mise à jour du logiciel n'y arrive pas : activez SSH dans les Paramètres, connectez-vous avec `ssh ps5@<adresse de la PS4>` (mot de passe `ps5` si vous ne l'avez pas changé) et lancez
 
@@ -202,7 +201,7 @@ Pour mettre à jour depuis la 1.0.3 ou avant, lancez la mise à jour une fois à
 sudo systemd-run --unit=emufive-update --collect /opt/ps5-on-ps4/bin/ps5-update install
 ```
 
-Elle installe toutes les mises à jour manquantes (depuis la 1.0.0 ou la 1.0.1, cela inclut les paquets du navigateur de la 1.0.2, environ 110 Mo), puis redémarrez depuis l'écran d'accueil. À partir de la 1.0.4, la mise à jour du logiciel dans les Paramètres fonctionne. Les nouvelles installations utilisent le `ps5-ps4-rootfs.tar.xz` de la version 1.0.15.
+Elle installe toutes les mises à jour manquantes (depuis la 1.0.0 ou la 1.0.1, cela inclut les paquets du navigateur de la 1.0.2, environ 110 Mo), puis redémarrez depuis l'écran d'accueil. À partir de la 1.0.4, la mise à jour du logiciel dans les Paramètres fonctionne. Les nouvelles installations utilisent le `ps5-ps4-rootfs.tar.xz` de la version 1.0.16.
 
 ## Organisation du projet
 
