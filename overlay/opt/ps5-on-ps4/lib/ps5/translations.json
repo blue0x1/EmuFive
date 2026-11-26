@@ -6712,5 +6712,752 @@
 "de": "Spielstände und Trophäen aller Profile",
 "it": "Salvataggi e trofei di tutti i profili",
 "pt": "Saves e troféus de todos os perfis"
+},
+"Export compiled shaders to USB": {
+"ar": "تصدير المظللات المُجمّعة إلى USB",
+"fr": "Exporter les shaders compilés sur USB",
+"tr": "Derlenmiş gölgelendiricileri USB'ye aktar",
+"es": "Exportar shaders compilados a USB",
+"de": "Kompilierte Shader auf USB exportieren",
+"it": "Esporta gli shader compilati su USB",
+"pt": "Exportar shaders compilados para USB"
+},
+"Import compiled shaders from USB": {
+"ar": "استيراد المظللات المُجمّعة من USB",
+"fr": "Importer les shaders compilés depuis USB",
+"tr": "Derlenmiş gölgelendiricileri USB'den al",
+"es": "Importar shaders compilados desde USB",
+"de": "Kompilierte Shader von USB importieren",
+"it": "Importa gli shader compilati da USB",
+"pt": "Importar shaders compilados do USB"
+},
+"Copying shaders to the USB drive…": {
+"ar": "جارٍ نسخ المظللات إلى وحدة USB…",
+"fr": "Copie des shaders sur la clé USB…",
+"tr": "Gölgelendiriciler USB sürücüye kopyalanıyor…",
+"es": "Copiando shaders a la unidad USB…",
+"de": "Shader werden auf das USB-Laufwerk kopiert…",
+"it": "Copia degli shader sull'unità USB…",
+"pt": "Copiando shaders para o pendrive…"
+},
+"Copying shaders from the USB drive…": {
+"ar": "جارٍ نسخ المظللات من وحدة USB…",
+"fr": "Copie des shaders depuis la clé USB…",
+"tr": "Gölgelendiriciler USB sürücüden kopyalanıyor…",
+"es": "Copiando shaders desde la unidad USB…",
+"de": "Shader werden vom USB-Laufwerk kopiert…",
+"it": "Copia degli shader dall'unità USB…",
+"pt": "Copiando shaders do pendrive…"
+},
+"Import the compiled shaders of {a} from the USB drive? The game then loads faster the first time. Keep compiled shaders is turned on for it.": {
+"ar": "استيراد المظللات المُجمّعة لـ {a} من وحدة USB؟ ستُحمَّل اللعبة أسرع في المرة الأولى. سيتم تشغيل «الاحتفاظ بالمظللات المُجمّعة» لها.",
+"fr": "Importer les shaders compilés de {a} depuis la clé USB ? Le jeu se charge alors plus vite la première fois. « Garder les shaders compilés » est activé pour lui.",
+"tr": "{a} için derlenmiş gölgelendiriciler USB sürücüden alınsın mı? Oyun ilk seferde daha hızlı yüklenir. Bu oyun için Derlenmiş gölgelendiricileri sakla açılır.",
+"es": "¿Importar los shaders compilados de {a} desde la unidad USB? El juego cargará más rápido la primera vez. Se activa Conservar shaders compilados para él.",
+"de": "Die kompilierten Shader von {a} vom USB-Laufwerk importieren? Das Spiel lädt dann beim ersten Mal schneller. „Kompilierte Shader behalten“ wird dafür eingeschaltet.",
+"it": "Importare gli shader compilati di {a} dall'unità USB? Il gioco si caricherà più in fretta la prima volta. «Mantieni shader compilati» viene attivato per il gioco.",
+"pt": "Importar os shaders compilados de {a} do pendrive? O jogo carrega mais rápido na primeira vez. Manter shaders compilados é ativado para ele."
+},
+"Shaders exported to PS5-shaders/{a} on the USB drive.": {
+"ar": "تم تصدير المظللات إلى PS5-shaders/{a} على وحدة USB.",
+"fr": "Shaders exportés dans PS5-shaders/{a} sur la clé USB.",
+"tr": "Gölgelendiriciler USB sürücüde PS5-shaders/{a} klasörüne aktarıldı.",
+"es": "Shaders exportados a PS5-shaders/{a} en la unidad USB.",
+"de": "Shader nach PS5-shaders/{a} auf dem USB-Laufwerk exportiert.",
+"it": "Shader esportati in PS5-shaders/{a} sull'unità USB.",
+"pt": "Shaders exportados para PS5-shaders/{a} no pendrive."
+},
+"This game has no compiled shaders yet. Play it first.": {
+"ar": "لا توجد مظللات مُجمّعة لهذه اللعبة بعد. العبها أولًا.",
+"fr": "Ce jeu n'a pas encore de shaders compilés. Jouez-y d'abord.",
+"tr": "Bu oyunun henüz derlenmiş gölgelendiricisi yok. Önce oynayın.",
+"es": "Este juego aún no tiene shaders compilados. Juégalo primero.",
+"de": "Dieses Spiel hat noch keine kompilierten Shader. Spiele es zuerst.",
+"it": "Questo gioco non ha ancora shader compilati. Giocalo prima.",
+"pt": "Este jogo ainda não tem shaders compilados. Jogue-o primeiro."
+},
+"This game's shaders are not on the USB drive.": {
+"ar": "مظللات هذه اللعبة غير موجودة على وحدة USB.",
+"fr": "Les shaders de ce jeu ne sont pas sur la clé USB.",
+"tr": "Bu oyunun gölgelendiricileri USB sürücüde yok.",
+"es": "Los shaders de este juego no están en la unidad USB.",
+"de": "Die Shader dieses Spiels sind nicht auf dem USB-Laufwerk.",
+"it": "Gli shader di questo gioco non sono sull'unità USB.",
+"pt": "Os shaders deste jogo não estão no pendrive."
+},
+"Shaders imported. They are used the next time the game starts.": {
+"ar": "تم استيراد المظللات. ستُستخدم في المرة القادمة التي تبدأ فيها اللعبة.",
+"fr": "Shaders importés. Ils sont utilisés au prochain lancement du jeu.",
+"tr": "Gölgelendiriciler alındı. Oyun bir sonraki açılışta bunları kullanır.",
+"es": "Shaders importados. Se usan la próxima vez que se inicie el juego.",
+"de": "Shader importiert. Sie werden beim nächsten Spielstart verwendet.",
+"it": "Shader importati. Vengono usati al prossimo avvio del gioco.",
+"pt": "Shaders importados. Eles são usados na próxima vez que o jogo iniciar."
+},
+"Import": {
+"ar": "استيراد",
+"fr": "Importer",
+"tr": "İçe aktar",
+"es": "Importar",
+"de": "Importieren",
+"it": "Importa",
+"pt": "Importar"
+},
+"Back up saves when a game closes": {
+"ar": "نسخ الحفظ احتياطيًا عند إغلاق اللعبة",
+"fr": "Sauvegarder les parties à la fermeture d'un jeu",
+"tr": "Oyun kapanınca kayıtları yedekle",
+"es": "Copiar las partidas al cerrar un juego",
+"de": "Spielstände beim Schließen eines Spiels sichern",
+"it": "Backup dei salvataggi alla chiusura di un gioco",
+"pt": "Fazer backup dos saves ao fechar um jogo"
+},
+"With a USB drive plugged in, the saves are copied to it each time a game closes. The newest 5 of these backups are kept.": {
+"ar": "عند توصيل وحدة USB، تُنسخ ملفات الحفظ إليها في كل مرة تُغلق فيها لعبة. يُحتفظ بأحدث 5 نسخ.",
+"fr": "Avec une clé USB branchée, les sauvegardes y sont copiées à chaque fermeture d'un jeu. Les 5 plus récentes sont conservées.",
+"tr": "Bir USB sürücü takılıyken, her oyun kapandığında kayıtlar ona kopyalanır. Bu yedeklerin en yeni 5 tanesi saklanır.",
+"es": "Con una unidad USB conectada, las partidas se copian en ella cada vez que se cierra un juego. Se conservan las 5 copias más recientes.",
+"de": "Ist ein USB-Laufwerk angeschlossen, werden die Spielstände bei jedem Schließen eines Spiels darauf kopiert. Die neuesten 5 dieser Sicherungen bleiben erhalten.",
+"it": "Con un'unità USB collegata, i salvataggi vengono copiati ogni volta che si chiude un gioco. Vengono conservati i 5 backup più recenti.",
+"pt": "Com um pendrive conectado, os saves são copiados para ele toda vez que um jogo fecha. Os 5 backups mais recentes são mantidos."
+},
+"Compiled shaders": {
+"ar": "المظللات المُجمّعة",
+"fr": "Shaders compilés",
+"tr": "Derlenmiş gölgelendiriciler",
+"es": "Shaders compilados",
+"de": "Kompilierte Shader",
+"it": "Shader compilati",
+"pt": "Shaders compilados"
+},
+"Export all compiled shaders to USB": {
+"ar": "تصدير كل المظللات المُجمّعة إلى USB",
+"fr": "Exporter tous les shaders compilés sur USB",
+"tr": "Tüm derlenmiş gölgelendiricileri USB'ye aktar",
+"es": "Exportar todos los shaders compilados a USB",
+"de": "Alle kompilierten Shader auf USB exportieren",
+"it": "Esporta tutti gli shader compilati su USB",
+"pt": "Exportar todos os shaders compilados para USB"
+},
+"Import all compiled shaders from USB": {
+"ar": "استيراد كل المظللات المُجمّعة من USB",
+"fr": "Importer tous les shaders compilés depuis USB",
+"tr": "Tüm derlenmiş gölgelendiricileri USB'den al",
+"es": "Importar todos los shaders compilados desde USB",
+"de": "Alle kompilierten Shader von USB importieren",
+"it": "Importa tutti gli shader compilati da USB",
+"pt": "Importar todos os shaders compilados do USB"
+},
+"Games load faster the first time with shaders from another PS4 of the same model and EmuFive version. They go in the PS5-shaders folder of the USB drive.": {
+"ar": "تُحمَّل الألعاب أسرع في المرة الأولى بمظللات من PS4 آخر من الطراز نفسه وإصدار EmuFive نفسه. توضع في مجلد PS5-shaders على وحدة USB.",
+"fr": "Les jeux se chargent plus vite la première fois avec les shaders d'une autre PS4 du même modèle et de la même version d'EmuFive. Ils vont dans le dossier PS5-shaders de la clé USB.",
+"tr": "Oyunlar, aynı model ve aynı EmuFive sürümündeki başka bir PS4'ün gölgelendiricileriyle ilk seferde daha hızlı yüklenir. USB sürücüdeki PS5-shaders klasörüne konur.",
+"es": "Los juegos cargan más rápido la primera vez con shaders de otra PS4 del mismo modelo y la misma versión de EmuFive. Van en la carpeta PS5-shaders de la unidad USB.",
+"de": "Spiele laden beim ersten Mal schneller mit Shadern einer anderen PS4 desselben Modells und derselben EmuFive-Version. Sie liegen im Ordner PS5-shaders des USB-Laufwerks.",
+"it": "I giochi si caricano più in fretta la prima volta con gli shader di un'altra PS4 dello stesso modello e della stessa versione di EmuFive. Vanno nella cartella PS5-shaders dell'unità USB.",
+"pt": "Os jogos carregam mais rápido na primeira vez com shaders de outro PS4 do mesmo modelo e da mesma versão do EmuFive. Eles ficam na pasta PS5-shaders do pendrive."
+},
+"Covers": {
+"ar": "الأغلفة",
+"fr": "Couvertures",
+"tr": "Kapaklar",
+"es": "Portadas",
+"de": "Cover",
+"it": "Copertine",
+"pt": "Capas"
+},
+"Import covers from USB": {
+"ar": "استيراد الأغلفة من USB",
+"fr": "Importer des couvertures depuis USB",
+"tr": "USB'den kapak al",
+"es": "Importar portadas desde USB",
+"de": "Cover von USB importieren",
+"it": "Importa copertine da USB",
+"pt": "Importar capas do USB"
+},
+"Remove your own covers": {
+"ar": "إزالة أغلفتك",
+"fr": "Supprimer vos couvertures",
+"tr": "Kendi kapaklarınızı kaldırın",
+"es": "Quitar tus portadas",
+"de": "Eigene Cover entfernen",
+"it": "Rimuovi le tue copertine",
+"pt": "Remover suas capas"
+},
+"Put pictures named by title ID (like PPSA09076.png or .jpg) in a PS5-covers folder on the USB drive. They replace the game's own picture.": {
+"ar": "ضع صورًا مسماة برقم اللعبة (مثل PPSA09076.png أو ‎.jpg) في مجلد PS5-covers على وحدة USB. تحل محل صورة اللعبة.",
+"fr": "Mettez des images nommées par ID de titre (comme PPSA09076.png ou .jpg) dans un dossier PS5-covers de la clé USB. Elles remplacent l'image du jeu.",
+"tr": "Başlık kimliğiyle adlandırılmış resimleri (PPSA09076.png veya .jpg gibi) USB sürücüde bir PS5-covers klasörüne koyun. Oyunun kendi resminin yerini alırlar.",
+"es": "Pon imágenes con el ID del título como nombre (como PPSA09076.png o .jpg) en una carpeta PS5-covers de la unidad USB. Sustituyen la imagen del juego.",
+"de": "Lege Bilder mit der Title-ID als Namen (etwa PPSA09076.png oder .jpg) in einen Ordner PS5-covers auf dem USB-Laufwerk. Sie ersetzen das Bild des Spiels.",
+"it": "Metti immagini con l'ID del titolo come nome (come PPSA09076.png o .jpg) in una cartella PS5-covers sull'unità USB. Sostituiscono l'immagine del gioco.",
+"pt": "Coloque imagens com o ID do título como nome (como PPSA09076.png ou .jpg) em uma pasta PS5-covers no pendrive. Elas substituem a imagem do jogo."
+},
+"Import the compiled shaders of every game in PS5-shaders on the USB drive? Keep compiled shaders is turned on for those games.": {
+"ar": "استيراد المظللات المُجمّعة لكل الألعاب في PS5-shaders على وحدة USB؟ سيتم تشغيل «الاحتفاظ بالمظللات المترجمة» لتلك الألعاب.",
+"fr": "Importer les shaders compilés de tous les jeux de PS5-shaders sur la clé USB ? « Garder les shaders compilés » est activé pour ces jeux.",
+"tr": "USB sürücüdeki PS5-shaders içindeki tüm oyunların derlenmiş gölgelendiricileri alınsın mı? Bu oyunlar için Derlenmiş gölgelendiricileri sakla açılır.",
+"es": "¿Importar los shaders compilados de todos los juegos de PS5-shaders en la unidad USB? Se activa Conservar shaders compilados para esos juegos.",
+"de": "Die kompilierten Shader aller Spiele in PS5-shaders auf dem USB-Laufwerk importieren? „Kompilierte Shader behalten“ wird für diese Spiele eingeschaltet.",
+"it": "Importare gli shader compilati di tutti i giochi in PS5-shaders sull'unità USB? «Mantieni shader compilati» viene attivato per questi giochi.",
+"pt": "Importar os shaders compilados de todos os jogos em PS5-shaders no pendrive? Manter shaders compilados é ativado para esses jogos."
+},
+"Copying covers from the USB drive…": {
+"ar": "جارٍ نسخ الأغلفة من وحدة USB…",
+"fr": "Copie des couvertures depuis la clé USB…",
+"tr": "Kapaklar USB sürücüden kopyalanıyor…",
+"es": "Copiando portadas desde la unidad USB…",
+"de": "Cover werden vom USB-Laufwerk kopiert…",
+"it": "Copia delle copertine dall'unità USB…",
+"pt": "Copiando capas do pendrive…"
+},
+"{n} of the game's shaders could not be built, so some graphics may be missing. They are kept with the log: Copy logs to USB includes them for a bug report.": {
+"ar": "تعذر بناء {n} من مظللات اللعبة، لذا قد تنقص بعض الرسوميات. حُفظت مع السجل: «نسخ السجلات إلى USB» يضمها لتقرير خطأ.",
+"fr": "{n} shaders du jeu n'ont pas pu être créés, des graphismes peuvent donc manquer. Ils sont gardés avec le journal : Copier les journaux sur USB les inclut pour un rapport de bug.",
+"tr": "Oyunun {n} gölgelendiricisi oluşturulamadı, bu yüzden bazı grafikler eksik olabilir. Günlükle birlikte saklandılar: Günlükleri USB'ye kopyala bunları hata raporu için ekler.",
+"es": "No se pudieron crear {n} shaders del juego, así que pueden faltar gráficos. Se guardan con el registro: Copiar registros a USB los incluye para un informe de errores.",
+"de": "{n} Shader des Spiels konnten nicht erstellt werden, daher kann Grafik fehlen. Sie liegen beim Protokoll: Protokolle auf USB kopieren nimmt sie für einen Fehlerbericht mit.",
+"it": "Non è stato possibile creare {n} shader del gioco, quindi potrebbe mancare della grafica. Sono conservati con il log: Copia log su USB li include per una segnalazione.",
+"pt": "{n} shaders do jogo não puderam ser criados, então alguns gráficos podem faltar. Eles ficam com o log: Copiar logs para USB os inclui para um relatório de erro."
+},
+"Shaders of {n} games exported to PS5-shaders on the USB drive.": {
+"ar": "تم تصدير مظللات {n} ألعاب إلى PS5-shaders على وحدة USB.",
+"fr": "Shaders de {n} jeux exportés dans PS5-shaders sur la clé USB.",
+"tr": "{n} oyunun gölgelendiricileri USB sürücüde PS5-shaders klasörüne aktarıldı.",
+"es": "Shaders de {n} juegos exportados a PS5-shaders en la unidad USB.",
+"de": "Shader von {n} Spielen nach PS5-shaders auf dem USB-Laufwerk exportiert.",
+"it": "Shader di {n} giochi esportati in PS5-shaders sull'unità USB.",
+"pt": "Shaders de {n} jogos exportados para PS5-shaders no pendrive."
+},
+"Shaders of {n} games imported. They are used the next time each game starts.": {
+"ar": "تم استيراد مظللات {n} ألعاب. ستُستخدم في المرة القادمة التي تبدأ فيها كل لعبة.",
+"fr": "Shaders de {n} jeux importés. Ils sont utilisés au prochain lancement de chaque jeu.",
+"tr": "{n} oyunun gölgelendiricileri alındı. Her oyun bir sonraki açılışta bunları kullanır.",
+"es": "Shaders de {n} juegos importados. Se usan la próxima vez que se inicie cada juego.",
+"de": "Shader von {n} Spielen importiert. Sie werden beim nächsten Start jedes Spiels verwendet.",
+"it": "Shader di {n} giochi importati. Vengono usati al prossimo avvio di ogni gioco.",
+"pt": "Shaders de {n} jogos importados. Eles são usados na próxima vez que cada jogo iniciar."
+},
+"No game has compiled shaders yet. Play a game first.": {
+"ar": "لا توجد مظللات مُجمّعة لأي لعبة بعد. العب لعبة أولًا.",
+"fr": "Aucun jeu n'a encore de shaders compilés. Jouez d'abord à un jeu.",
+"tr": "Henüz hiçbir oyunun derlenmiş gölgelendiricisi yok. Önce bir oyun oynayın.",
+"es": "Ningún juego tiene shaders compilados aún. Juega a un juego primero.",
+"de": "Noch kein Spiel hat kompilierte Shader. Spiele zuerst ein Spiel.",
+"it": "Nessun gioco ha ancora shader compilati. Gioca prima a un gioco.",
+"pt": "Nenhum jogo tem shaders compilados ainda. Jogue um jogo primeiro."
+},
+"There are no shaders in PS5-shaders on the USB drive.": {
+"ar": "لا توجد مظللات في PS5-shaders على وحدة USB.",
+"fr": "Il n'y a pas de shaders dans PS5-shaders sur la clé USB.",
+"tr": "USB sürücüde PS5-shaders içinde gölgelendirici yok.",
+"es": "No hay shaders en PS5-shaders en la unidad USB.",
+"de": "In PS5-shaders auf dem USB-Laufwerk sind keine Shader.",
+"it": "Non ci sono shader in PS5-shaders sull'unità USB.",
+"pt": "Não há shaders em PS5-shaders no pendrive."
+},
+"There are no pictures in PS5-covers on the USB drive. Name them by title ID, like PPSA09076.png.": {
+"ar": "لا توجد صور في PS5-covers على وحدة USB. سمّها برقم اللعبة، مثل PPSA09076.png.",
+"fr": "Il n'y a pas d'images dans PS5-covers sur la clé USB. Nommez-les par ID de titre, comme PPSA09076.png.",
+"tr": "USB sürücüde PS5-covers içinde resim yok. Onları başlık kimliğiyle adlandırın, örneğin PPSA09076.png.",
+"es": "No hay imágenes en PS5-covers en la unidad USB. Ponles el ID del título como nombre, como PPSA09076.png.",
+"de": "In PS5-covers auf dem USB-Laufwerk sind keine Bilder. Benenne sie nach der Title-ID, etwa PPSA09076.png.",
+"it": "Non ci sono immagini in PS5-covers sull'unità USB. Usa l'ID del titolo come nome, come PPSA09076.png.",
+"pt": "Não há imagens em PS5-covers no pendrive. Use o ID do título como nome, como PPSA09076.png."
+},
+"{n} covers imported.": {
+"ar": "تم استيراد {n} أغلفة.",
+"fr": "{n} couvertures importées.",
+"tr": "{n} kapak alındı.",
+"es": "{n} portadas importadas.",
+"de": "{n} Cover importiert.",
+"it": "{n} copertine importate.",
+"pt": "{n} capas importadas."
+},
+"Your own covers were removed. Games show their own pictures again.": {
+"ar": "أُزيلت أغلفتك. تعرض الألعاب صورها مجددًا.",
+"fr": "Vos couvertures ont été supprimées. Les jeux affichent à nouveau leurs images.",
+"tr": "Kendi kapaklarınız kaldırıldı. Oyunlar yine kendi resimlerini gösterir.",
+"es": "Se quitaron tus portadas. Los juegos vuelven a mostrar sus imágenes.",
+"de": "Deine Cover wurden entfernt. Die Spiele zeigen wieder ihre eigenen Bilder.",
+"it": "Le tue copertine sono state rimosse. I giochi mostrano di nuovo le loro immagini.",
+"pt": "Suas capas foram removidas. Os jogos voltam a mostrar as próprias imagens."
+},
+"Search games": {
+"ar": "البحث عن الألعاب",
+"fr": "Rechercher des jeux",
+"tr": "Oyun ara",
+"es": "Buscar juegos",
+"de": "Spiele suchen",
+"it": "Cerca giochi",
+"pt": "Buscar jogos"
+},
+"Search": {
+"ar": "بحث",
+"fr": "Rechercher",
+"tr": "Ara",
+"es": "Buscar",
+"de": "Suchen",
+"it": "Cerca",
+"pt": "Buscar"
+},
+"Search: {a}": {
+"ar": "بحث: {a}",
+"fr": "Recherche : {a}",
+"tr": "Arama: {a}",
+"es": "Búsqueda: {a}",
+"de": "Suche: {a}",
+"it": "Ricerca: {a}",
+"pt": "Busca: {a}"
+},
+"Show all games": {
+"ar": "عرض كل الألعاب",
+"fr": "Afficher tous les jeux",
+"tr": "Tüm oyunları göster",
+"es": "Mostrar todos los juegos",
+"de": "Alle Spiele zeigen",
+"it": "Mostra tutti i giochi",
+"pt": "Mostrar todos os jogos"
+},
+"No games match \"{a}\".": {
+"ar": "لا توجد ألعاب تطابق \"{a}\".",
+"fr": "Aucun jeu ne correspond à « {a} ».",
+"tr": "\"{a}\" ile eşleşen oyun yok.",
+"es": "Ningún juego coincide con \"{a}\".",
+"de": "Kein Spiel passt zu „{a}“.",
+"it": "Nessun gioco corrisponde a \"{a}\".",
+"pt": "Nenhum jogo corresponde a \"{a}\"."
+},
+"Notifications": {
+"ar": "الإشعارات",
+"fr": "Notifications",
+"tr": "Bildirimler",
+"es": "Notificaciones",
+"de": "Benachrichtigungen",
+"it": "Notifiche",
+"pt": "Notificações"
+},
+"{n} notifications": {
+"ar": "{n} إشعارات",
+"fr": "{n} notifications",
+"tr": "{n} bildirim",
+"es": "{n} notificaciones",
+"de": "{n} Benachrichtigungen",
+"it": "{n} notifiche",
+"pt": "{n} notificações"
+},
+"No notifications yet.": {
+"ar": "لا توجد إشعارات بعد.",
+"fr": "Aucune notification pour le moment.",
+"tr": "Henüz bildirim yok.",
+"es": "Aún no hay notificaciones.",
+"de": "Noch keine Benachrichtigungen.",
+"it": "Ancora nessuna notifica.",
+"pt": "Nenhuma notificação ainda."
+},
+"Clear all": {
+"ar": "مسح الكل",
+"fr": "Tout effacer",
+"tr": "Tümünü temizle",
+"es": "Borrar todo",
+"de": "Alle löschen",
+"it": "Cancella tutto",
+"pt": "Limpar tudo"
+},
+"1 notification": {
+"ar": "إشعار واحد",
+"fr": "1 notification",
+"tr": "1 bildirim",
+"es": "1 notificación",
+"de": "1 Benachrichtigung",
+"it": "1 notifica",
+"pt": "1 notificação"
+},
+"Left: Notifications": {
+"ar": "يسار: الإشعارات",
+"fr": "Gauche : Notifications",
+"tr": "Sol: Bildirimler",
+"es": "Izquierda: Notificaciones",
+"de": "Links: Benachrichtigungen",
+"it": "Sinistra: Notifiche",
+"pt": "Esquerda: Notificações"
+},
+"Right: Settings": {
+"ar": "يمين: الإعدادات",
+"fr": "Droite : Paramètres",
+"tr": "Sağ: Ayarlar",
+"es": "Derecha: Ajustes",
+"de": "Rechts: Einstellungen",
+"it": "Destra: Impostazioni",
+"pt": "Direita: Configurações"
+},
+"Play Game": {
+"ar": "تشغيل اللعبة",
+"fr": "Jouer",
+"tr": "Oyunu oyna",
+"es": "Jugar",
+"de": "Spielen",
+"it": "Gioca",
+"pt": "Jogar"
+},
+"Up: Search and Settings": {
+"ar": "أعلى: البحث والإعدادات",
+"fr": "Haut : Recherche et Paramètres",
+"tr": "Yukarı: Arama ve Ayarlar",
+"es": "Arriba: Buscar y Ajustes",
+"de": "Oben: Suche und Einstellungen",
+"it": "Su: Cerca e Impostazioni",
+"pt": "Cima: Busca e Configurações"
+},
+"Left: Search": {
+"ar": "يسار: البحث",
+"fr": "Gauche : Recherche",
+"tr": "Sol: Arama",
+"es": "Izquierda: Buscar",
+"de": "Links: Suche",
+"it": "Sinistra: Cerca",
+"pt": "Esquerda: Busca"
+},
+"Right: Profile": {
+"ar": "يمين: الملف الشخصي",
+"fr": "Droite : Profil",
+"tr": "Sağ: Profil",
+"es": "Derecha: Perfil",
+"de": "Rechts: Profil",
+"it": "Destra: Profilo",
+"pt": "Direita: Perfil"
+},
+"Layout": {
+"ar": "التخطيط",
+"fr": "Disposition",
+"tr": "Düzen",
+"es": "Diseño",
+"de": "Layout",
+"it": "Layout",
+"pt": "Layout"
+},
+"PS5 (tiles at the top)": {
+"ar": "PS5 (المربعات في الأعلى)",
+"fr": "PS5 (vignettes en haut)",
+"tr": "PS5 (kutucuklar üstte)",
+"es": "PS5 (iconos arriba)",
+"de": "PS5 (Kacheln oben)",
+"it": "PS5 (riquadri in alto)",
+"pt": "PS5 (blocos no topo)"
+},
+"Right: More": {
+"ar": "يمين: المزيد",
+"fr": "Droite : Plus",
+"tr": "Sağ: Daha fazla",
+"es": "Derecha: Más",
+"de": "Rechts: Mehr",
+"it": "Destra: Altro",
+"pt": "Direita: Mais"
+},
+"Up: Games": {
+"ar": "أعلى: الألعاب",
+"fr": "Haut : Jeux",
+"tr": "Yukarı: Oyunlar",
+"es": "Arriba: Juegos",
+"de": "Oben: Spiele",
+"it": "Su: Giochi",
+"pt": "Cima: Jogos"
+},
+"Left: Play Game": {
+"ar": "يسار: تشغيل اللعبة",
+"fr": "Gauche : Jouer",
+"tr": "Sol: Oyunu oyna",
+"es": "Izquierda: Jugar",
+"de": "Links: Spielen",
+"it": "Sinistra: Gioca",
+"pt": "Esquerda: Jogar"
+},
+"TV & Video": {
+"ar": "التلفاز والفيديو",
+"fr": "TV et vidéo",
+"tr": "TV ve Video",
+"es": "TV y vídeo",
+"de": "TV & Video",
+"it": "TV e video",
+"pt": "TV e vídeo"
+},
+"Reload": {
+"ar": "إعادة التحميل",
+"fr": "Recharger",
+"tr": "Yeniden yükle",
+"es": "Recargar",
+"de": "Neu laden",
+"it": "Ricarica",
+"pt": "Recarregar"
+},
+"Close the paused game first (PS button, Close the game), so the app has the memory.": {
+"ar": "أغلق اللعبة المتوقفة مؤقتًا أولًا (زر PS، إغلاق اللعبة)، ليحصل التطبيق على الذاكرة.",
+"fr": "Fermez d'abord le jeu en pause (bouton PS, Fermer le jeu), pour que l'application ait la mémoire.",
+"tr": "Önce duraklatılan oyunu kapat (PS düğmesi, Oyunu kapat), böylece uygulama belleği kullanabilir.",
+"es": "Cierra primero el juego en pausa (botón PS, Cerrar el juego) para que la aplicación tenga la memoria.",
+"de": "Schließe zuerst das pausierte Spiel (PS-Taste, Spiel schließen), damit die App den Speicher hat.",
+"it": "Chiudi prima il gioco in pausa (tasto PS, Chiudi il gioco), così l'app ha la memoria.",
+"pt": "Feche primeiro o jogo pausado (botão PS, Fechar o jogo), para que o app tenha a memória."
+},
+"Game Library": {
+"ar": "مكتبة الألعاب",
+"fr": "Bibliothèque de jeux",
+"tr": "Oyun Kitaplığı",
+"es": "Biblioteca de juegos",
+"de": "Spielebibliothek",
+"it": "Libreria giochi",
+"pt": "Biblioteca de jogos"
+},
+"All your games in one place": {
+"ar": "كل ألعابك في مكان واحد",
+"fr": "Tous vos jeux au même endroit",
+"tr": "Tüm oyunların tek bir yerde",
+"es": "Todos tus juegos en un solo lugar",
+"de": "Alle deine Spiele an einem Ort",
+"it": "Tutti i tuoi giochi in un unico posto",
+"pt": "Todos os seus jogos num só lugar"
+},
+"All games": {
+"ar": "كل الألعاب",
+"fr": "Tous les jeux",
+"tr": "Tüm oyunlar",
+"es": "Todos los juegos",
+"de": "Alle Spiele",
+"it": "Tutti i giochi",
+"pt": "Todos os jogos"
+},
+"No games here": {
+"ar": "لا توجد ألعاب هنا",
+"fr": "Aucun jeu ici",
+"tr": "Burada oyun yok",
+"es": "No hay juegos aquí",
+"de": "Hier sind keine Spiele",
+"it": "Nessun gioco qui",
+"pt": "Nenhum jogo aqui"
+},
+"Order: Name": {
+"ar": "الترتيب: الاسم",
+"fr": "Ordre : nom",
+"tr": "Sıra: Ad",
+"es": "Orden: nombre",
+"de": "Reihenfolge: Name",
+"it": "Ordine: nome",
+"pt": "Ordem: nome"
+},
+"Order: Recently played": {
+"ar": "الترتيب: لُعبت مؤخرًا",
+"fr": "Ordre : joués récemment",
+"tr": "Sıra: Son oynananlar",
+"es": "Orden: jugados recientemente",
+"de": "Reihenfolge: Zuletzt gespielt",
+"it": "Ordine: giocati di recente",
+"pt": "Ordem: jogados recentemente"
+},
+"Down: Media": {
+"ar": "أسفل: الوسائط",
+"fr": "Bas : médias",
+"tr": "Aşağı: Medya",
+"es": "Abajo: multimedia",
+"de": "Unten: Medien",
+"it": "Giù: contenuti multimediali",
+"pt": "Baixo: multimédia"
+},
+"Up: Play Game": {
+"ar": "أعلى: تشغيل اللعبة",
+"fr": "Haut : jouer",
+"tr": "Yukarı: Oyunu oyna",
+"es": "Arriba: jugar",
+"de": "Oben: Spielen",
+"it": "Su: gioca",
+"pt": "Cima: jogar"
+},
+"Change avatar": {
+"ar": "تغيير الصورة الرمزية",
+"fr": "Changer d'avatar",
+"tr": "Avatarı değiştir",
+"es": "Cambiar avatar",
+"de": "Avatar ändern",
+"it": "Cambia avatar",
+"pt": "Mudar avatar"
+},
+"Profile {n} of {count}": {
+"ar": "الملف {n} من {count}",
+"fr": "Profil {n} sur {count}",
+"tr": "Profil {n} / {count}",
+"es": "Perfil {n} de {count}",
+"de": "Profil {n} von {count}",
+"it": "Profilo {n} di {count}",
+"pt": "Perfil {n} de {count}"
+},
+"Last played: {game}": {
+"ar": "آخر لعبة: {game}",
+"fr": "Dernier jeu : {game}",
+"tr": "Son oynanan: {game}",
+"es": "Último jugado: {game}",
+"de": "Zuletzt gespielt: {game}",
+"it": "Ultimo giocato: {game}",
+"pt": "Último jogado: {game}"
+},
+"{n} new": {
+"ar": "{n} جديدة",
+"fr": "{n} nouvelles",
+"tr": "{n} yeni",
+"es": "{n} nuevas",
+"de": "{n} neu",
+"it": "{n} nuove",
+"pt": "{n} novas"
+},
+"Not played yet": {
+"ar": "لم تُلعب بعد",
+"fr": "Pas encore joué",
+"tr": "Henüz oynanmadı",
+"es": "Aún sin jugar",
+"de": "Noch nicht gespielt",
+"it": "Non ancora giocato",
+"pt": "Ainda não jogado"
+},
+"No trophies yet.": {
+"ar": "لا توجد جوائز بعد.",
+"fr": "Pas encore de trophées.",
+"tr": "Henüz kupa yok.",
+"es": "Aún no hay trofeos.",
+"de": "Noch keine Trophäen.",
+"it": "Ancora nessun trofeo.",
+"pt": "Ainda sem troféus."
+},
+"Aurora (legacy, card at the right)": {
+"ar": "Aurora (قديم، البطاقة على اليمين)",
+"fr": "Aurora (ancien, carte à droite)",
+"tr": "Aurora (eski, kart sağda)",
+"es": "Aurora (antiguo, tarjeta a la derecha)",
+"de": "Aurora (alt, Karte rechts)",
+"it": "Aurora (classico, scheda a destra)",
+"pt": "Aurora (antigo, cartão à direita)"
+},
+"Level": {
+"ar": "المستوى",
+"fr": "Niveau",
+"tr": "Seviye",
+"es": "Nivel",
+"de": "Stufe",
+"it": "Livello",
+"pt": "Nível"
+},
+"System update": {
+"ar": "تحديث النظام",
+"fr": "Mise à jour du système",
+"tr": "Sistem güncellemesi",
+"es": "Actualización del sistema",
+"de": "Systemaktualisierung",
+"it": "Aggiornamento di sistema",
+"pt": "Atualização do sistema"
+},
+"Check": {
+"ar": "فحص",
+"fr": "Vérifier",
+"tr": "Kontrol",
+"es": "Comprobar",
+"de": "Prüfen",
+"it": "Controllo",
+"pt": "Verificar"
+},
+"Install": {
+"ar": "تثبيت",
+"fr": "Installer",
+"tr": "Kur",
+"es": "Instalar",
+"de": "Installieren",
+"it": "Installa",
+"pt": "Instalar"
+},
+"Test": {
+"ar": "اختبار",
+"fr": "Tester",
+"tr": "Test",
+"es": "Probar",
+"de": "Testen",
+"it": "Prova",
+"pt": "Testar"
+},
+"Do not turn off the PS4.": {
+"ar": "لا تطفئ PS4.",
+"fr": "N'éteignez pas la PS4.",
+"tr": "PS4'ü kapatmayın.",
+"es": "No apagues la PS4.",
+"de": "Schalte die PS4 nicht aus.",
+"it": "Non spegnere la PS4.",
+"pt": "Não desligue o PS4."
+},
+"Created by": {
+"ar": "من إنشاء",
+"fr": "Créé par",
+"tr": "Yapan",
+"es": "Creado por",
+"de": "Erstellt von",
+"it": "Creato da",
+"pt": "Criado por"
+},
+"Thanks to": {
+"ar": "شكرًا لـ",
+"fr": "Merci à",
+"tr": "Teşekkürler",
+"es": "Gracias a",
+"de": "Dank an",
+"it": "Grazie a",
+"pt": "Obrigado a"
+},
+"PS5 games on a PS4": {
+"ar": "ألعاب PS5 على PS4",
+"fr": "Des jeux PS5 sur une PS4",
+"tr": "PS4 üzerinde PS5 oyunları",
+"es": "Juegos de PS5 en una PS4",
+"de": "PS5-Spiele auf einer PS4",
+"it": "Giochi PS5 su una PS4",
+"pt": "Jogos de PS5 num PS4"
+},
+"Library": {
+"ar": "المكتبة",
+"fr": "Bibliothèque",
+"tr": "Kitaplık",
+"es": "Biblioteca",
+"de": "Bibliothek",
+"it": "Raccolta",
+"pt": "Biblioteca"
+},
+"Change tab": {
+"ar": "تغيير التبويب",
+"fr": "Changer d'onglet",
+"tr": "Sekme değiştir",
+"es": "Cambiar pestaña",
+"de": "Tab wechseln",
+"it": "Cambia scheda",
+"pt": "Mudar separador"
+},
+"Put PS5 games on a USB drive to see them here.": {
+"ar": "ضع ألعاب PS5 على وحدة USB لتظهر هنا.",
+"fr": "Mettez des jeux PS5 sur une clé USB pour les voir ici.",
+"tr": "Burada görmek için PS5 oyunlarını bir USB sürücüye koyun.",
+"es": "Pon juegos de PS5 en una unidad USB para verlos aquí.",
+"de": "Lege PS5-Spiele auf ein USB-Laufwerk, um sie hier zu sehen.",
+"it": "Metti i giochi PS5 su un'unità USB per vederli qui.",
+"pt": "Coloque jogos de PS5 numa unidade USB para os ver aqui."
+},
+"Add a shared folder in Settings, Games from PC.": {
+"ar": "أضف مجلدًا مشتركًا في الإعدادات، ألعاب من الكمبيوتر.",
+"fr": "Ajoutez un dossier partagé dans Paramètres, Jeux depuis le PC.",
+"tr": "Ayarlar, PC'den oyunlar bölümünde paylaşılan bir klasör ekleyin.",
+"es": "Añade una carpeta compartida en Ajustes, Juegos desde el PC.",
+"de": "Füge in Einstellungen, Spiele vom PC einen freigegebenen Ordner hinzu.",
+"it": "Aggiungi una cartella condivisa in Impostazioni, Giochi dal PC.",
+"pt": "Adicione uma pasta partilhada em Definições, Jogos do PC."
+},
+"Copy a game to the EmuFive disk from its options.": {
+"ar": "انسخ لعبة إلى قرص EmuFive من خياراتها.",
+"fr": "Copiez un jeu sur le disque EmuFive depuis ses options.",
+"tr": "Bir oyunu seçeneklerinden EmuFive diskine kopyalayın.",
+"es": "Copia un juego al disco de EmuFive desde sus opciones.",
+"de": "Kopiere ein Spiel über seine Optionen auf die EmuFive-Festplatte.",
+"it": "Copia un gioco sul disco EmuFive dalle sue opzioni.",
+"pt": "Copie um jogo para o disco EmuFive a partir das opções dele."
 }
 }

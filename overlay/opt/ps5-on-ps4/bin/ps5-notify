@@ -30,6 +30,7 @@ def main():
     args = parser.parse_args()
 
     settings = store.Settings()
+    store.add_notification(args.title, args.text)   # For the Notifications list (quick menu).
     ui.apply_theme(settings["theme"], settings["accent"])
     i18n.set_language(settings["menu_language"])
     pygame.init()

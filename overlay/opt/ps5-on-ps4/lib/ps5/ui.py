@@ -652,6 +652,33 @@ def draw_gear(c, x, y, color, r=11):
     c.circle(color, x, y, 3)
 
 
+def draw_trophy(c, x, y, color, r=9):
+    """A small trophy cup centered on (x, y)."""
+    c.polygon(color, [(x - r, y - r), (x + r, y - r), (x + r * 0.6, y + r * 0.2), (x - r * 0.6, y + r * 0.2)])
+    c.rect(color, x - r * 0.15, y + r * 0.2, r * 0.3, r * 0.5)
+    c.rect(color, x - r * 0.55, y + r * 0.7, r * 1.1, r * 0.3, 1)
+
+
+def draw_search(c, x, y, color):
+    """A magnifying glass centered on (x, y): the PS5 layout's Search on the top bar."""
+    c.circle(color, x - 2, y - 2, 8, 3)
+    c.line(color, x + 4, y + 4, x + 10, y + 10, 4)
+
+
+def draw_clock_icon(c, x, y, color, r=7):
+    c.circle(color, x, y, r, 2)
+    c.line(color, x, y, x, y - r + 3, 2)
+    c.line(color, x, y, x + r - 3, y, 2)
+
+
+def draw_bell(c, x, y, color):
+    """The Notifications icon on the home screen's top bar, centered on (x, y)."""
+    c.polygon(color, [(x - 9, y + 6), (x - 7, y + 3), (x - 7, y - 3), (x - 4, y - 8), (x, y - 10),
+                      (x + 4, y - 8), (x + 7, y - 3), (x + 7, y + 3), (x + 9, y + 6)])
+    c.rect(color, x - 11, y + 5, 22, 3, 1)
+    c.circle(color, x, y + 11, 3)
+
+
 def draw_power(c, x, y, radius, color, width=4):
     c.arc(color, x - radius, y - radius, radius * 2, radius * 2, math.radians(120), math.radians(420), width)
     c.line(color, x, y - radius - 2, x, y - 2, width)
@@ -939,10 +966,10 @@ class Keyboard:
 
     def draw(self, c, x, y, width, t):
         """Title, field and keys from (x, y), `width` units wide; returns the bottom."""
-        c.text(self.title, 17, x, y, WHITE)
+        c.text(self.title, 17, x, y, WHITE, True)
         field_y = y + 30
-        c.rect(BACKDROP, x - 4, field_y, width + 8, 52, 10)
-        c.rect(ACCENT, x - 4, field_y, width + 8, 52, 10, 2)
+        c.rect((9, 9, 12), x - 4, field_y, width + 8, 52, 10)
+        c.rect(ACCENT, x - 4, field_y, width + 8, 52, 10, 1)
         shown = self.text if self.show or not self.secret else \
             ("•" * max(0, len(self.text) - 1) + self.text[-1:])
         surface = c.t.render(shown or " ", 22)
@@ -960,8 +987,8 @@ class Keyboard:
                 for col, ch in enumerate(row):
                     kx = x + col * (key_w + 6)
                     on = r == self.row and col == self.col
-                    c.rect(WHITE if on else KEY, kx, ky, key_w, 46, 8)
-                    c.text(ch, 20, kx + key_w / 2, ky + 23, INK if on else WHITE, on, "center")
+                    c.rect(ACCENT if on else (30, 30, 40), kx, ky, key_w, 46, 8)
+                    c.text(ch, 20, kx + key_w / 2, ky + 23, (9, 9, 12) if on else WHITE, on, "center")
                 ky += 52
             else:
                 ky += 6
@@ -975,11 +1002,14 @@ class Keyboard:
                     main = name == self.done_label
                     active = (name == "Shift" and self.mode == "upper") or \
                              (name == "#+=" and self.mode == "symbols") or (name == "Show" and self.show)
-                    color = WHITE if on else ACCENT if main else KEY_ON if active else KEY
+                    color = ACCENT if on else (30, 30, 40) if main else mix((30, 30, 40), ACCENT, 0.35) if active \
+                        else (22, 22, 30)
                     c.rect(color, kx, ky, widths[col], 46, 8)
+                    if main and not on:
+                        c.rect(ACCENT, kx, ky, widths[col], 46, 8, 1)
                     label = "Hide" if name == "Show" and self.show else \
                         "Caps lock" if name == "Shift" and self.caps else name
-                    c.text(label, 15, kx + widths[col] / 2, ky + 23, INK if on else WHITE, main or on, "center")
+                    c.text(label, 15, kx + widths[col] / 2, ky + 23, (9, 9, 12) if on else WHITE, main or on, "center")
                     kx += widths[col] + 6
                 ky += 46
         if self.status:

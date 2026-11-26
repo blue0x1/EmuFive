@@ -36,6 +36,7 @@ import signal
 import sys
 import threading
 import time
+import types
 import urllib.request
 
 
@@ -76,6 +77,18 @@ TILE_GAP = 16
 CHAMPAGNE = (238, 214, 168)      # Aurora: the light gold of borders and labels.
 CARD_X, CARD_Y, CARD_W, CARD_H = 787, 347, 453, 240     # Aurora: the selected game's glass card.
 TILES_X, TILES_RIGHT, TILES_Y = 73, 767, 373             # Aurora: where the tiles are.
+# The PS5 layout: a row of small tiles under the top bar, the chosen one larger at the left; the
+# game's art fills the screen, with its name, Play and ... at the left and info cards at the bottom.
+PS5_TILES_X, PS5_TILES_Y = 64, 88
+PS5_TILE_SIZES = {"small": (72, 112), "medium": (82, 128), "large": (92, 144)}   # Normal, selected.
+PS5_INFO_X, PS5_INFO_Y = 64, 330
+SHINE_DELAY, SHINE_SECONDS = 1.8, 0.9    # PS5: a soft light crosses the chosen tile once, slowly, 1.8 s after
+                                          # it is chosen (as filmed on a PS5).
+HALO_SPEED = 48.0                          # PS5: the chosen tile's outline turns this many degrees a second.
+TROPHY_COLORS = {"platinum": (178, 196, 222), "gold": (230, 184, 72), "silver": (196, 198, 204),
+                 "bronze": (196, 128, 80)}
+# Backgrounds for the tiles that are not games (Internet, Cheats, Power): their tile's color.
+TILE_BACKGROUND_COLORS = {"library": (44, 48, 70), "browser": (36, 52, 96), "cheats": (78, 40, 92), "power": (40, 38, 48)}
 ROW_X, ROW_Y = 64, 112
 REOPEN = os.path.expanduser("~/.cache/ps5-on-ps4/reopen")    # Settings page to show after a restart.
 PROFILE_CHOSEN = os.path.join(system.RUNTIME, "ps5-profile-chosen")   # "Who's playing?" was shown.
@@ -99,6 +112,10 @@ def ease(current, target, rate, dt):
 
 def ease_out(t):
     return 1 - (1 - t) ** 3
+
+
+def ease_in_out(t):
+    return t * t * (3 - 2 * t)
 
 
 # --------------------------------------------------------------------------------------------
@@ -286,9 +303,10 @@ class ArtLoader:
         if not game.icon_loaded:
             icon = None
             try:
-                if game.zar:
+                cover = system.cover_file(game.title_id)   # The player's own cover (Settings > Saves).
+                if cover is None and game.zar:
                     system.zar.extract(game.path, ["icon0.png"])
-                icon = pygame.image.load(os.path.join(sys_dir, "icon0.png"))
+                icon = pygame.image.load(cover or os.path.join(sys_dir, "icon0.png"))
             except (pygame.error, FileNotFoundError, OSError, ValueError):
                 pass
             if icon is not None:
@@ -456,36 +474,58 @@ class Dialog(Modal):
                 self.buttons[0][1]()
 
     def draw(self, c):
-        a = ease_out(self.appear)
-        c.dim(170 * a)
         lines = c.t.wrap(self.message, 21, 560)[:8]
-        box_w = 640
-        box_h = 150 + len(lines) * 30 + (42 if self.title else 0)
-        x = ui.W / 2 - box_w / 2
-        y = ui.H / 2 - box_h / 2 + (1 - a) * 20
-        c.rect(DIALOG, x, y, box_w, box_h, 20)
-        ty = y + 34
+        box_w = 660
+        box_h = 156 + len(lines) * 30 + (46 if self.title else 0)
+        x, y = draw_luxe_card(c, box_w, box_h, self.appear)
+        c.rect(ui.ACCENT, ui.W / 2 - 22, y + 18, 44, 3, 1)
+        ty = y + 40
         if self.title:
             c.text(self.title, 24, ui.W / 2, ty, WHITE, True, "midtop")
-            ty += 42
+            ty += 46
         for line in lines:
-            c.text(line, 21, ui.W / 2, ty, WHITE, False, "midtop")
+            c.text(line, 21, ui.W / 2, ty, SOFT if self.title else WHITE, False, "midtop")
             ty += 30
-        by = y + box_h - 74
-        width = 190
-        total = len(self.buttons) * width + (len(self.buttons) - 1) * 20
+        by = y + box_h - 76
+        width = 200
+        total = len(self.buttons) * width + (len(self.buttons) - 1) * 18
         bx = ui.W / 2 - total / 2
         for i, (label, _) in enumerate(self.buttons):
-            on = i == self.selected
-            if on:
-                c.rect(WHITE, bx, by, width, 48, 24)
-            else:
-                c.rect(WHITE, bx, by, width, 48, 24, 2)
-            c.text(label, 18, bx + width / 2, by + 24, INK if on else WHITE, on, "center")
-            bx += width + 20
+            draw_luxe_button(c, label, bx, by, width, 50, i == self.selected)
+            bx += width + 18
 
     def hints(self):
         return [("cross", "Select"), ("circle", "Back")] if len(self.buttons) > 1 else [("cross", "OK")]
+
+
+def draw_luxe_card(c, w, h, appear):
+    """A centered card in the luxe look over the dimmed screen: near black, a soft glow of the
+    accent behind it and a thin accent edge. Returns its top left."""
+    a = ease_out(appear)
+    c.dim(175 * a)
+    x, y = ui.W / 2 - w / 2, ui.H / 2 - h / 2 + (1 - a) * 14
+    glow = glow_sprite(px(w * 0.55), ui.mix((0, 0, 0), ui.ACCENT, 0.55))
+    c.s.blit(glow, glow.get_rect(center=(px(ui.W / 2), px(y + h / 2))), special_flags=pygame.BLEND_RGB_ADD)
+    c.rect((16, 16, 24), x, y, w, h, 22)
+    c.rect(luxe_line(), x, y, w, h, 22, 1)
+    return x, y
+
+
+def draw_luxe_button(c, label, x, y, w, h, on):
+    """A pill button: the accent filled when focused, else dark with a thin accent edge."""
+    if on:
+        c.rect(ui.ACCENT, x, y, w, h, h / 2)
+    else:
+        c.rect((9, 9, 12, 170), x, y, w, h, h / 2)
+        c.rect(luxe_line(), x, y, w, h, h / 2, 1)
+    c.text(c.t.fit(label, 18, w - 24, on), 18, x + w / 2, y + h / 2, LUXE_INK if on else WHITE, on, "center")
+
+
+def draw_spinner(c, x, y, r, t):
+    """A ring with an accent arc running round it."""
+    c.circle(luxe_line(), x, y, r, 3)
+    start = -(t * 4.0) % (2 * math.pi)
+    c.arc(ui.ACCENT, x - r, y - r, 2 * r, 2 * r, start, start + 1.9, 4)
 
 
 class Busy(Modal):
@@ -521,18 +561,16 @@ class Busy(Modal):
                 self.home.push(Dialog(self.home, message))
 
     def draw(self, c):
-        c.dim(160 * ease_out(self.appear))
-        box_w, box_h = 560, 130
-        x, y = ui.W / 2 - box_w / 2, ui.H / 2 - box_h / 2
-        c.rect(DIALOG, x, y, box_w, box_h, 20)
-        t = self.home.t
-        for i in range(8):
-            ang = t * 5 + i * math.pi / 4
-            shade = 90 + int(165 * ((i + 1) / 8))
-            c.circle((shade, shade, 255), x + 56 + math.cos(ang) * 16, y + box_h / 2 + math.sin(ang) * 16, 3)
-        lines = c.t.wrap(self.text, 19, 420)[:2]
+        box_w = 600
+        lines = c.t.wrap(self.text, 20, box_w - 150, True)[:2]
+        block = 22 + 28 * len(lines)
+        box_h = block + 64
+        x, y = draw_luxe_card(c, box_w, box_h, self.appear)
+        draw_spinner(c, x + 66, y + box_h / 2, 22, self.home.t)
+        top = y + (box_h - block) / 2
+        c.text(i18n.translate("Please wait").upper(), 12, x + 116, top, ui.ACCENT, True)
         for n, line in enumerate(lines):
-            c.text(line, 19, x + 100, y + box_h / 2 - 13 * len(lines) + n * 26, WHITE)
+            c.text(line, 20, x + 116, top + 20 + n * 28, WHITE, True)
 
     def hints(self):
         return [(None, "Please wait")]
@@ -622,26 +660,55 @@ class UpdateProgress(Modal):
             text = "Putting the old files back…"
         else:
             text = "Checking for updates…"
-        box_w, box_h = 620, 190
-        x, y = ui.W / 2 - box_w / 2, ui.H / 2 - box_h / 2
-        c.rect(DIALOG, x, y, box_w, box_h, 20)
-        c.text(text, 21, ui.W / 2, y + 40, WHITE, True, "midtop")
+        accent, line = ui.ACCENT, luxe_line()
+        box_w, box_h = 720, 300
+        x, y = draw_luxe_card(c, box_w, box_h, self.appear)
+        x0 = x + 50
+        # The EmuFive mark: the spinner while it works.
+        draw_spinner(c, x0 + 26, y + 66, 26, self.home.t)
+        label = "Roll back" if self.action == "rollback" else "System update"
+        c.text(i18n.translate(label).upper(), 13, x0 + 76, y + 40, accent, True)
+        c.text(c.t.fit(text, 24, box_w - 160, True), 24, x0 + 76, y + 60, WHITE, True)
         if st.get("count", 1) > 1:
-            c.text(f"Update {st.get('index', 1)} of {st.get('count')}", 16, ui.W / 2, y + 76, SOFT, False, "midtop")
-        bar_x, bar_y, bar_w = x + 60, y + 118, box_w - 120
-        c.rect(KEY, bar_x, bar_y, bar_w, 12, 6)
+            c.text(f"Update {st.get('index', 1)} of {st.get('count')}", 14, x + box_w - 50, y + 42, SOFT, False,
+                   "topright")
+        # The steps, the current one lit.
+        steps = (["checking", "downloading", "installing", "testing"] if self.action != "rollback"
+                 else ["restoring"])
+        names = {"checking": "Check", "downloading": "Download", "installing": "Install", "testing": "Test",
+                 "restoring": "Restore"}
+        now = steps.index(state) if state in steps else (len(steps) - 1 if state == "restoring" else 0)
+        if len(steps) > 1:
+            sx, sw = x0, (box_w - 100) / (len(steps) - 1)
+            sy = y + 146
+            c.line(line, sx, sy, sx + sw * (len(steps) - 1), sy, 2)
+            c.line(accent, sx, sy, sx + sw * now, sy, 2)
+            for i, step in enumerate(steps):
+                px_ = sx + i * sw
+                done, current = i < now, i == now
+                c.circle((16, 16, 24), px_, sy, 11)
+                c.circle(accent if (done or current) else line, px_, sy, 8 if current else 6, 0 if done or current else 2)
+                if current:
+                    c.circle(accent, px_, sy, 13, 1)
+                anchor = "midtop" if 0 < i < len(steps) - 1 else ("topleft" if i == 0 else "topright")
+                tx = px_ - 8 if i == 0 else px_ + 8 if i == len(steps) - 1 else px_
+                c.text(i18n.translate(names[step]), 14, tx, sy + 20, WHITE if current else SOFT, current, anchor)
+        # The bar.
+        bar_x, bar_y, bar_w = x0, y + 226, box_w - 100
+        c.rect(line, bar_x, bar_y, bar_w, 6, 3)
         if state == "downloading":
             part = max(0.0, min(1.0, st.get("percent", 0) / 100))
             if part > 0:
-                c.rect(ACCENT, bar_x, bar_y, max(12, bar_w * part), 12, 6)
-            c.text(f"{st.get('percent', 0)}%", 15, ui.W / 2, bar_y + 24, SOFT, False, "midtop")
+                c.rect(accent, bar_x, bar_y, max(6, bar_w * part), 6, 3)
+            c.text(f"{st.get('percent', 0)}%", 15, bar_x + bar_w, bar_y + 16, WHITE, True, "topright")
         else:
             # Moving: a short light that runs along the bar.
             run = (self.home.t * 0.6) % 1.0
-            c.rect(ACCENT, bar_x + (bar_w - 120) * run, bar_y, 120, 12, 6)
+            c.rect(accent, bar_x + (bar_w - 140) * run, bar_y, 140, 6, 3)
+        c.text("Do not turn off the PS4.", 14, bar_x, bar_y + 16, SOFT)
 
     def hints(self):
-        return [(None, "Please wait. Do not turn off the PS4.")]
+        return [(None, "Please wait")]
 
 
 class KeyboardDialog(Modal):
@@ -670,13 +737,10 @@ class KeyboardDialog(Modal):
                 self.close()
 
     def draw(self, c):
-        a = ease_out(self.appear)
-        c.dim(170 * a)
-        w = 640
-        x = ui.W / 2 - w / 2
-        y = 70 + (1 - a) * 20
-        c.rect(DIALOG, x, y, w, 540, 20)
-        self.kb.draw(c, x + 40, y + 36, w - 80, self.home.t)
+        w = 660
+        x, y = draw_luxe_card(c, w, 470, self.appear)
+        c.rect(ui.ACCENT, x + 40, y + 20, 36, 3, 1)
+        self.kb.draw(c, x + 50, y + 40, w - 100, self.home.t)
 
     def hints(self):
         return [("cross", "Type"), ("square", "Delete"), ("triangle", "Symbols"), ("l1", "Space"),
@@ -714,14 +778,11 @@ class Picker(Modal):
             self.close()
 
     def draw(self, c):
-        a = ease_out(self.appear)
-        c.dim(170 * a)
         w, rows = 600, self.ROWS
-        x = ui.W / 2 - w / 2
-        y = 50 + (1 - a) * 20
-        c.rect(DIALOG, x, y, w, 610, 20)
+        x, y = draw_luxe_card(c, w, 610, self.appear)
         rtl = i18n.rtl()
         tx, anchor = (x + w - 36, "topright") if rtl else (x + 36, "topleft")
+        c.rect(ui.ACCENT, tx - (36 if rtl else 0), y + 20, 36, 3, 1)
         c.text(self.title, 24, tx, y + 30, WHITE, True, anchor)
         ly = y + 80
         if self.subtitle:
@@ -734,14 +795,15 @@ class Picker(Modal):
         for i in range(self.top, min(len(self.items), self.top + rows)):
             on = i == self.selected
             if on:
-                c.rect(WHITE, x + 22, ly, w - 44, 50, 12)
+                c.rect(ui.ACCENT + (30,), x + 22, ly, w - 44, 50, 8)
+                c.rect(ui.ACCENT, x + w - 25 if rtl else x + 22, ly + 8, 3, 34, 1)
             c.text(c.t.fit(self.items[i][0], 19, w - 90), 19, x + w - 40 if rtl else x + 40, ly + 13,
-                   INK if on else WHITE, on, "topright" if rtl else "topleft")
+                   WHITE if on else SOFT, on, "topright" if rtl else "topleft")
             ly += 56
         if len(self.items) > rows:
             bar_h = 500 * rows / len(self.items)
             bar_y = y + 80 + (500 - bar_h) * self.top / max(1, len(self.items) - rows)
-            c.rect((80, 76, 140), x + w - 14, bar_y, 4, bar_h, 2)
+            c.rect(ui.ACCENT, x + w - 14, bar_y, 3, bar_h, 2)
 
     def hints(self):
         return [("cross", "Select"), ("l1r1", "Page"), ("circle", "Back")]
@@ -924,19 +986,18 @@ def draw_rows(c, rows, selected, x, y, width, bottom, focused, top_index=0):
         on = focused and i == selected
         if row.kind == "header":
             if rtl:
-                c.text(row.label, 14, x + width, y + 12, DIM, True, "topright")
+                c.text(row.label, 13, x + width, y + 12, ui.ACCENT, True, "topright")
             else:
-                c.text(i18n.upper(row.label), 14, x, y + 12, DIM, True)
+                c.text(i18n.upper(row.label), 13, x, y + 12, ui.ACCENT, True)
         elif row.kind == "action":
             label_w = max(200, c.t.width(row.label, 18, True) + 60)
             bx = x + width - label_w + 4 if rtl else x - 4
             if on:
-                c.rect(WHITE, bx, y + 4, label_w, 46, 23)
-            elif row.ok is None:
-                c.rect(KEY, bx, y + 4, label_w, 46, 23)
+                c.rect(ui.ACCENT, bx, y + 4, label_w, 46, 23)
             else:
-                c.rect(KEY_ON, bx, y + 4, label_w, 46, 23)
-            ink = INK if on else SOFT if row.ok is None else WHITE
+                c.rect((9, 9, 12, 170), bx, y + 4, label_w, 46, 23)
+                c.rect(luxe_line() if row.ok is None else ui.ACCENT, bx, y + 4, label_w, 46, 23, 1)
+            ink = LUXE_INK if on else SOFT if row.ok is None else WHITE
             c.text(row.label, 18, bx + label_w / 2, y + 27, ink, True, "center")
             if row.value:
                 value = c.t.fit(str(row.value), 15, width - label_w - 30)
@@ -946,9 +1007,10 @@ def draw_rows(c, rows, selected, x, y, width, bottom, focused, top_index=0):
                     c.text(value, 15, x + label_w + 16, y + 17, row.color or SOFT)
         else:
             if on:
-                c.rect(WHITE, x - 14, y, width + 28, 44, 12)
-            fg = INK if on else WHITE                   # Text on the row.
-            fg_soft = ui.mix(INK, WHITE, 0.35) if on else SOFT
+                c.rect(ui.ACCENT + (30,), x - 14, y, width + 28, 44, 6)
+                c.rect(ui.ACCENT, x + width + 11 if rtl else x - 14, y + 7, 3, 30, 1)
+            fg = WHITE                                  # Text on the row.
+            fg_soft = WHITE if on else SOFT
             if row.kind == "info" and row.value is None:
                 # A note: wraps over two lines if needed.
                 lines = c.t.wrap(row.label, 15, width)[:2]
@@ -971,23 +1033,23 @@ def draw_rows(c, rows, selected, x, y, width, bottom, focused, top_index=0):
             rx = x + width - 2
             if row.kind == "toggle":
                 on_value = bool(row.value)
-                c.rect(GOOD if on_value else (KEY if not on else ui.mix(INK, WHITE, 0.6)), rx - 50, y + 10, 50, 24, 12)
-                c.circle(INK if on and not on_value else (255, 255, 255), rx - 12 if on_value else rx - 38, y + 22, 9)
+                c.rect(GOOD if on_value else (KEY if not on else ui.mix(KEY, WHITE, 0.25)), rx - 50, y + 10, 50, 24, 12)
+                c.circle((255, 255, 255), rx - 12 if on_value else rx - 38, y + 22, 9)
             elif row.kind == "slider":
                 value = row.value if row.value is not None else 0
                 bar_w = max(60, min(220, room - 70))
-                track = ui.mix(INK, WHITE, 0.7) if on else KEY
+                track = ui.mix(KEY, WHITE, 0.25) if on else KEY
                 c.rect(track, rx - bar_w - 56, y + 19, bar_w, 6, 3)
-                c.rect(ACCENT, rx - bar_w - 56, y + 19, max(1, bar_w * value / 100), 6, 3)
-                c.circle(INK if on else WHITE, rx - bar_w - 56 + bar_w * value / 100, y + 22, 8)
+                c.rect(ui.ACCENT, rx - bar_w - 56, y + 19, max(1, bar_w * value / 100), 6, 3)
+                c.circle(WHITE, rx - bar_w - 56 + bar_w * value / 100, y + 22, 8)
                 c.text(f"{value}%", 16, rx, y + 12, fg_soft, False, "topright")
             elif row.kind == "choice":
                 text = c.t.fit(str(row.value), 16, room - 40)
                 c.text(text, 16, rx - 20, y + 12, fg_soft, on, "topright")
                 if on:
                     tw = c.t.width(text, 16, True)
-                    c.text("‹", 20, rx - 32 - tw, y + 8, INK, True, "topright")
-                    c.text("›", 20, rx, y + 8, INK, True, "topright")
+                    c.text("‹", 20, rx - 32 - tw, y + 8, ui.ACCENT, True, "topright")
+                    c.text("›", 20, rx, y + 8, ui.ACCENT, True, "topright")
             elif row.picture is not None:
                 c.blit(row.picture, rx, y + 22, "midright")
             elif row.value is not None:
@@ -1002,23 +1064,23 @@ def draw_row_value_rtl(c, row, on, lx, y, room, fg_soft):
     """The value or switch of a row at its left end (right-to-left menus)."""
     if row.kind == "toggle":
         on_value = bool(row.value)
-        c.rect(GOOD if on_value else (KEY if not on else ui.mix(INK, WHITE, 0.6)), lx, y + 10, 50, 24, 12)
-        c.circle(INK if on and not on_value else (255, 255, 255), lx + 38 if on_value else lx + 12, y + 22, 9)
+        c.rect(GOOD if on_value else (KEY if not on else ui.mix(KEY, WHITE, 0.25)), lx, y + 10, 50, 24, 12)
+        c.circle((255, 255, 255), lx + 38 if on_value else lx + 12, y + 22, 9)
     elif row.kind == "slider":
         value = row.value if row.value is not None else 0
         bar_w = max(60, min(220, room - 70))
-        track = ui.mix(INK, WHITE, 0.7) if on else KEY
+        track = ui.mix(KEY, WHITE, 0.25) if on else KEY
         c.text(f"{value}%", 16, lx, y + 12, fg_soft)
         c.rect(track, lx + 56, y + 19, bar_w, 6, 3)
-        c.rect(ACCENT, lx + 56, y + 19, max(1, bar_w * value / 100), 6, 3)
-        c.circle(INK if on else WHITE, lx + 56 + bar_w * value / 100, y + 22, 8)
+        c.rect(ui.ACCENT, lx + 56, y + 19, max(1, bar_w * value / 100), 6, 3)
+        c.circle(WHITE, lx + 56 + bar_w * value / 100, y + 22, 8)
     elif row.kind == "choice":
         text = c.t.fit(str(row.value), 16, room - 40)
         c.text(text, 16, lx + 20, y + 12, fg_soft, on)
         if on:
             tw = c.t.width(text, 16, True)
-            c.text("‹", 20, lx, y + 8, INK, True)
-            c.text("›", 20, lx + 32 + tw, y + 8, INK, True)
+            c.text("‹", 20, lx, y + 8, ui.ACCENT, True)
+            c.text("›", 20, lx + 32 + tw, y + 8, ui.ACCENT, True)
     elif row.picture is not None:
         c.blit(row.picture, lx, y + 22, "midleft")
     elif row.value is not None:
@@ -1040,7 +1102,7 @@ def card_height(row):
 
 
 def draw_card_rows(c, rows, selected, x, y, width, bottom, focused, top_index, accent, home):
-    """Rows as glass cards; the chosen one has a border from light gold to `accent`."""
+    """Rows as glass cards; the chosen one tinted and edged in `accent`."""
     rtl = i18n.rtl()
     for i in range(top_index, len(rows)):
         row = rows[i]
@@ -1050,9 +1112,9 @@ def draw_card_rows(c, rows, selected, x, y, width, bottom, focused, top_index, a
         on = focused and i == selected
         if row.kind == "header":
             if rtl:
-                c.text(row.label, 13, x + width, y + 14, CHAMPAGNE, True, "topright")
+                c.text(row.label, 13, x + width, y + 14, accent, True, "topright")
             else:
-                c.text(i18n.upper(row.label), 13, x, y + 14, CHAMPAGNE, True)
+                c.text(i18n.upper(row.label), 13, x, y + 14, accent, True)
         elif row.kind == "info" and row.value is None:
             lines = c.t.wrap(row.label, 15, width)[:2]
             for n, line in enumerate(lines):
@@ -1075,10 +1137,12 @@ def draw_card_rows(c, rows, selected, x, y, width, bottom, focused, top_index, a
                     c.text(value, 15, x + label_w + 16, y + 19, row.color or ART_SOFT)
         else:
             card_h = height - 2
-            c.rect((255, 255, 255, 30 if on else 13), x - 18, y, width + 36, card_h, 18)
+            c.rect(accent + (34,) if on else (255, 255, 255, 10), x - 18, y, width + 36, card_h, 14)
             if on:
-                border = gradient_border(px(width + 36), px(card_h), px(18), CHAMPAGNE, accent, max(1, px(1.5)))
+                border = gradient_border(px(width + 36), px(card_h), px(14), ui.mix(accent, WHITE, 0.45), accent,
+                                         max(1, px(1.5)))
                 c.s.blit(border, (px(x - 18), px(y)))
+                c.rect(accent, x + width + 15 if rtl else x - 18, y + 12, 3, card_h - 24, 1)
             dy = (card_h - 44) / 2
             draw_card_content(c, row, on, x, y + dy, width, accent, rtl, home)
         y += height + CARD_GAP
@@ -1122,8 +1186,8 @@ def draw_card_content(c, row, on, x, y, width, accent, rtl, home):
         c.text(text, 16, rx - 20, y + 12, ART_TEXT if on else ART_SOFT, on, "topright")
         if on:
             tw = c.t.width(text, 16, True)
-            c.text("‹", 20, rx - 32 - tw, y + 8, CHAMPAGNE, True, "topright")
-            c.text("›", 20, rx, y + 8, CHAMPAGNE, True, "topright")
+            c.text("‹", 20, rx - 32 - tw, y + 8, accent, True, "topright")
+            c.text("›", 20, rx, y + 8, accent, True, "topright")
     elif row.picture is not None:
         c.blit(row.picture, rx, y + 22, "midright")
     elif row.value is not None:
@@ -1276,7 +1340,6 @@ class SettingsScreen(RowList):
         self.category = category
         self.focus = focus
         self.top = 0
-        self.backdrop = None
         self.update_checking = False
 
     # Rows of each category ------------------------------------------------------------------
@@ -1382,6 +1445,9 @@ class SettingsScreen(RowList):
     def rows_appearance(self):
         h = self.home
         return [
+            Row("header", "Home screen"),
+            self.setting_choice("Layout", "home_layout", [("ps5", "PS5 (tiles at the top)"),
+                                                          ("aurora", "Aurora (legacy, card at the right)")], reload=True),
             Row("header", "Colors"),
             self.setting_choice("Accent color", "accent", [(k, v[0]) for k, v in ui.ACCENTS.items()], reload=True),
             self.setting_choice("Theme", "theme", list(ui.THEMES.items()), reload=True),
@@ -1411,7 +1477,7 @@ class SettingsScreen(RowList):
                                                             ("large", "Large")], reload=True),
             self.setting_choice("Tile shape", "tile_shape", [("rounded", "Rounded"), ("square", "Square"),
                                                               ("circle", "Circle")]),
-            self.setting_toggle("Source labels (USB, PS4, PC)", "source_labels"),
+            self.setting_toggle("Source labels (USB, PS4, PC)", "tile_badges"),
             self.setting_toggle("Compatibility badges", "show_compat_badges"),
             Row("header", "Text"),
             self.setting_choice("Text size", "text_size", [(v, f"{v}%") for v in (90, 100, 110, 120, 130)],
@@ -1848,7 +1914,65 @@ class SettingsScreen(RowList):
         if backups:
             rows.append(Row("info", "Last backup", backups[0]))
         rows.append(Row("info", "Backups go in the PS5-saves folder of the USB drive."))
+        rows.append(self.setting_toggle("Back up saves when a game closes", "auto_backup_saves"))
+        rows.append(Row("info", "With a USB drive plugged in, the saves are copied to it each time a game "
+                                "closes. The newest 5 of these backups are kept."))
+        rows.append(Row("header", "Compiled shaders"))
+        rows.append(Row("action", "Export all compiled shaders to USB", None if usb else "Plug in a USB drive first",
+                        ok=self.export_all_shaders if usb else None))
+        rows.append(Row("action", "Import all compiled shaders from USB", None if usb else "Plug in a USB drive first",
+                        ok=self.import_all_shaders if usb else None))
+        rows.append(Row("info", "Games load faster the first time with shaders from another PS4 of the same model "
+                                "and EmuFive version. They go in the PS5-shaders folder of the USB drive."))
+        rows.append(Row("header", "Covers"))
+        rows.append(Row("action", "Import covers from USB", None if usb else "Plug in a USB drive first",
+                        ok=self.import_covers if usb else None))
+        if os.path.isdir(system.COVERS_DIR):
+            rows.append(Row("action", "Remove your own covers", ok=self.remove_covers))
+        rows.append(Row("info", "Put pictures named by title ID (like PPSA09076.png or .jpg) in a PS5-covers "
+                                "folder on the USB drive. They replace the game's own picture."))
         return rows
+
+    def export_all_shaders(self):
+        h = self.home
+        h.push(Busy(h, "Copying shaders to the USB drive…", system.export_all_shaders))
+
+    def import_all_shaders(self):
+        h = self.home
+
+        def work():
+            ok, message, titles = system.import_all_shaders()
+            # The shader store is only read with "Keep compiled shaders".
+            for g in h.all_games:
+                if g.title_id in titles:
+                    h.games_store.update(g.key, shader_cache=True)
+            if titles:
+                h.games_changed = True
+            return ok, message
+
+        h.push(Dialog(h, "Import the compiled shaders of every game in PS5-shaders on the USB drive? "
+                         "Keep compiled shaders is turned on for those games.",
+                      [("Import", lambda: h.push(Busy(h, "Copying shaders from the USB drive…", work))),
+                       ("Cancel", None)]))
+
+    def import_covers(self):
+        h = self.home
+        h.push(Busy(h, "Copying covers from the USB drive…", system.import_covers,
+                    lambda ok, message: (self.reload_pictures(), h.push(Dialog(h, message)))))
+
+    def reload_pictures(self):
+        """Every game's pictures are loaded again (prepare() starts them over)."""
+        h = self.home
+        for g in h.all_games:
+            if hasattr(g, "icon"):
+                del g.icon
+        h.refresh_games(force=True)
+
+    def remove_covers(self):
+        h = self.home
+        ok, message = system.remove_covers()
+        self.reload_pictures()
+        h.push(Dialog(h, message))
 
     def backup(self):
         h = self.home
@@ -2176,26 +2300,6 @@ class SettingsScreen(RowList):
     RAIL_STEP = 70
     ROWS_X = 167
 
-    def make_backdrop(self, size):
-        """The game's art (or the home background), heavily blurred and darkened, with its light."""
-        h = self.home
-        source = h.bg_current if h.settings["background"] == "art" else h.static_bg
-        vivid = h.palette()[0]
-        surface = pygame.Surface(size).convert()
-        if source is not None:
-            art = pygame.transform.smoothscale(source, size)
-            surface.blit(soft_blur(soft_blur(art, 12), 6), (0, 0))
-        else:
-            surface.fill(ui.mix(vivid, (8, 6, 14), 0.88))
-        veil = pygame.Surface(size, pygame.SRCALPHA)
-        veil.fill((6, 5, 12, 175))
-        surface.blit(veil, (0, 0))
-        light = glow_sprite(int(size[1] * 0.45), vivid)
-        surface.blit(light, light.get_rect(center=(int(size[0] * 0.8), int(size[1] * 0.25))),
-                     special_flags=pygame.BLEND_RGB_ADD)
-        self.backdrop_key = (size, id(source), vivid)
-        return surface
-
     def draw(self, c):
         """Drawn again only when something on it changes; otherwise the kept picture is shown."""
         h = self.home
@@ -2217,11 +2321,8 @@ class SettingsScreen(RowList):
     def draw_page(self, c):
         h = self.home
         size = c.s.get_size()
-        vivid = h.palette()[0]
-        source = h.bg_current if h.settings["background"] == "art" else h.static_bg
-        if self.backdrop is None or getattr(self, "backdrop_key", None) != (size, id(source), vivid):
-            self.backdrop = self.make_backdrop(size)
-        c.s.blit(self.backdrop, (0, 0))
+        vivid = ui.ACCENT
+        draw_luxe_cover(c, 170)
         a = ease_out(self.appear)
         rtl = i18n.rtl()
         # The rail: a round icon for each category, scrolled to keep the chosen one in view.
@@ -2236,10 +2337,10 @@ class SettingsScreen(RowList):
             if on:
                 light = glow_sprite(px(46), vivid)
                 c.s.blit(light, light.get_rect(center=(px(rail_x), px(y))), special_flags=pygame.BLEND_RGB_ADD)
-                c.circle(ART_TEXT if focused else (255, 255, 255, 60), rail_x, y, 22)
+                c.circle(vivid if focused else ui.mix(LUXE_INK, vivid, 0.35), rail_x, y, 22)
             else:
-                c.circle((255, 255, 255, 90), rail_x, y, 22, 1)
-            category_icon(c, name, rail_x, y, (24, 18, 30) if focused else ART_TEXT, 9)
+                c.circle(luxe_line(), rail_x, y, 22, 1)
+            category_icon(c, name, rail_x, y, LUXE_INK if focused else ART_TEXT, 9)
             c.text(c.t.fit(name, 11, 104), 11, rail_x, y + 27, ART_TEXT if on else ART_SOFT, on, "midtop")
         x = self.ROWS_X
         name = self.CATEGORIES[self.category]
@@ -2247,11 +2348,13 @@ class SettingsScreen(RowList):
         width = 573 if preview else ui.W - x - 70
         if rtl:
             x = ui.W - self.ROWS_X - width
-            c.text(name, 32, x + width, 26 - (1 - a) * 10, ART_TEXT, True, "topright")
-            c.text(self.SUBTITLES.get(name, ""), 15, x + width, 74, ART_SOFT, False, "topright")
+            c.text(i18n.upper("Settings"), 12, x + width, 18 - (1 - a) * 10, vivid, True, "topright")
+            c.text(name, 30, x + width, 34 - (1 - a) * 10, ART_TEXT, True, "topright")
+            c.text(self.SUBTITLES.get(name, ""), 15, x + width, 76, ART_SOFT, False, "topright")
         else:
-            c.text(name, 32, x, 26 - (1 - a) * 10, ART_TEXT, True)
-            c.text(self.SUBTITLES.get(name, ""), 15, x + 2, 74, ART_SOFT)
+            c.text(i18n.upper("Settings"), 12, x + 2, 18 - (1 - a) * 10, vivid, True)
+            c.text(name, 30, x, 34 - (1 - a) * 10, ART_TEXT, True)
+            c.text(self.SUBTITLES.get(name, ""), 15, x + 2, 76, ART_SOFT)
         rows = self.rows()
         if self.focus == "rows":
             self.current(rows)
@@ -2266,10 +2369,10 @@ class SettingsScreen(RowList):
             c.text("▲", 14, x + width, 96, ART_SOFT, False, "topright")
         if preview:
             px_ = 1240 - 453 if not rtl else 40
-            c.text(i18n.upper("Preview"), 12, px_, 98, CHAMPAGNE, True)
+            c.text(i18n.upper("Preview"), 12, px_, 98, vivid, True)
             picture = h.preview(px(453), px(255))
             c.blit(picture, px_, 118)
-            border = gradient_border(px(453), px(255), px(16), CHAMPAGNE, vivid, max(1, px(1.5)))
+            border = gradient_border(px(453), px(255), px(16), ui.mix(vivid, WHITE, 0.45), vivid, max(1, px(1.5)))
             c.s.blit(border, (px(px_), px(118)))
             c.text("Changes show here as you make them.", 14, px_, 384, ART_SOFT)
 
@@ -2317,7 +2420,109 @@ def change_volume(h, step):
 # Avatar picker: built-in avatars (drawn here, work offline), cartoon avatars from DiceBear and
 # photos from Lorem Picsum (both free, no key, only with internet).
 
+# --------------------------------------------------------------------------------------------
+# The "luxe" look of the profile, trophy and avatar pages: near black, a cover across the top
+# with soft light and thin waves, all in the accent color (Settings, Appearance).
+
+LUXE_INK = (9, 9, 12)
+TROPHY_POINTS = {"bronze": 15, "silver": 30, "gold": 90, "platinum": 300}
+# Points from one level to the next: 60 up to level 100, then more for each hundred (to 999).
+LEVEL_STEPS = [(100, 60), (200, 90), (300, 450), (400, 900), (500, 1350), (600, 1800), (700, 2250),
+               (800, 2700), (900, 3150), (999, 3600)]
+
+
+def trophy_level(grades):
+    """(level 1-999, progress to the next 0..1) from the trophies earned, PS5 style."""
+    points = sum(TROPHY_POINTS[g] * n for g, n in grades.items() if g in TROPHY_POINTS)
+    level = 1
+    for upto, step in LEVEL_STEPS:
+        while level < upto:
+            if points < step:
+                return level, points / step
+            points -= step
+            level += 1
+    return 999, 1.0
+LUXE_COVERS = {}
+
+
+def luxe_line():
+    """Thin lines and quiet marks: the accent, faint."""
+    return ui.mix(LUXE_INK, ui.ACCENT, 0.32)
+
+
+def draw_luxe_cover(c, height):
+    """Fills the screen near black and draws the cover, `height` units tall (made once)."""
+    key = (px(ui.W), px(height), ui.ACCENT)
+    cover = LUXE_COVERS.get(key)
+    if cover is None:
+        w, h = key[:2]
+        accent = ui.ACCENT
+        cover = pygame.Surface((w, h))
+        cover.blit(h_gradient(w, h, ui.mix(LUXE_INK, accent, 0.16), ui.mix(LUXE_INK, accent, 0.04)), (0, 0))
+        for gx, gy, r, strength in ((0.18, 0.2, 0.55, 0.38), (0.78, 0.05, 0.45, 0.26), (0.55, 0.9, 0.35, 0.16)):
+            sprite = glow_sprite(int(w * r), ui.mix((0, 0, 0), accent, strength))
+            cover.blit(sprite, sprite.get_rect(center=(int(w * gx), int(h * gy))), special_flags=pygame.BLEND_RGB_ADD)
+        lines = pygame.Surface((w, h), pygame.SRCALPHA)
+        for k in range(7):                                  # Thin waves, fainter further down.
+            base, amp, phase = h * (0.25 + k * 0.09), h * (0.10 + k * 0.012), k * 0.55
+            points = [(x, base + amp * math.sin(x / w * 2 * math.pi * 1.2 + phase)
+                       + amp * 0.4 * math.sin(x / w * 2 * math.pi * 3.1 + phase * 2))
+                      for x in range(0, w + 8, 8)]
+            pygame.draw.aalines(lines, accent + (70 - k * 8,), False, points)
+        cover.blit(lines, (0, 0))
+        fade = pygame.Surface((1, 3), pygame.SRCALPHA)
+        for y, a in enumerate((0, 40, 255)):
+            fade.set_at((0, y), LUXE_INK + (a,))
+        cover.blit(pygame.transform.smoothscale(fade, (w, h)), (0, 0))
+        if len(LUXE_COVERS) > 6:
+            LUXE_COVERS.clear()
+        LUXE_COVERS[key] = cover
+    c.s.fill(LUXE_INK)
+    c.s.blit(cover, (0, 0))
+
+
+def draw_luxe_tabs(c, names, chosen, x, y, focused):
+    """Tabs as words, the chosen one in the accent and underlined (white while the tabs have
+    the focus); returns the x after the last."""
+    for i, name in enumerate(names):
+        on = i == chosen
+        w = c.text(name, 19, x, y, ui.ACCENT if on else SOFT, on)
+        if on:
+            c.rect(WHITE if focused else ui.ACCENT, x, y + 34, w, 3 if focused else 2, 1)
+        x += w + 44
+    return x
+
+
+def draw_game_icon(c, game, x, y, size):
+    """A game's icon (its color while the icon is not read yet), `size` units, top left at (x, y)."""
+    if game.icon is not None:
+        c.blit(tile_image(game, px(size)), x, y)
+    else:
+        c.rect(getattr(game, "color", None) or ui.KEY, x, y, size, size, 8)
+
+
+def draw_luxe_header(c, label, title, subtitle, rise, picture=None, icon=None):
+    """The top of a luxe page: the cover, a round picture (or a drawn icon) in an accent ring at
+    the left, a small label in capitals, the title and a line under it."""
+    accent = ui.ACCENT
+    draw_luxe_cover(c, 190)
+    x0 = 90
+    c.circle(LUXE_INK, x0 + 50, 96 - rise, 58)
+    c.circle(accent, x0 + 50, 96 - rise, 54, 2)
+    if picture is not None:
+        c.blit(picture, x0 + 50, 96 - rise, "center")
+    elif icon is not None:
+        c.circle(ui.mix(LUXE_INK, accent, 0.3), x0 + 50, 96 - rise, 48)
+        icon(c, x0 + 50, 96 - rise)
+    tx = x0 + 130
+    c.text(label.upper(), 13, tx, 48 - rise, accent, True)
+    c.text(c.t.fit(title, 32, ui.W - tx - 380, True), 32, tx, 66 - rise, WHITE, True)
+    if subtitle:
+        c.text(c.t.fit(subtitle, 15, ui.W - tx - 380), 15, tx, 112 - rise, SOFT)
+
+
 class AvatarPicker(Modal):
+    covers = True       # Full screen, in the luxe look (draw_luxe_cover).
     TABS = ["Built-in", "Cartoon", "Photos"]
     COLS = 6
 
@@ -2452,44 +2657,48 @@ class AvatarPicker(Modal):
 
     def draw(self, c):
         h = self.home
-        a = ease_out(self.appear)
-        c.dim(180 * a)
-        w, ht = 940, 560
-        x, y = ui.W / 2 - w / 2, ui.H / 2 - ht / 2 + (1 - a) * 20
-        c.rect(DIALOG, x, y, w, ht, 20)
-        c.text("Choose an avatar", 24, x + 40, y + 30, WHITE, True)
-        tx = x + 40
-        for i, name in enumerate(self.TABS):
-            on = i == self.tab
-            tw = c.t.width(name, 17, True) + 40
-            c.rect((WHITE if self.focus == "tabs" else KEY_ON) if on else KEY, tx, y + 78, tw, 38, 19)
-            c.text(name, 17, tx + tw / 2, y + 97, INK if on and self.focus == "tabs" else WHITE, True, "center")
-            tx += tw + 12
+        accent = ui.ACCENT
+        rise = (1 - ease_out(self.appear)) * 16
+        draw_luxe_cover(c, 190)
+        x0 = 90
+        c.circle(LUXE_INK, x0 + 50, 96 - rise, 58)
+        c.circle(accent, x0 + 50, 96 - rise, 54, 2)
+        c.blit(h.avatar(96), x0 + 50, 96 - rise, "center")
+        tx = x0 + 130
+        c.text(i18n.translate("Profile").upper(), 13, tx, 52 - rise, accent, True)
+        c.text("Choose an avatar", 32, tx, 70 - rise, WHITE, True)
+        y = 186 - rise
+        c.line(luxe_line(), x0, y + 36, ui.W - x0, y + 36, 1)
+        draw_luxe_tabs(c, self.TABS, self.tab, x0, y, self.focus == "tabs")
         if self.tab > 0 and not h.network.online():
-            c.text("Connect to the internet to see these avatars.", 19, x + w / 2, y + ht / 2, SOFT, False,
-                   "center")
+            c.text("Connect to the internet to see these avatars.", 19, ui.W / 2, 420, SOFT, False, "center")
             return
-        cell = 140
-        gx = x + (w - self.COLS * cell) / 2
-        gy = y + 140
+        cell = 150
+        gx = ui.W / 2 - self.COLS * cell / 2
+        gy = 260 - rise
         for n in range(12):
             col, row = n % self.COLS, n // self.COLS
-            cx, cy = gx + col * cell + cell / 2, gy + row * (cell + 20) + cell / 2
+            cx, cy = gx + col * cell + cell / 2, gy + row * (cell + 14) + cell / 2
+            on = self.focus == "grid" and n == self.index
+            if on:
+                c.circle(ui.mix(LUXE_INK, accent, 0.25), cx, cy, 66)
             image = self.image(self.tab, n)
             if isinstance(image, pygame.Surface):
                 c.blit(image, cx, cy, "center")
             elif image == "error":
-                c.circle(KEY, cx, cy, 54)
+                c.circle(ui.mix(LUXE_INK, WHITE, 0.08), cx, cy, 54)
                 c.text("!", 26, cx, cy, BAD, True, "center")
             else:
-                c.circle(KEY, cx, cy, 54)
+                c.circle(ui.mix(LUXE_INK, WHITE, 0.08), cx, cy, 54)
                 ang = h.t * 4 + n
-                c.circle(SOFT, cx + math.cos(ang) * 18, cy + math.sin(ang) * 18, 4)
-            if self.focus == "grid" and n == self.index:
-                c.circle(WHITE, cx, cy, 60, 2 + 1.5 * (1 + math.sin(h.t * 4)))
+                c.circle(accent, cx + math.cos(ang) * 18, cy + math.sin(ang) * 18, 4)
+            if on:
+                c.circle(accent, cx, cy, 61, 2 + 1.5 * (1 + math.sin(h.t * 4)))
+            else:
+                c.circle(luxe_line(), cx, cy, 58, 1)
         source = {1: "Cartoon avatars by DiceBear (dicebear.com)", 2: "Photos from Lorem Picsum (picsum.photos)"}
         if self.tab in source:
-            c.text(source[self.tab], 14, x + 40, y + ht - 40, DIM)
+            c.text(source[self.tab], 13, ui.W - x0, ui.H - 52, DIM, False, "topright")
 
     def hints(self):
         hints = [("cross", "Choose"), ("l1r1", "Tabs")]
@@ -2515,8 +2724,58 @@ class AboutPage(Modal):
             self.home.sounds.play("back")
             self.close()
 
+    def author_picture(self, size):
+        """The author's GitHub picture (about.AboutArt loads it once), round; None while it loads."""
+        art = self.art
+        art._load_avatar(self.home.network.online())
+        if art.avatar is None:
+            return None
+        key = (id(art.avatar), size)
+        if getattr(self, "picture_key", None) != key:
+            picture = pygame.transform.smoothscale(art.avatar.convert_alpha(), (size, size))
+            picture.blit(ui.circle_mask(size), (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+            self.picture, self.picture_key = picture, key
+        return self.picture
+
     def draw(self, c):
-        self.art.draw(c, self.home.t, self.home.network.online())
+        accent = ui.ACCENT
+        draw_luxe_cover(c, 250)
+        rise = (1 - ease_out(self.appear)) * 12
+        cx = ui.W / 2
+        c.text(i18n.upper("About"), 13, cx, 40 - rise, accent, True, "midtop")
+        c.text("EmuFive", 46, cx, 60 - rise, WHITE, True, "midtop")
+        c.text("PS5 games on a PS4", 16, cx, 120 - rise, SOFT, False, "midtop")
+        c.rect(accent, cx - 22, 152 - rise, 44, 3, 1)
+        # The author.
+        x0, y0, w = cx - 400, 186 - rise, 800
+        c.rect((16, 16, 24), x0, y0, w, 150, 18)
+        c.rect(luxe_line(), x0, y0, w, 150, 18, 1)
+        ax, ay = x0 + 96, y0 + 75
+        c.circle(LUXE_INK, ax, ay, 56)
+        c.circle(accent, ax, ay, 53, 2)
+        picture = self.author_picture(px(96))
+        if picture is not None:
+            c.s.blit(picture, picture.get_rect(center=(px(ax), px(ay))))
+        else:
+            c.circle(ui.mix(LUXE_INK, accent, 0.3), ax, ay, 48)
+            c.text("B", 40, ax, ay, WHITE, True, "center")
+        tx = x0 + 180
+        c.text(i18n.upper("Created by"), 12, tx, y0 + 30, accent, True)
+        c.text("Chokri Hammedi", 28, tx, y0 + 48, WHITE, True)
+        c.text("blue0x1   ·   github.com/blue0x1", 16, tx, y0 + 92, SOFT)
+        # The credits.
+        cy = y0 + 172
+        c.text(i18n.upper("Thanks to"), 12, x0 + 4, cy, accent, True)
+        for i, (name, what) in enumerate(about.CREDITS):
+            col, row = i % 3, i // 3
+            x = x0 + 4 + col * (w / 3)
+            y = cy + 30 + row * 58
+            c.circle(accent, x + 4, y + 11, 3)
+            c.text(name, 17, x + 18, y, WHITE, True)
+            c.text(what, 14, x + 18, y + 24, SOFT)
+        version, kyty = self.art.versions
+        c.line(luxe_line(), x0, 610 - rise, x0 + w, 610 - rise, 1)
+        c.text(f"Version {version}   ·   KytyPS5 {kyty}", 13, cx, 624 - rise, DIM, False, "midtop")
 
     def hints(self):
         return [("circle", "Back")]
@@ -2527,7 +2786,7 @@ class AboutPage(Modal):
 
 class LogViewer(Modal):
     covers = True
-    LINES = 24
+    LINES = 22
 
     def __init__(self, home):
         super().__init__(home)
@@ -2555,18 +2814,35 @@ class LogViewer(Modal):
         self.wrapped = None
 
     def draw(self, c):
-        c.s.fill((10, 9, 24))
-        c.text("Game log", 26, 64, 36, WHITE, True)
-        c.text("~/kytyps5.log", 15, 64, 74, DIM)
+        accent = ui.ACCENT
+        draw_luxe_cover(c, 160)
+        c.text(i18n.upper("System"), 12, 64, 24, accent, True)
+        c.text("Game log", 28, 64, 42, WHITE, True)
+        c.text("~/kytyps5.log", 15, 66, 86, SOFT)
+        box_x, box_y, box_w = 48, 124, ui.W - 96
+        box_h = self.LINES * 22 + 28
+        c.rect((14, 14, 20), box_x, box_y, box_w, box_h, 14)
+        c.rect(luxe_line(), box_x, box_y, box_w, box_h, 14, 1)
         if self.wrapped is None:
             self.wrapped = []
             for line in self.lines:
-                self.wrapped += c.t.wrap(line, 14, ui.W - 140) or [""]
+                self.wrapped += c.t.wrap(line, 14, box_w - 70) or [""]
             self.top = max(0, len(self.wrapped) - self.LINES)
-        y = 110
+        total = len(self.wrapped)
+        c.text(f"{min(total, self.top + self.LINES)} / {total}", 13, box_x + box_w, 92, SOFT, False, "topright")
+        y = box_y + 14
         for line in self.wrapped[self.top:self.top + self.LINES]:
-            c.text(line, 14, 64, y, SOFT)
+            low = line.lower()
+            color = BAD if ("error" in low or "fail" in low or "crash" in low) else \
+                ui.mix(SOFT, accent, 0.5) if "warn" in low else SOFT
+            c.text(line, 14, box_x + 24, y, color)
             y += 22
+        if total > self.LINES:
+            track = box_h - 28
+            bar_h = max(24, track * self.LINES / total)
+            bar_y = box_y + 14 + (track - bar_h) * self.top / max(1, total - self.LINES)
+            c.rect(luxe_line(), box_x + box_w - 14, box_y + 14, 3, track, 2)
+            c.rect(accent, box_x + box_w - 14, bar_y, 3, bar_h, 2)
 
     def hints(self):
         return [("l1r1", "Page"), ("square", "Copy logs to USB"), ("triangle", "Delete logs"),
@@ -2605,6 +2881,14 @@ class GameMenu(RowList):
             on = cheats.enabled_count(g.title_id, g.version)
             rows.append(Row("button", "Cheats", f"{on} on" if on else "Off", ok=lambda: h.push(CheatGame(h, g))))
         rows.append(Row("info", "Play time", system.play_time_text(entry.get("play_seconds", 0))))
+        if g.title_id and not running:
+            here, usb = h.poll.get("shaders " + g.title_id, lambda: system.shader_status(g.title_id), 4.0, (0, 0))
+            if here:
+                rows.append(Row("action", "Export compiled shaders to USB", system.size_text(here),
+                                ok=lambda: self.export_shaders(g)))
+            if usb:
+                rows.append(Row("action", "Import compiled shaders from USB", system.size_text(usb),
+                                ok=lambda: self.import_shaders(g)))
         rows += [Row("toggle", "Favorite", entry.get("favorite", False), ok=lambda: self.flip("favorite")),
                 Row("toggle", "Hide from the home screen", entry.get("hidden", False),
                     ok=lambda: self.flip("hidden")),
@@ -2651,6 +2935,30 @@ class GameMenu(RowList):
         h.games_store.update(g.key, **{key: not h.games_store.speed(g.key, g.title_id, h.settings, key)})
         h.games_changed = True
 
+    def export_shaders(self, g):
+        h = self.home
+        h.push(Busy(h, "Copying shaders to the USB drive…", lambda: system.export_shaders(g.title_id, g.title)))
+        h.poll.forget("shaders " + g.title_id)
+
+    def import_shaders(self, g):
+        h = self.home
+
+        def work():
+            ok, message = system.import_shaders(g.title_id)
+            if ok:
+                # The shader store is only read with "Keep compiled shaders".
+                h.games_store.update(g.key, shader_cache=True)
+                h.games_changed = True
+            return ok, message
+
+        def go():
+            h.push(Busy(h, "Copying shaders from the USB drive…", work))
+            h.poll.forget("shaders " + g.title_id)
+
+        h.push(Dialog(h, f"Import the compiled shaders of {g.title} from the USB drive? The game then "
+                         "loads faster the first time. Keep compiled shaders is turned on for it.",
+                      [("Import", go), ("Cancel", None)]))
+
     def flip(self, key):
         h, g = self.home, self.game
         entry = h.games_store.get(g.key)
@@ -2667,17 +2975,21 @@ class GameMenu(RowList):
     def draw(self, c):
         slide = ease_out(self.appear)
         left = ui.W - self.WIDTH * slide
-        c.dim(150 * slide)
-        c.rect(PANEL, left, 0, self.WIDTH, ui.H)
-        c.line(PANEL_LINE, left, 0, left, ui.H, 1)
+        c.dim(160 * slide)
+        accent = ui.ACCENT
+        c.rect((14, 14, 20), left, 0, self.WIDTH, ui.H)
+        glow = glow_sprite(px(self.WIDTH * 0.9), ui.mix((0, 0, 0), accent, 0.22))
+        c.s.blit(glow, glow.get_rect(center=(px(left + self.WIDTH * 0.7), 0)), special_flags=pygame.BLEND_RGB_ADD)
+        c.line(luxe_line(), left, 0, left, ui.H, 1)
         x = left + 40
         y = 40
         rtl = i18n.rtl()
         tx, anchor = (left + self.WIDTH - 40, "topright") if rtl else (x, "topleft")
+        c.rect(accent, tx - (36 if rtl else 0), 26, 36, 3, 1)
         for line in c.t.wrap(self.game.title, 26, self.WIDTH - 80, True)[:2]:
             c.text(line, 26, tx, y, WHITE, True, anchor)
             y += 34
-        c.text(self.game.source_name, 15, tx, y + 4, SOFT, False, anchor)
+        c.text(self.game.source_name, 15, tx, y + 4, accent if self.game.source_name else SOFT, False, anchor)
         rows = self.rows()
         self.current(rows)
         draw_rows(c, rows, self.row, x, y + 40, self.WIDTH - 80, ui.H - 60, True,
@@ -2685,6 +2997,36 @@ class GameMenu(RowList):
 
     def hints(self):
         return [("cross", "Select"), ("circle", "Back")]
+
+
+class NotificationList(GameMenu):
+    """Past notifications, newest first (store.notifications): the ones shown over games
+    (ps5-notify: screenshots, clips, trophies...) and on the home screen. From the quick menu."""
+
+    def __init__(self, home):
+        super().__init__(home, types.SimpleNamespace(title="Notifications", source_name=""))
+        store.mark_notifications_read()
+
+    def rows(self):
+        items = store.notifications()
+        self.game.source_name = ("1 notification" if len(items) == 1 else f"{len(items)} notifications") if items else ""
+        if not items:
+            return [Row("info", "No notifications yet.")]
+        rows = [Row("action", "Clear all", ok=self.clear)]
+        clock24 = self.home.settings["clock_24h"]
+        for item in items:
+            when = time.strftime("%d %b  %H:%M" if clock24 else "%d %b  %I:%M %p", time.localtime(item.get("time", 0)))
+            rows.append(Row("button", item.get("title", ""), when))
+            if item.get("text"):
+                rows.append(Row("info", item["text"]))
+        return rows
+
+    def clear(self):
+        store.clear_notifications()
+        self.row = 0
+
+    def hints(self):
+        return [("circle", "Back")]
 
 
 class CopyView(Modal):
@@ -2799,28 +3141,6 @@ class GameInfo(GameMenu):
 # from the HEN Cheats Collection, the games that have cheats, and each game's cheats to turn on.
 # The choices are saved at once; ps5-launch gives them to the game the next time it starts.
 
-def draw_side_panel(c, modal, title, subtitle):
-    """A panel on the right like a game's menu: the title, a line under it, then the rows."""
-    slide = ease_out(modal.appear)
-    left = ui.W - modal.WIDTH * slide
-    c.dim(150 * slide)
-    c.rect(PANEL, left, 0, modal.WIDTH, ui.H)
-    c.line(PANEL_LINE, left, 0, left, ui.H, 1)
-    x = left + 40
-    y = 40
-    rtl = i18n.rtl()
-    tx, anchor = (left + modal.WIDTH - 40, "topright") if rtl else (x, "topleft")
-    for line in c.t.wrap(title, 26, modal.WIDTH - 80, True)[:2]:
-        c.text(line, 26, tx, y, WHITE, True, anchor)
-        y += 34
-    if subtitle:
-        c.text(c.t.fit(subtitle, 15, modal.WIDTH - 80), 15, tx, y + 4, SOFT, False, anchor)
-    rows = modal.rows()
-    modal.current(rows)
-    draw_rows(c, rows, modal.row, x, y + 40, modal.WIDTH - 80, ui.H - 60, True,
-              modal.scroll(rows, y + 40, ui.H - 60))
-
-
 def update_cheat_list(h, then=None):
     """Downloads the cheat list (Busy), then tells how it went and calls then()."""
     def after(ok, message):
@@ -2834,57 +3154,42 @@ def update_cheat_list(h, then=None):
     h.push(Busy(h, "Downloading the cheat list…", cheats.update_index, after=after))
 
 
-class CheatManager(RowList):
-    WIDTH = 640
+class CheatManager(Modal):
+    """The Cheats tile's page, in the luxe look: the cover, the list's state and an Update
+    button; below, your games, each with how many cheats are on (X opens its cheats)."""
+    covers = True
+    VISIBLE = 5
 
     def __init__(self, home):
         super().__init__(home)
         self.index = cheats.read_index()
         self.ask_update = not self.index["games"]      # First time: download the list at once.
+        self.group = "list"
+        self.row = 0
+        self.top = 0
 
     def reload(self):
         self.index = cheats.read_index()
 
     def games(self):
-        """The games on the drives with a title ID and version, each version once."""
+        """The games on the drives with a title ID and version, each version once, those with
+        cheats first: [(game, status, order)]."""
         seen, found = set(), []
         for g in self.home.all_games:
             key = (g.title_id.upper(), g.version)
             if g.title_id and g.version and key not in seen and not getattr(g, "stand_in", False):
                 seen.add(key)
-                found.append(g)
-        return found
-
-    def rows(self):
-        h = self.home
-        rows = [Row("action", "Update the cheat list", ok=lambda: update_cheat_list(h, self.reload))]
-        if self.index["games"]:
-            day = time.strftime("%Y-%m-%d", time.localtime(self.index.get("updated", 0)))
-            rows.append(Row("info", f"Cheats for {len(self.index['games'])} PS5 games. Updated {day}."))
-        else:
-            rows.append(Row("info", "The cheat list is not downloaded yet. It needs the internet."))
-        rows.append(Row("header", "Your games"))
-        listed = []
-        for g in self.games():
-            on = cheats.enabled_count(g.title_id, g.version)
-            if on:
-                value, order = f"{on} on", 0
-            elif cheats.entries(self.index, g.title_id, g.version):
-                value, order = "Cheats", 1
-            elif cheats.entries(self.index, g.title_id):
-                value, order = "Other version", 2
-            else:
-                value, order = "No cheats", 3
-            listed.append((order, g.title.lower(), Row("button", g.title, value,
-                                                       ok=lambda g=g: h.push(CheatGame(h, g)))))
-        rows += [r for _, _, r in sorted(listed, key=lambda t: t[:2])]
-        if not listed:
-            rows.append(Row("info", "No games yet. Games with a title ID and version show up here."))
-        rows.append(Row("info", "Cheats are turned on for each game version and are used the next time "
-                                "the game starts. Back up your saves first."))
-        rows.append(Row("info", "The cheats come from the HEN Cheats Collection (TeeKay87) and the people "
-                                "who made them."))
-        return rows
+                on = cheats.enabled_count(g.title_id, g.version)
+                if on:
+                    status, order = f"{on} on", 0
+                elif cheats.entries(self.index, g.title_id, g.version):
+                    status, order = "Cheats", 1
+                elif cheats.entries(self.index, g.title_id):
+                    status, order = "Other version", 2
+                else:
+                    status, order = "No cheats", 3
+                found.append((g, status, order))
+        return sorted(found, key=lambda t: (t[2], t[0].title.lower()))
 
     def update(self, dt):
         super().update(dt)
@@ -2893,22 +3198,95 @@ class CheatManager(RowList):
             update_cheat_list(self.home, self.reload)
 
     def act(self, action):
-        if action == BACK:
-            self.home.sounds.play("back")
+        h = self.home
+        games = self.games()
+        if action in (BACK, GUIDE):
+            h.sounds.play("back")
             self.close()
-        else:
-            self.act_rows(action)
+        elif action == TRIANGLE or (action == OK and self.group == "button"):
+            h.sounds.play("select")
+            update_cheat_list(h, self.reload)
+        elif action == OK and games:
+            h.sounds.play("select")
+            h.push(CheatGame(h, games[self.row][0]))
+        elif action == UP:
+            if self.group == "list" and self.row > 0:
+                self.row -= 1
+                self.top = min(self.top, self.row)
+                h.sounds.play("move")
+            elif self.group == "list":
+                self.group = "button"
+                h.sounds.play("move")
+        elif action == DOWN:
+            if self.group == "button" and games:
+                self.group = "list"
+                h.sounds.play("move")
+            elif self.group == "list" and self.row < len(games) - 1:
+                self.row += 1
+                self.top = max(self.top, self.row - self.VISIBLE + 1)
+                h.sounds.play("move")
 
     def draw(self, c):
-        draw_side_panel(c, self, i18n.translate("Cheats"), "HEN Cheats Collection")
+        accent, line = ui.ACCENT, luxe_line()
+        rise = (1 - ease_out(self.appear)) * 16
+        games = self.games()
+        self.row = min(self.row, max(0, len(games) - 1))
+        if self.index["games"]:
+            day = time.strftime("%d %b %Y", time.localtime(self.index.get("updated", 0)))
+            sub = f"HEN Cheats Collection  ·  {len(self.index['games'])} PS5 games  ·  updated {day}"
+        else:
+            sub = "The cheat list is not downloaded yet. It needs the internet."
+        draw_luxe_header(c, i18n.translate("Cheats"), i18n.translate("Cheats"), sub, rise,
+                         icon=lambda c, x, y: ui.draw_wand(c, x, y, 22, WHITE, 3))
+        x0 = 90
+        # The Update button at the right.
+        label = i18n.translate("Update the cheat list")
+        on = self.group == "button"
+        w = c.t.width(label, 16, True) + 44
+        bx = ui.W - x0 - w
+        c.rect(accent if on else (9, 9, 12, 170), bx, 74 - rise, w, 42, 21)
+        if not on:
+            c.rect(accent, bx, 74 - rise, w, 42, 21, 1)
+        c.text(label, 16, bx + w / 2, 95 - rise, LUXE_INK if on else WHITE, True, "center")
+        # Your games.
+        y = 200 - rise
+        c.text(i18n.translate("Your games").upper(), 13, x0, y, accent, True)
+        c.line(line, x0, y + 26, ui.W - x0, y + 26, 1)
+        y += 44
+        width = ui.W - 2 * x0
+        if not games:
+            c.text("No games yet. Games with a title ID and version show up here.", 17, ui.W / 2, y + 60,
+                   SOFT, False, "midtop")
+        for i in range(self.top, min(len(games), self.top + self.VISIBLE)):
+            g, status, order = games[i]
+            chosen = self.group == "list" and i == self.row
+            if chosen:
+                c.rect(accent + (26,), x0 - 14, y - 6, width + 28, 62, 6)
+                c.rect(accent, x0 - 14, y - 6, 3, 62, 1)
+            draw_game_icon(c, g, x0, y, 50)
+            c.text(c.t.fit(g.title, 18, width - 330, True), 18, x0 + 68, y + 2, WHITE if order < 3 else SOFT, True)
+            c.text(f"{g.title_id}  ·  {g.version}", 13, x0 + 68, y + 29, SOFT)
+            shown = i18n.translate(status) if not status.endswith(" on") else status
+            color = accent if order == 0 else WHITE if order == 1 else SOFT
+            sw = c.t.width(shown, 15, True) + 28
+            if order <= 1:
+                c.rect(accent + (40,) if order == 0 else (255, 255, 255, 20), x0 + width - sw, y + 11, sw, 28, 14)
+            c.text(shown, 15, x0 + width - sw / 2, y + 25, color, order <= 1, "center")
+            y += 68
+        c.text("Cheats are turned on for each game version and are used the next time the game starts. "
+               "Back up your saves first. The cheats come from the HEN Cheats Collection (TeeKay87).",
+               12, x0, ui.H - 74, DIM)
+        if len(games) > self.VISIBLE:
+            c.text(f"{self.row + 1} / {len(games)}", 13, ui.W - x0, 222 - rise, SOFT, False, "topright")
 
     def hints(self):
-        return [("cross", "Select"), ("circle", "Back")]
+        return [("cross", "Select"), ("triangle", "Update"), ("circle", "Back")]
 
 
 class CheatGame(RowList):
-    """One game's cheats: a toggle for each (for the game's version), saved as they change."""
-    WIDTH = 640
+    """One game's cheats: a toggle for each (for the game's version), saved as they change.
+    Full screen in the luxe look, under the game's picture and name."""
+    covers = True
 
     def __init__(self, home, game):
         super().__init__(home)
@@ -3020,7 +3398,20 @@ class CheatGame(RowList):
             self.act_rows(action)
 
     def draw(self, c):
-        draw_side_panel(c, self, self.game.title, self.game.subtitle())
+        rise = (1 - ease_out(self.appear)) * 16
+        draw_luxe_header(c, i18n.translate("Cheats"), self.game.title, self.game.subtitle(), rise,
+                         picture=ui.circle_image(self.game.icon, px(96)) if self.game.icon else None,
+                         icon=lambda c, x, y: ui.draw_wand(c, x, y, 22, WHITE, 3))
+        on = len(self.on)
+        if on:
+            text = f"{on} on"
+            w = c.t.width(text, 15, True) + 30
+            c.rect(ui.ACCENT + (40,), ui.W - 90 - w, 80 - rise, w, 30, 15)
+            c.text(text, 15, ui.W - 90 - w / 2, 95 - rise, ui.ACCENT, True, "center")
+        x0, top = 90, 206 - rise
+        rows = self.rows()
+        self.current(rows)
+        draw_rows(c, rows, self.row, x0, top, ui.W - 2 * x0, ui.H - 70, True, self.scroll(rows, top, ui.H - 70))
 
     def hints(self):
         return [("cross", "Select"), ("circle", "Back")]
@@ -3050,6 +3441,9 @@ class QuickMenu(RowList):
             rows.append(Row("action", "Settings", ok=lambda: (self.close(), h.push(SettingsScreen(h)))))
             if len(h.profiles.all()) > 1:
                 rows.append(Row("action", "Switch profile", ok=lambda: (self.close(), h.push(ProfilePicker(h)))))
+        count = len(store.notifications())
+        rows.append(Row("action", "Notifications", str(count) if count else None,
+                        ok=lambda: (self.close() if not self.in_game else None, h.push(NotificationList(h)))))
         volume = h.poll.get("volume", system.sound_volume, 2.0)
         rows.append(Row("slider", "Volume", volume if volume is not None else 0,
                         left=lambda: change_volume(h, -5), right=lambda: change_volume(h, 5)))
@@ -3112,6 +3506,191 @@ class QuickMenu(RowList):
         rows = self.rows()
         self.current(rows)
         draw_rows(c, rows, self.row, x, top, self.WIDTH - 80, ui.H - 60, True, self.scroll(rows, top, ui.H - 60))
+
+    def hints(self):
+        return [("cross", "Select"), ("ps", "Resume" if self.in_game else "Close"), ("circle", "Back")]
+
+
+class CenterPopup(RowList):
+    """A small card above one Control Center button: its rows (Sound, Controllers, Power)."""
+
+    def __init__(self, home, center, title, make_rows, x):
+        super().__init__(home)
+        self.center = center
+        self.title = title
+        self.make_rows = make_rows
+        self.x = x
+
+    def rows(self):
+        return self.make_rows()
+
+    def act(self, action):
+        h = self.home
+        if action == BACK:
+            h.sounds.play("back")
+            self.close()
+        elif action == GUIDE:
+            self.close()
+            self.center.act(GUIDE)
+        else:
+            self.act_rows(action)
+
+    def draw(self, c):
+        rows = self.rows()
+        self.current(rows)
+        w = 440
+        hgt = 70 + sum(r.height() + 4 for r in rows)
+        x = max(40, min(ui.W - 40 - w, self.x - w / 2))
+        y = ControlCenter.TOP - 16 - hgt + (1 - ease_out(self.appear)) * 10
+        c.rect((18, 18, 26, 250), x, y, w, hgt, 18)
+        c.rect(luxe_line(), x, y, w, hgt, 18, 1)
+        c.text(self.title, 20, x + 26, y + 20, WHITE, True)
+        draw_rows(c, rows, self.row, x + 26, y + 60, w - 52, y + hgt, True)
+
+    def hints(self):
+        return [("cross", "Select"), ("circle", "Back")]
+
+
+class ControlCenter(Modal):
+    """The PS button menu in the PS5 layout, as a PS5's control center: a dark band across the
+    bottom; above, cards for the game (Resume, Home, Close) or the home screen (Profile,
+    Settings, Switch profile); below, round buttons (Notifications, Sound, Controllers, Power)
+    that open a small card of their own. The Aurora layout keeps the side panel (QuickMenu)."""
+    TOP = 400                      # Where the band starts (units).
+    BUTTONS = [("Notifications", "bell"), ("Sound", "Sound"), ("Controllers", "Controllers"), ("Power", "Power")]
+
+    def __init__(self, home, in_game, title=""):
+        super().__init__(home)
+        self.in_game = in_game
+        self.title = title
+        self.row = "cards"
+        self.index = 0
+        self.legacy = QuickMenu(home, in_game, title)     # Its rows: sound, controllers, power.
+
+    def cards(self):
+        h = self.home
+        if self.in_game:
+            return [("Resume the game", "play", lambda: h.finish("RESUME")),
+                    ("Home", "home", lambda: h.finish("HOME")),
+                    ("Close the game", "close", lambda: h.push(Dialog(
+                        h, f"Close {self.title or 'the game'}? What the game has not saved is lost.",
+                        [("Close", lambda: h.finish("CLOSE")), ("Cancel", None)])))]
+        cards = [("Profile", "Profile", lambda: (self.close(), h.push(ProfileView(h)))),
+                 ("Settings", "gear", lambda: (self.close(), h.push(SettingsScreen(h))))]
+        if len(h.profiles.all()) > 1:
+            cards.append(("Switch profile", "Profile", lambda: (self.close(), h.push(ProfilePicker(h)))))
+        return cards
+
+    def section(self, name):
+        """The rows of one button's card, taken from the quick menu's rows."""
+        rows = self.legacy.rows()
+        if name == "Sound":
+            return [r for r in rows if r.label == "Volume"]
+        if name == "Power":
+            return [r for r in rows if r.label in ("Restart the PS4", "Turn off the PS4")]
+        start = next(i for i, r in enumerate(rows) if r.kind == "header" and r.label == "Controllers")
+        end = next(i for i, r in enumerate(rows) if r.kind == "header" and r.label == "Power")
+        return rows[start + 1:end]
+
+    def act(self, action):
+        h = self.home
+        count = len(self.cards()) if self.row == "cards" else len(self.BUTTONS)
+        if action in (BACK, GUIDE):
+            h.sounds.play("back")
+            if self.in_game:
+                h.finish("RESUME")
+            else:
+                self.close()
+        elif action in (LEFT, RIGHT):
+            step = (1 if action == RIGHT else -1) * (-1 if i18n.rtl() else 1)
+            if 0 <= self.index + step < count:
+                self.index += step
+                h.sounds.play("move")
+        elif action in (UP, DOWN):
+            to = "cards" if action == UP else "buttons"
+            if to != self.row:
+                self.row = to
+                self.index = min(self.index, (len(self.cards()) if to == "cards" else len(self.BUTTONS)) - 1)
+                h.sounds.play("move")
+        elif action == OK:
+            h.sounds.play("select")
+            if self.row == "cards":
+                self.cards()[self.index][2]()
+                return
+            name = self.BUTTONS[self.index][0]
+            if name == "Notifications":
+                if not self.in_game:
+                    self.close()
+                h.push(NotificationList(h) if self.in_game else ProfileView(h))
+                h.poll.forget("unread")
+                return
+            h.push(CenterPopup(h, self, i18n.translate(name), lambda n=name: self.section(n), self.button_x(self.index)))
+
+    def button_x(self, i):
+        return ui.W / 2 - (len(self.BUTTONS) - 1) * 50 + i * 100
+
+    def draw(self, c):
+        h = self.home
+        a = ease_out(self.appear)
+        c.dim(150 * a)
+        top = self.TOP + (1 - a) * 40
+        band = (12, 12, 18)
+        c.rect(band, 0, top, ui.W, ui.H - top)
+        c.line(luxe_line(), 0, top, ui.W, top, 1)
+        accent = ui.ACCENT
+        # The game (or the home screen) at the left, the time at the right.
+        x0 = 80
+        if self.in_game:
+            c.text("PAUSED", 13, x0, top + 26, accent, True)
+            c.text(c.t.fit(self.title, 24, 560, True), 24, x0, top + 44, WHITE, True)
+        else:
+            c.text(i18n.translate("Home").upper(), 13, x0, top + 26, accent, True)
+            c.text(c.t.fit(h.settings["name"], 24, 560, True), 24, x0, top + 44, WHITE, True)
+        c.text(clock_text(h.settings["clock_24h"]), 24, ui.W - x0, top + 40, WHITE, True, "topright")
+        c.text(time.strftime("%a %d %b"), 13, ui.W - x0, top + 26, SOFT, False, "topright")
+        # The cards.
+        cards = self.cards()
+        cw, ch, gap = 250, 92, 16
+        cx = x0
+        cy = top + 86
+        for i, (label, icon, _) in enumerate(cards):
+            on = self.row == "cards" and i == self.index
+            c.rect(WHITE if on else (255, 255, 255, 18), cx, cy, cw, ch, 14)
+            if not on:
+                c.rect((255, 255, 255, 40), cx, cy, cw, ch, 14, 1)
+            fg = (20, 20, 26) if on else WHITE
+            ix, iy = cx + 40, cy + ch / 2
+            if icon == "play":
+                c.polygon(fg, [(ix - 8, iy - 11), (ix - 8, iy + 11), (ix + 11, iy)])
+            elif icon == "home":
+                c.polygon(fg, [(ix - 12, iy - 1), (ix, iy - 12), (ix + 12, iy - 1)])
+                c.rect(fg, ix - 8, iy - 1, 16, 12, 2)
+            elif icon == "close":
+                c.line(fg, ix - 9, iy - 9, ix + 9, iy + 9, 3)
+                c.line(fg, ix - 9, iy + 9, ix + 9, iy - 9, 3)
+            elif icon == "gear":
+                ui.draw_gear(c, ix, iy, fg)
+            else:
+                category_icon(c, icon, ix, iy, fg, 13)
+            c.text(c.t.fit(label, 18, cw - 90, True), 18, cx + 74, iy, fg, True, "midleft")
+            cx += cw + gap
+        # The round buttons.
+        by = top + 214
+        unread = h.poll.get("unread", store.unread_notifications, 2.0, 0)
+        for i, (name, icon) in enumerate(self.BUTTONS):
+            bx = self.button_x(i)
+            on = self.row == "buttons" and i == self.index
+            c.circle(WHITE if on else (40, 40, 52), bx, by, 30)
+            fg = (20, 20, 26) if on else WHITE
+            if icon == "bell":
+                ui.draw_bell(c, bx, by - 1, fg)
+            else:
+                category_icon(c, icon, bx, by, fg, 13)
+            if name == "Notifications" and unread:
+                c.circle(band, bx + 22, by - 22, 9)
+                c.circle(accent, bx + 22, by - 22, 7)
+            if on:
+                c.text(i18n.translate(name), 15, bx, by + 38, WHITE, True, "midtop")
 
     def hints(self):
         return [("cross", "Select"), ("ps", "Resume" if self.in_game else "Close"), ("circle", "Back")]
@@ -3250,9 +3829,13 @@ class ProfilePicker(Modal):
 
     def draw(self, c):
         h = self.home
-        c.s.fill(ui.BACKDROP)
+        draw_luxe_cover(c, 300)
         a = ease_out(self.appear)
-        c.text("Who's playing?", 34, ui.W / 2, 150 - (1 - a) * 12, WHITE, True, "midtop")
+        rise = (1 - a) * 12
+        accent = ui.ACCENT
+        c.text(i18n.translate("Profile").upper(), 13, ui.W / 2, 118 - rise, accent, True, "midtop")
+        c.text("Who's playing?", 36, ui.W / 2, 140 - rise, WHITE, True, "midtop")
+        c.rect(accent, ui.W / 2 - 22, 196 - rise, 44, 3, 1)
         n = self.count()
         total = n * self.SIZE + (n - 1) * self.GAP
         order = list(range(n))
@@ -3260,23 +3843,286 @@ class ProfilePicker(Modal):
             order.reverse()
         for slot, i in enumerate(order):
             x = ui.W / 2 - total / 2 + slot * (self.SIZE + self.GAP)
-            y = 270
+            y = 280 - rise
             on = i == self.index
+            cx, cy = x + self.SIZE / 2, y + self.SIZE / 2
             if on:
-                c.circle(WHITE, x + self.SIZE / 2, y + self.SIZE / 2, self.SIZE / 2 + 8, 4)
+                glow = glow_sprite(px(self.SIZE * 1.3), ui.mix((0, 0, 0), accent, 0.5))
+                c.s.blit(glow, glow.get_rect(center=(px(cx), px(cy))), special_flags=pygame.BLEND_RGB_ADD)
+            c.circle(LUXE_INK, cx, cy, self.SIZE / 2 + 10)
+            c.circle(accent if on else luxe_line(), cx, cy, self.SIZE / 2 + 7, 3 if on else 1)
             if i < len(self.items):
                 profile = self.items[i]
                 c.blit(h.avatar(self.SIZE, profile), x, y)
                 name = c.t.fit(profile["name"], 20, self.SIZE + self.GAP - 10, on)
             else:
-                c.circle(KEY, x + self.SIZE / 2, y + self.SIZE / 2, self.SIZE / 2)
-                c.line(WHITE, x + self.SIZE / 2 - 24, y + self.SIZE / 2, x + self.SIZE / 2 + 24, y + self.SIZE / 2, 4)
-                c.line(WHITE, x + self.SIZE / 2, y + self.SIZE / 2 - 24, x + self.SIZE / 2, y + self.SIZE / 2 + 24, 4)
+                c.circle((22, 22, 30), cx, cy, self.SIZE / 2)
+                col = accent if on else SOFT
+                c.line(col, cx - 22, cy, cx + 22, cy, 3)
+                c.line(col, cx, cy - 22, cx, cy + 22, 3)
                 name = c.t.fit("Add a profile", 20, self.SIZE + self.GAP - 10, on)
-            c.text(name, 20, x + self.SIZE / 2, y + self.SIZE + 26, WHITE if on else SOFT, on, "midtop")
+            c.text(name, 20, cx, y + self.SIZE + 28, WHITE if on else SOFT, on, "midtop")
+            if i < len(self.items) and self.items[i]["id"] == h.profiles.current_id:
+                c.circle(accent, cx, y + self.SIZE + 64, 3)
 
     def hints(self):
         return [("cross", "Choose"), ("circle", "Back")]
+
+
+class ProfileView(Modal):
+    """The avatar in the top bar: the profile's own page, laid out as on a PS5, near black in the
+    accent color. A cover across the top (draw_luxe_cover), the avatar
+    over its edge, the name and the trophies earned; buttons to change the avatar, switch profile
+    and open the settings. Below, tabs: Notifications (a timeline, newest first, Square clears
+    them), Games (by last played, with play time) and Trophies (per game)."""
+    covers = True
+    BUTTONS = ["Change avatar", "Switch profile", "Settings"]
+    TABS = ["Notifications", "Games", "Trophies"]
+    VISIBLE = 4
+    INK = LUXE_INK
+    COVER_H = 232
+
+    def __init__(self, home):
+        super().__init__(home)
+        self.seen = store.read_json(store.NOTIFICATIONS_FILE).get("seen", 0)
+        store.mark_notifications_read()
+        self.items = store.notifications()
+        self.tab = 0
+        self.group = "list" if self.items else "buttons"
+        self.button = 0
+        self.row = 0
+        self.top = 0
+
+    # What the tabs list ------------------------------------------------------------------------
+
+    def played_games(self):
+        h = self.home
+        games = [g for g in h.games if h.entries.get(g.path, {}).get("last_played")]
+        return sorted(games, key=lambda g: -h.entries[g.path]["last_played"]) + \
+            sorted((g for g in h.games if g not in games), key=lambda g: g.title.lower())
+
+    def trophy_games(self):
+        h = self.home
+        rows = []
+        for g in h.games:
+            summary = h.trophy_summary(g)
+            if summary:
+                rows.append((g, summary))
+        return rows
+
+    def lines(self):
+        name = self.TABS[self.tab]
+        if name == "Notifications":
+            return self.items
+        if name == "Games":
+            return self.played_games()
+        return self.trophy_games()
+
+    def totals(self):
+        grades = {"platinum": 0, "gold": 0, "silver": 0, "bronze": 0}
+        for _, (_, _, counts) in self.trophy_games():
+            for g in grades:
+                grades[g] += counts.get(g, 0)
+        return grades
+
+    # Moving ------------------------------------------------------------------------------------
+
+    def act(self, action):
+        h = self.home
+        lines = self.lines()
+        if action in (BACK, GUIDE):
+            h.sounds.play("back")
+            self.close()
+        elif action in (PAGE_UP, PAGE_DOWN):
+            self.set_tab(self.tab + (1 if action == PAGE_DOWN else -1))
+        elif action == SQUARE and self.TABS[self.tab] == "Notifications" and self.items:
+            h.sounds.play("select")
+            store.clear_notifications()
+            self.items, self.row, self.top = [], 0, 0
+            self.group = "tabs"
+        elif action == OK:
+            self.choose(lines)
+        elif action in (LEFT, RIGHT):
+            step = (1 if action == RIGHT else -1) * (-1 if i18n.rtl() else 1)
+            if self.group == "buttons" and 0 <= self.button + step < len(self.BUTTONS):
+                self.button += step
+                h.sounds.play("move")
+            elif self.group == "tabs":
+                self.set_tab(self.tab + step)
+        elif action == UP:
+            if self.group == "list" and self.row > 0:
+                self.row -= 1
+                self.top = min(self.top, self.row)
+                h.sounds.play("move")
+            elif self.group in ("list", "tabs"):
+                self.group = "tabs" if self.group == "list" else "buttons"
+                h.sounds.play("move")
+        elif action == DOWN:
+            if self.group == "buttons":
+                self.group = "tabs"
+                h.sounds.play("move")
+            elif self.group == "tabs" and lines:
+                self.group = "list"
+                h.sounds.play("move")
+            elif self.group == "list" and self.row < len(lines) - 1:
+                self.row += 1
+                self.top = max(self.top, self.row - self.VISIBLE + 1)
+                h.sounds.play("move")
+
+    def set_tab(self, tab):
+        if 0 <= tab < len(self.TABS) and tab != self.tab:
+            self.tab, self.row, self.top = tab, 0, 0
+            if self.group == "list" and not self.lines():
+                self.group = "tabs"
+            self.home.sounds.play("move")
+
+    def choose(self, lines):
+        h = self.home
+        if self.group == "buttons":
+            h.sounds.play("select")
+            name = self.BUTTONS[self.button]
+            if name == "Change avatar":
+                h.push(AvatarPicker(h))
+            else:
+                self.close()
+                h.push(ProfilePicker(h) if name == "Switch profile" else SettingsScreen(h))
+        elif self.group == "list" and self.row < len(lines):
+            name = self.TABS[self.tab]
+            if name == "Games":
+                h.sounds.play("select")
+                self.close()
+                h.focus = "tiles"
+                h.select(h.games.index(lines[self.row]))
+            elif name == "Trophies":
+                h.sounds.play("select")
+                h.push(TrophyList(h, lines[self.row][0]))
+
+    def hints(self):
+        hints = [("l1r1", "Tabs")]
+        if self.group == "buttons" or (self.group == "list" and self.TABS[self.tab] != "Notifications"):
+            hints.insert(0, ("cross", "Select"))
+        if self.TABS[self.tab] == "Notifications" and self.items:
+            hints.append(("square", "Clear all"))
+        return hints + [("circle", "Back")]
+
+    # Drawing -----------------------------------------------------------------------------------
+
+    def when(self, stamp, date_only=False):
+        clock24 = self.home.settings["clock_24h"]
+        form = "%d %b %Y" if date_only else "%d %b  %H:%M" if clock24 else "%d %b  %I:%M %p"
+        return time.strftime(form, time.localtime(stamp))
+
+    @staticmethod
+    def hours(seconds):
+        return f"{int(seconds // 3600)}h {int(seconds % 3600 // 60)}m" if seconds >= 3600 else f"{int(seconds // 60)}m"
+
+    def draw(self, c):
+        h = self.home
+        ink, gold, line = LUXE_INK, ui.ACCENT, luxe_line()
+        rise = (1 - ease_out(self.appear)) * 16
+        draw_luxe_cover(c, self.COVER_H)
+        x0 = 90
+        # The avatar over the cover's edge, the name, the trophies ---------------------------------
+        ax, ay = x0 + 85, self.COVER_H - rise
+        c.circle(ink, ax, ay, 98)
+        c.circle(gold, ax, ay, 92, 2)
+        c.blit(h.avatar(170), ax, ay, "center")
+        nx = x0 + 200
+        c.text(i18n.translate("Profile").upper(), 13, nx, self.COVER_H - 44 - rise, gold, True)
+        name_w = c.text(c.t.fit(h.settings["name"], 40, 420, True), 40, nx, self.COVER_H - 26 - rise, WHITE, True)
+        grades = self.totals()
+        # The trophy level: a ring filling toward the next level, the number inside.
+        level, progress = trophy_level(grades)
+        lx, ly = nx + name_w + 46, self.COVER_H - rise
+        c.circle(line, lx, ly, 22, 3)
+        if progress > 0:
+            c.arc(gold, lx - 22, ly - 22, 44, 44, math.pi / 2 - 2 * math.pi * progress, math.pi / 2, 3)
+        c.text(str(level), 17 if level < 100 else 14, lx, ly, WHITE, True, "center")
+        c.text(i18n.translate("Level").upper(), 10, lx, ly + 28, gold, True, "midtop")
+        tx = nx
+        ty = self.COVER_H + 44 - rise
+        for grade in ("platinum", "gold", "silver", "bronze"):
+            draw_cup(c, tx + 10, ty + 12, 22, grade, grades[grade] > 0)
+            w = c.text(str(grades[grade]), 18, tx + 28, ty + 1, WHITE if grades[grade] else SOFT, True)
+            tx += w + 52
+        games = len(h.games)
+        played = sum(h.entries.get(g.path, {}).get("play_seconds", 0) for g in h.games)
+        c.text(f"{games}  " + i18n.translate("Games") + "   ·   " + self.hours(played) + "  " +
+               i18n.translate("Played"), 15, tx + 10, ty + 3, SOFT)
+        # The buttons, at the right ---------------------------------------------------------------
+        bx = ui.W - x0
+        for i in reversed(range(len(self.BUTTONS))):
+            label = self.BUTTONS[i]
+            on = self.group == "buttons" and i == self.button
+            w = c.t.width(label, 16, True) + 40
+            bx -= w
+            c.rect(gold if on else (9, 9, 12, 170), bx, self.COVER_H - 2 - rise, w, 40, 20)
+            if not on:
+                c.rect(gold, bx, self.COVER_H - 2 - rise, w, 40, 20, 1)
+            c.text(label, 16, bx + w / 2, self.COVER_H + 18 - rise, ink if on else WHITE, True, "center")
+            bx -= 12
+        # The tabs -----------------------------------------------------------------------------------
+        y = self.COVER_H + 104 - rise
+        c.line(line, x0, y + 36, ui.W - x0, y + 36, 1)
+        draw_luxe_tabs(c, self.TABS, self.tab, x0, y, self.group == "tabs")
+        if self.TABS[self.tab] == "Notifications" and self.items:
+            fresh = sum(1 for item in self.items if item.get("time", 0) > self.seen)
+            text = (i18n.translate("{n} new").format(n=fresh) + "  ·  " if fresh else "") + (
+                i18n.translate("1 notification") if len(self.items) == 1 else
+                i18n.translate("{n} notifications").format(n=len(self.items)))
+            c.text(text, 14, ui.W - x0, y + 4, SOFT, False, "topright")
+        # The list ----------------------------------------------------------------------------------
+        lines = self.lines()
+        y += 56
+        if not lines:
+            empty = {"Notifications": "No notifications yet.", "Games": "No games here",
+                     "Trophies": "No trophies yet."}[self.TABS[self.tab]]
+            c.text(empty, 18, ui.W / 2, y + 60, SOFT, False, "midtop")
+            return
+        name = self.TABS[self.tab]
+        width = ui.W - 2 * x0
+        for i in range(self.top, min(len(lines), self.top + self.VISIBLE)):
+            on = self.group == "list" and i == self.row
+            if on:
+                c.rect(gold + (24,), x0 - 14, y - 6, width + 28, 58, 6)
+                c.rect(gold, x0 - 14, y - 6, 3, 58, 1)
+            getattr(self, "line_" + name.lower())(c, lines[i], x0, y, width, on)
+            y += 64
+        if len(lines) > self.VISIBLE:
+            c.text(f"{self.row + 1} / {len(lines)}", 13, ui.W - x0, ui.H - 52, SOFT, False, "topright")
+
+    def line_notifications(self, c, item, x, y, width, on):
+        new = item.get("time", 0) > self.seen
+        c.circle(ui.ACCENT if (on or new) else luxe_line(), x + 8, y + 22, 5, 0 if (on or new) else 1)
+        stamp = self.when(item.get("time", 0)).upper()
+        sw = c.text(stamp, 12, x + 30, y + 2, ui.ACCENT, True)
+        c.text(c.t.fit(item.get("title", ""), 18, width - sw - 80, True), 18, x + 30 + sw + 20, y - 2, WHITE, True)
+        if item.get("text"):
+            c.text(c.t.fit(item["text"], 14, width - 40), 14, x + 30, y + 24, SOFT)
+
+    def line_games(self, c, game, x, y, width, on):
+        h = self.home
+        draw_game_icon(c, game, x, y, 46)
+        entry = h.entries.get(game.path, {})
+        c.text(c.t.fit(game.title, 18, width - 300, True), 18, x + 64, y + 1, WHITE, True)
+        last = entry.get("last_played")
+        c.text(i18n.translate("Last played: {game}").format(game=self.when(last, True)) if last
+               else i18n.translate("Not played yet"), 14, x + 64, y + 26, SOFT)
+        c.text(self.hours(entry.get("play_seconds", 0)), 20, x + width, y + 10, ui.ACCENT, True, "topright")
+
+    def line_trophies(self, c, row, x, y, width, on):
+        game, (earned, total, grades) = row
+        draw_game_icon(c, game, x, y, 46)
+        c.text(c.t.fit(game.title, 18, width - 460, True), 18, x + 64, y + 1, WHITE, True)
+        bar_w = 220
+        c.rect(luxe_line(), x + 64, y + 32, bar_w, 4, 2)
+        c.rect(ui.ACCENT, x + 64, y + 32, max(4, bar_w * earned / max(1, total)), 4, 2)
+        c.text(f"{earned} / {total}", 13, x + 64 + bar_w + 14, y + 26, SOFT)
+        gx = x + width
+        for grade in ("bronze", "silver", "gold", "platinum"):
+            w = c.text(str(grades.get(grade, 0)), 16, gx, y + 12, WHITE, True, "topright")
+            draw_cup(c, gx - w - 16, y + 22, 18, grade, grades.get(grade, 0) > 0)
+            gx -= w + 50
 
 
 # --------------------------------------------------------------------------------------------
@@ -3301,7 +4147,7 @@ def draw_cup(c, x, y, size, grade, earned=True):
 
 class TrophyList(Modal):
     covers = True
-    VISIBLE = 6
+    VISIBLE = 6         # Drawn in the luxe look (draw_luxe_cover), like the profile page.
 
     def __init__(self, home, game):
         super().__init__(home)
@@ -3335,59 +4181,72 @@ class TrophyList(Modal):
         if step and items:
             self.row = max(0, min(len(items) - 1, self.row + step))
             h.sounds.play("move")
-        elif action in (BACK, OK):
+        elif action in (BACK, GUIDE):           # X on a trophy does nothing (it only shows).
             h.sounds.play("back")
             self.close()
 
     def draw(self, c):
-        c.s.fill(ui.BACKDROP)
-        c.text(c.t.fit(self.title, 28, ui.W - 500, True), 28, 64, 36, WHITE, True)
+        accent, line = ui.ACCENT, luxe_line()
+        rise = (1 - ease_out(self.appear)) * 16
+        draw_luxe_cover(c, 190)
+        x0 = 90
+        c.circle(LUXE_INK, x0 + 50, 96 - rise, 58)
+        c.circle(accent, x0 + 50, 96 - rise, 54, 2)
+        c.blit(ui.circle_image(self.game.icon, px(96)), x0 + 50, 96 - rise, "center")
+        tx = x0 + 130
+        c.text(i18n.translate("Trophies").upper(), 13, tx, 46 - rise, accent, True)
+        c.text(c.t.fit(self.title, 32, ui.W - tx - 420, True), 32, tx, 64 - rise, WHITE, True)
         if self.trophies is None:
-            c.text("Reading the trophies…", 18, 64, 110, SOFT)
+            c.text("Reading the trophies…", 16, tx, 112 - rise, SOFT)
             return
         items = self.trophies
         earned = [t for t in items if t["earned"]]
         percent = int(round(100 * len(earned) / max(1, len(items))))
-        c.text(f"{len(earned)} of {len(items)} trophies  ·  {percent}%", 16, 64, 82, SOFT)
-        c.rect(KEY, 64, 112, 520, 8, 4)
-        c.rect(ACCENT, 64, 112, max(1, 520 * percent / 100), 8, 4)
-        x = ui.W - 64
+        c.rect(line, tx, 118 - rise, 300, 4, 2)
+        c.rect(accent, tx, 118 - rise, max(4, 300 * percent / 100), 4, 2)
+        c.text(f"{len(earned)} / {len(items)}  ·  {percent}%", 14, tx + 316, 110 - rise, SOFT)
+        x = ui.W - x0
         for grade in ("bronze", "silver", "gold", "platinum"):
             total = sum(1 for t in items if t["grade"] == grade)
             if not total:
                 continue
             got = sum(1 for t in items if t["grade"] == grade and t["earned"])
-            w = c.text(f"{got}/{total}", 16, x, 70, WHITE, True, "topright")
-            draw_cup(c, x - w - 18, 80, 26, grade, got > 0)
+            w = c.text(f"{got}/{total}", 17, x, 80 - rise, WHITE if got else SOFT, True, "topright")
+            draw_cup(c, x - w - 18, 91 - rise, 26, grade, got > 0)
             x -= w + 64
         if self.row < self.top:
             self.top = self.row
         if self.row >= self.top + self.VISIBLE:
             self.top = self.row - self.VISIBLE + 1
-        y = 140
+        y = 196 - rise
+        width = ui.W - 2 * x0
         for i in range(self.top, min(len(items), self.top + self.VISIBLE)):
             t = items[i]
             on = i == self.row
-            c.rect(WHITE if on else PANEL, 64, y, ui.W - 128, 74, 14)
-            fg, soft = (INK, ui.mix(INK, WHITE, 0.35)) if on else (WHITE, SOFT)
+            if on:
+                c.rect(accent + (26,), x0 - 14, y - 4, width + 28, 68, 6)
+                c.rect(accent, x0 - 14, y - 4, 3, 68, 1)
+            elif i > self.top:
+                c.line(line, x0, y - 4, x0 + width, y - 4, 1)
             secret = t["hidden"] and not t["earned"]
             icon = self.icons.get(t["id"])
             if icon is not None and not secret:
                 if not t["earned"]:
                     icon = icon.copy()
                     icon.fill((90, 90, 90), special_flags=pygame.BLEND_RGB_MULT)
-                c.blit(icon, 76, y + 7)
+                c.blit(pygame.transform.smoothscale(icon, (px(52), px(52))), x0, y + 4)
             else:
-                c.rect(KEY, 76, y + 7, 60, 60, 8)
-                c.text("?", 26, 106, y + 37, SOFT, True, "center")
+                c.rect(ui.mix(LUXE_INK, WHITE, 0.08), x0, y + 4, 52, 52, 8)
+                c.text("?", 22, x0 + 26, y + 30, SOFT, True, "center")
             name = "Hidden trophy" if secret else t["name"]
             detail = "Keep playing to find out." if secret else t["detail"]
-            c.text(c.t.fit(name, 19, ui.W - 480, True), 19, 154, y + 12, fg, True)
-            c.text(c.t.fit(detail, 15, ui.W - 480), 15, 154, y + 42, soft)
-            draw_cup(c, ui.W - 110, y + 36, 32, t["grade"], t["earned"])
-            when = t["when"].strftime("%d %b %Y") if t["earned"] and t["when"] else ("Earned" if t["earned"] else "")
-            c.text(when, 14, ui.W - 140, y + 29, soft, False, "topright")
-            y += 80
+            c.text(c.t.fit(name, 18, width - 360, True), 18, x0 + 72, y + 6, WHITE if t["earned"] or on else SOFT, True)
+            c.text(c.t.fit(detail, 14, width - 360), 14, x0 + 72, y + 34, SOFT)
+            draw_cup(c, x0 + width - 20, y + 30, 28, t["grade"], t["earned"])
+            when = t["when"].strftime("%d %b %Y").upper() if t["earned"] and t["when"] else (
+                i18n.translate("Earned").upper() if t["earned"] else "")
+            c.text(when, 12, x0 + width - 50, y + 24, accent, True, "topright")
+            y += 72
 
     def hints(self):
         return [("l1r1", "Page"), ("circle", "Back")]
@@ -3415,11 +4274,12 @@ class ControllerTest(Modal):
 
     def draw(self, c):
         h = self.home
-        c.s.fill(ui.BACKDROP)
-        c.text("Controller test", 28, 64, 36, WHITE, True)
+        draw_luxe_cover(c, 160)
+        c.text(i18n.upper("Controllers"), 12, 64, 24, ui.ACCENT, True)
+        c.text("Controller test", 28, 64, 42, WHITE, True)
         pads = list(h.input.pads.values())
         if not pads:
-            c.text("No controller found.", 19, 64, 100, SOFT)
+            c.text("No controller found.", 19, 64, 96, SOFT)
             return
         pad = pads[0]
         B = pygame
@@ -3438,13 +4298,19 @@ class ControllerTest(Modal):
             except (pygame.error, AttributeError, TypeError, ValueError):
                 return 0.0
 
-        c.text("Press every button and move the sticks. Press O twice (or PS) to go back.", 16, 64, 82, SOFT)
+        c.text("Press every button and move the sticks. Press O twice (or PS) to go back.", 16, 64, 86, SOFT)
         cx, cy = ui.W / 2, 400
-        body = ui.mix(PANEL, WHITE, 0.08)
+        lit, idle = ui.ACCENT, (34, 34, 46)
+        glow = glow_sprite(px(520), ui.mix((0, 0, 0), lit, 0.35))
+        c.s.blit(glow, glow.get_rect(center=(px(cx), px(cy))), special_flags=pygame.BLEND_RGB_ADD)
+        edge = luxe_line()
+        c.circle(edge, cx - 240, cy + 90, 111)
+        c.circle(edge, cx + 240, cy + 90, 111)
+        c.rect(edge, cx - 331, cy - 151, 662, 252, 111)
+        body = (18, 18, 26)
         c.rect(body, cx - 330, cy - 150, 660, 250, 110)
         c.circle(body, cx - 240, cy + 90, 110)
         c.circle(body, cx + 240, cy + 90, 110)
-        lit, idle = ACCENT, KEY
 
         def dot(x, y, r, on, label=""):
             c.circle(lit if on else idle, x, y, r)
@@ -3457,7 +4323,7 @@ class ControllerTest(Modal):
             on = button(b)
             dot(cx + x, cy + y, 22, on)
             # The symbols are drawn: the fonts have no PlayStation shapes.
-            mark, bx, by = WHITE if on else SOFT, cx + x, cy + y
+            mark, bx, by = LUXE_INK if on else SOFT, cx + x, cy + y
             if shape == "triangle":
                 c.polygon(mark, [(bx, by - 10), (bx + 10, by + 7), (bx - 10, by + 7)], 2)
             elif shape == "circle":
@@ -3474,7 +4340,7 @@ class ControllerTest(Modal):
                                 (1, B.CONTROLLER_AXIS_RIGHTX, B.CONTROLLER_AXIS_RIGHTY, B.CONTROLLER_BUTTON_RIGHTSTICK)):
             sx, sy = cx + side * 95, cy + 60
             c.circle(idle, sx, sy, 46)
-            c.circle(PANEL_LINE, sx, sy, 46, 2)
+            c.circle(edge, sx, sy, 46, 2)
             c.circle(lit if button(b) else WHITE, sx + axis(ax) * 30, sy + axis(ay) * 30, 18)
             c.text(f"{axis(ax):+.2f}  {axis(ay):+.2f}", 13, sx, sy + 58, SOFT, False, "midtop")
         for side, b, t, label in ((-1, B.CONTROLLER_BUTTON_LEFTSHOULDER, B.CONTROLLER_AXIS_TRIGGERLEFT, "L"),
@@ -3484,7 +4350,8 @@ class ControllerTest(Modal):
             c.text(label + "1", 13, x, cy - 177, WHITE, True, "center")
             level = max(0.0, axis(t))
             c.rect(idle, x - 60, cy - 236, 120, 34, 10)
-            c.rect(lit, x - 60, cy - 236, 120 * level, 34, 10)
+            if level > 0.02:
+                c.rect(lit, x - 60, cy - 236, max(20, 120 * level), 34, 10)
             c.text(f"{label}2  {int(level * 100)}%", 13, x, cy - 219, WHITE, True, "center")
         touchpad = getattr(B, "CONTROLLER_BUTTON_TOUCHPAD", 20)     # pygame 2.6 has no name for it.
         c.rect(lit if button(touchpad) else idle, cx - 90, cy - 130, 180, 90, 12)
@@ -3502,12 +4369,193 @@ class ControllerTest(Modal):
 # --------------------------------------------------------------------------------------------
 # Media: the screenshots and videos, on the home screen's Media tab, and a full-screen viewer.
 
+class GameLibrary(Modal):
+    """The Game Library, as on a PS5: every game in a grid (the row on the home screen shows them
+    one by one). Tabs for where the games are (L1 / R1: all, PS4 drive, USB drive, PC); Square
+    changes the order; X plays, OPTIONS opens the game's options."""
+    covers = True
+    COLS, TILE, GAP = 6, 150, 34
+    FILTERS = [("all", "All games"), ("PS4", "PS4 drive"), ("USB", "USB drive"), ("PC", "PC")]
+
+    def __init__(self, home):
+        super().__init__(home)
+        self.index = 0
+        self.top = 0
+        self.filter = 0
+        self.on_tabs = False          # Up from the first row: Left / Right change the tab.
+
+    def games(self, filter_=None):
+        kind = self.FILTERS[self.filter if filter_ is None else filter_][0]
+        return [g for g in self.home.games if kind == "all" or g.source == kind]
+
+    def act(self, action):
+        h = self.home
+        games = self.games()
+        if action == BACK:
+            h.sounds.play("back")
+            self.close()
+            return
+        if action == SQUARE:
+            h.settings.set(sort="name" if h.settings["sort"] == "recent" else "recent")
+            h.refresh_games(force=True)
+            self.index = 0
+            h.sounds.play("move")
+            return
+        tab_step = {PAGE_UP: -1, PAGE_DOWN: 1, TRIANGLE: 1}.get(action)
+        if self.on_tabs or not games:
+            if action in (LEFT, RIGHT):
+                tab_step = -1 if action == LEFT else 1
+                if i18n.rtl():
+                    tab_step = -tab_step
+            elif action in (DOWN, OK) and games:
+                self.on_tabs = False
+                h.sounds.play("move")
+                return
+        if tab_step:
+            self.filter = (self.filter + tab_step) % len(self.FILTERS)
+            self.index = 0
+            self.top = 0
+            self.on_tabs = self.on_tabs or not self.games()
+            h.sounds.play("move")
+            return
+        if self.on_tabs or not games:
+            return
+        if action == UP and self.index < self.COLS:
+            self.on_tabs = True
+            h.sounds.play("move")
+            return
+        self.index = min(self.index, len(games) - 1)
+        moved = {LEFT: -1, RIGHT: 1, UP: -self.COLS, DOWN: self.COLS}.get(action)
+        if moved is not None:
+            target = self.index + moved
+            if 0 <= target < len(games) or (action == DOWN and self.index // self.COLS <
+                                              (len(games) - 1) // self.COLS):
+                self.index = max(0, min(len(games) - 1, target))
+                h.sounds.play("move")
+        elif action == OK:
+            game = games[self.index]
+            self.close()
+            h.open_game(game)
+        elif action == OPTIONS:
+            h.sounds.play("select")
+            h.push(GameMenu(h, games[self.index]))
+
+    def hints(self):
+        order = "Name" if self.home.settings["sort"] == "recent" else "Recently played"
+        if self.on_tabs:
+            return [(None, "Left / Right: change"), ("cross", "Select"), ("square", "Order: " + order),
+                    ("circle", "Back")]
+        return [("cross", "Play"), ("options", "Options"), ("l1r1", "Change tab"), ("square", "Order: " + order),
+                ("circle", "Back")]
+
+    def draw(self, c):
+        h = self.home
+        games = self.games()
+        self.index = min(self.index, max(0, len(games) - 1))
+        icons = sum(1 for g in games if g.icon is not None)
+        key = (self.appear >= 1.0, self.index, self.filter, self.on_tabs, h.settings["sort"], len(games), icons,
+               c.s.get_size(), ui.ACCENT, len(h.games), bool(h.modals and h.modals[-1] is not self))
+        frame = getattr(self, "frame", None)
+        if key != getattr(self, "frame_key", None) or frame is None or frame.get_size() != c.s.get_size():
+            if frame is None or frame.get_size() != c.s.get_size():
+                self.frame = pygame.Surface(c.s.get_size()).convert()
+            self.draw_page(ui.Canvas(self.frame, c.t), games)
+            self.frame_key = key
+        c.s.blit(self.frame, (0, 0))
+
+    def draw_page(self, c, games):
+        h = self.home
+        accent = ui.ACCENT
+        draw_luxe_cover(c, 210)
+        a = ease_out(self.appear)
+        rise = (1 - a) * 12
+        x0 = ROW_X
+        c.text(i18n.upper("Library"), 12, x0 + 2, 34 - rise, accent, True)
+        c.text("Game Library", 32, x0, 52 - rise, WHITE, True)
+        # Order, at the right.
+        order = "Recently played" if h.settings["sort"] == "recent" else "Name"
+        label = i18n.translate(order)
+        w = c.t.width(label, 15) + 40
+        right = x0 + self.COLS * (self.TILE + self.GAP) - self.GAP
+        c.rect((9, 9, 12, 170), right - w, 60 - rise, w, 34, 17)
+        c.rect(luxe_line(), right - w, 60 - rise, w, 34, 17, 1)
+        c.text(label, 15, right - w / 2, 77 - rise, SOFT, False, "center")
+        c.text(i18n.upper("Order"), 11, right - w - 12, 70 - rise, accent, True, "topright")
+        # The tabs, with L1 and R1 at their ends.
+        names = [f"{i18n.translate(name)}  {len(self.games(i))}" for i, (_, name) in enumerate(self.FILTERS)]
+        ty = 122 - rise
+        c.rect((9, 9, 12, 170), x0, ty + 4, 40, 26, 8)
+        c.rect(luxe_line(), x0, ty + 4, 40, 26, 8, 1)
+        c.text("L1", 12, x0 + 20, ty + 17, SOFT, True, "center")
+        end = draw_luxe_tabs(c, names, self.filter, x0 + 60, ty, self.on_tabs)
+        c.rect((9, 9, 12, 170), end - 24, ty + 4, 40, 26, 8)
+        c.rect(luxe_line(), end - 24, ty + 4, 40, 26, 8, 1)
+        c.text("R1", 12, end - 4, ty + 17, SOFT, True, "center")
+        c.line(luxe_line(), x0, ty + 46, right, ty + 46, 1)
+        if not games:
+            c.text("No games here", 22, x0, ty + 90, WHITE, True)
+            where = self.FILTERS[self.filter][0]
+            tip = {"USB": "Put PS5 games on a USB drive to see them here.",
+                   "PC": "Add a shared folder in Settings, Games from PC.",
+                   "PS4": "Copy a game to the EmuFive disk from its options."}.get(where, "")
+            if tip:
+                c.text(tip, 16, x0, ty + 124, SOFT)
+            return
+        row_h = self.TILE + 52
+        rows_shown = 2
+        top_y = ty + 74
+        row = self.index // self.COLS
+        if row < self.top:
+            self.top = row
+        if row >= self.top + rows_shown:
+            self.top = row - rows_shown + 1
+        shape = h.settings["tile_shape"]
+        for n in range(self.top * self.COLS, min(len(games), (self.top + rows_shown) * self.COLS)):
+            game = games[n]
+            col, r = n % self.COLS, n // self.COLS - self.top
+            x = x0 + col * (self.TILE + self.GAP)
+            y = top_y + r * row_h
+            on = n == self.index and not self.on_tabs
+            if on:
+                glow = glow_sprite(px(self.TILE * 1.1), ui.mix((0, 0, 0), accent, 0.45))
+                c.s.blit(glow, glow.get_rect(center=(px(x + self.TILE / 2), px(y + self.TILE / 2))),
+                         special_flags=pygame.BLEND_RGB_ADD)
+            picture = h.tile_picture(game, self.TILE, shape)
+            if picture is not None:
+                c.blit(picture, x, y)
+            else:
+                h.tile_shape(c, game.color, x, y, self.TILE)
+                for k, line in enumerate(c.t.wrap(game.title, 14, self.TILE - 20)[:3]):
+                    c.text(line, 14, x + 10, y + 10 + k * 18, (255, 255, 255))
+            if h.is_running(game):
+                c.rect(accent, x + 8, y + self.TILE - 28, 70, 20, 10)
+                c.text("RUNNING", 11, x + 43, y + self.TILE - 18, LUXE_INK, True, "center")
+            if on:
+                h.tile_shape(c, accent, x, y, self.TILE, 3, 5)
+            c.text(c.t.fit(game.title, 14, self.TILE), 14, x, y + self.TILE + 12,
+                   WHITE if on else SOFT, on)
+            if on and self.FILTERS[self.filter][0] == "all":
+                c.text(getattr(game, "source_name", "") or game.source, 12, x, y + self.TILE + 32, accent)
+        total_rows = (len(games) + self.COLS - 1) // self.COLS
+        if total_rows > rows_shown:
+            track = rows_shown * row_h - 52
+            bar_h = max(24, track * rows_shown / total_rows)
+            bar_y = top_y + (track - bar_h) * self.top / max(1, total_rows - rows_shown)
+            c.rect(luxe_line(), right + 18, top_y, 3, track, 2)
+            c.rect(accent, right + 18, bar_y, 3, bar_h, 2)
+
+
 class MediaView:
     COLS = 4
     THUMB_W, THUMB_H = 268, 151
+    # TV & Video, as on a PS5 (ps5-browser --app NAME): name, title, the kind of icon.
+    APPS = [("youtube", "YouTube", "play")]
+    GRID_Y = 217                  # The screenshots and videos, below the apps.
 
     def __init__(self, home):
         self.home = home
+        self.on_apps = True       # The apps row is chosen (else the screenshots and videos).
+        self.app = 0
         self.paths = []
         self.index = 0
         self.top_row = 0
@@ -3544,17 +4592,46 @@ class MediaView:
         threading.Thread(target=work, daemon=True).start()
         return None
 
+    def open_app(self):
+        h = self.home
+        h.sounds.play("select")
+        if h.running_path is not None:
+            h.push(Dialog(h, "Close the paused game first (PS button, Close the game), so the "
+                             "app has the memory."))
+        else:
+            # BROWSER, with the app named in a file (ps5-browser reads it), so any ps5-session runs it.
+            try:
+                with open(system.BROWSER_APP, "w") as f:
+                    f.write(self.APPS[self.app][0])
+            except OSError:
+                return
+            h.finish("BROWSER")
+
     def act(self, action):
         h = self.home
+        if self.on_apps or not self.paths:
+            self.on_apps = True
+            if action == UP:
+                h.focus = "settings" if h.ps5_layout else "wifi"
+            elif action == LEFT and self.app > 0:
+                self.app -= 1
+            elif action == RIGHT and self.app < len(self.APPS) - 1:
+                self.app += 1
+            elif action == DOWN and self.paths:
+                self.on_apps = False
+            elif action == OK:
+                self.open_app()
+                return
+            else:
+                return
+            h.sounds.play("move")
+            return
         if action == UP:
             if self.index >= self.COLS:
                 self.index -= self.COLS
-                h.sounds.play("move")
             else:
-                h.focus = "wifi"
-                h.sounds.play("move")
-            return
-        if not self.paths:
+                self.on_apps = True
+            h.sounds.play("move")
             return
         if action == DOWN and self.index + self.COLS < len(self.paths):
             self.index += self.COLS
@@ -3574,20 +4651,32 @@ class MediaView:
         self.refresh()
         h = self.home
         y0 = ROW_Y
+        c.text("TV & Video", 18, ROW_X, y0 - 6, ART_SOFT, True, shadow=True)
+        for n, (_, name, icon) in enumerate(self.APPS):
+            x, y = ROW_X + n * (self.THUMB_W + 22), y0 + 26
+            # Our own neutral tile, nothing from the app's logo or colors: a dark tile, a white
+            # play circle and the name.
+            c.rect((30, 30, 36), x, y, self.THUMB_W, self.THUMB_H, 10)
+            cx, cy = x + self.THUMB_W / 2, y + self.THUMB_H / 2 - 14
+            draw_app_icon(c, icon, cx, cy, 30)
+            c.text(name, 22, cx, y + self.THUMB_H - 26, (255, 255, 255), True, "center")
+            if self.on_apps and n == self.app and h.focus == "tiles" and not h.modals:
+                c.rect(ART_TEXT, x - 5, y - 5, self.THUMB_W + 10, self.THUMB_H + 10, 12, 3)
+        y0 += self.GRID_Y
         if not self.paths:
             c.text("No screenshots or videos yet", 40, ROW_X, y0 + 40, ART_TEXT, True, shadow=True)
             c.text("Press PS + Square, or Share, for a screenshot, in a game too.", 18, ROW_X + 2, y0 + 100,
                    ART_SOFT, shadow=True)
             c.text("PS + Triangle starts and stops a video.", 18, ROW_X + 2, y0 + 128, ART_SOFT, shadow=True)
             return
-        c.text(f"Screenshots and videos  ·  {len(self.paths)}", 18, ROW_X, y0 - 6, ART_SOFT, True, shadow=True)
-        row = self.index // self.COLS
-        if row < self.top_row:
-            self.top_row = row
-        if row > self.top_row + 2:
-            self.top_row = row - 2
+        rows = (len(self.paths) + self.COLS - 1) // self.COLS
+        more = f"  ·  {self.index // self.COLS + 1} / {rows}" if rows > 1 else ""
+        c.text(f"Screenshots and videos  ·  {len(self.paths)}{more}", 18, ROW_X, y0 - 6, ART_SOFT, True,
+               shadow=True)
+        # One row fits under the apps, above the hints: it scrolls to the chosen one.
+        self.top_row = self.index // self.COLS
         gap = 22
-        for n in range(self.top_row * self.COLS, min(len(self.paths), (self.top_row + 3) * self.COLS)):
+        for n in range(self.top_row * self.COLS, min(len(self.paths), (self.top_row + 1) * self.COLS)):
             col, r = n % self.COLS, n // self.COLS - self.top_row
             x = ROW_X + col * (self.THUMB_W + gap)
             y = y0 + 26 + r * (self.THUMB_H + 46)
@@ -3598,10 +4687,50 @@ class MediaView:
                 c.rect(KEY, x, y, self.THUMB_W, self.THUMB_H, 10)
             if system.is_video(self.paths[n]):
                 draw_play_badge(c, x + self.THUMB_W / 2, y + self.THUMB_H / 2, 22)
-            if n == self.index and h.focus == "tiles" and not h.modals:
+            if n == self.index and not self.on_apps and h.focus == "tiles" and not h.modals:
                 c.rect(ART_TEXT, x - 5, y - 5, self.THUMB_W + 10, self.THUMB_H + 10, 12, 3)
             name = os.path.basename(os.path.dirname(self.paths[n]))
             c.text(c.t.fit(name, 13, self.THUMB_W), 13, x, y + self.THUMB_H + 8, ART_SOFT, shadow=True)
+
+
+def draw_library_icon(c, x, y, r, color, back=None):
+    """The Game Library: three game cases fanned out, the front one filled. `back` (the tile's
+    color) leaves a thin gap round each case so they read apart."""
+    w, h = r, r * 1.36
+    line = max(2, r * 0.06)
+    for k, (dx, dy) in enumerate(((-0.34, 0.2), (0, 0), (0.34, -0.2))):
+        cx, cy = x + dx * r * 1.1, y + dy * r * 0.7
+        if back is not None:
+            c.rect(back, cx - w / 2 - line, cy - h / 2 - line, w + 2 * line, h + 2 * line, r * 0.16)
+        c.rect(color, cx - w / 2, cy - h / 2, w, h, r * 0.14, 0 if k == 2 else line)
+
+
+def draw_app_icon(c, kind, x, y, r):
+    """Media's app icons: our own plain white shapes (no app's logo or colors)."""
+    white, dark = (240, 240, 245), (30, 30, 36)
+    if kind == "play":
+        c.circle(white, x, y, r)
+        t = r * 0.42
+        c.polygon(dark, [(x - t * 0.7, y - t), (x - t * 0.7, y + t), (x + t, y)])
+
+
+def capture_folder(title):
+    """The folder a game's screenshots and clips go in (ps5-guide names it by the game's title)."""
+    return "".join(ch for ch in title if ch.isalnum() or ch in " -_").strip() or "Screenshot"
+
+
+class GameMedia(MediaView):
+    """One game's screenshots and clips (the Media card on its page), for the viewer."""
+
+    def __init__(self, home, game):
+        super().__init__(home)
+        self.folder = capture_folder(game.title)
+        self.on_apps = False
+        self.refresh()
+
+    def refresh(self):
+        self.paths = [p for p in system.media_files() if os.path.basename(os.path.dirname(p)) == self.folder]
+        self.index = min(self.index, max(0, len(self.paths) - 1))
 
 
 def draw_play_badge(c, x, y, radius):
@@ -4267,6 +5396,7 @@ class Home:
 
         self.all_games = []
         self.games = []
+        self.search = ""                # Triangle on the home screen: only games whose name has this.
         self.entries = {}
         self.game_signature = None
         self.games_changed = False
@@ -4276,7 +5406,13 @@ class Home:
         self.focus = "tiles"     # tiles, wifi, settings
         self.tab = "games"       # games, media
         self.media = MediaView(self)
-        self.tile_small, self.tile_big = TILE_SIZES.get(self.settings["tile_size"], TILE_SIZES["medium"])
+        self.ps5_layout = self.settings["home_layout"] == "ps5"
+        sizes = PS5_TILE_SIZES if self.ps5_layout else TILE_SIZES
+        self.tile_small, self.tile_big = sizes.get(self.settings["tile_size"], sizes["medium"])
+        if self.ps5_layout:
+            self.tiles_x, self.tiles_y, self.tiles_right = PS5_TILES_X, PS5_TILES_Y, ui.W - 40
+        else:
+            self.tiles_x, self.tiles_y, self.tiles_right = TILES_X, TILES_Y, TILES_RIGHT
         self.info_y = ROW_Y + self.tile_big + 74
         self.row_offset = 0.0
         self.tile_sizes = []
@@ -4299,13 +5435,17 @@ class Home:
         if self.quick:
             self.quick_game = prepare(system.Game(args.quick_menu))
             self.art.want(self.quick_game, True)
-            self.modals.append(QuickMenu(self, True, self.quick_game.title))
+            self.modals.append((ControlCenter if self.ps5_layout else QuickMenu)(self, True, self.quick_game.title))
             return
         self.refresh_games(force=True)
         self.apply_lightbar()
         self.apply_mic()
         if args.message:
             self.push(Dialog(self, args.message))
+        note = system.take_after_game_note()   # From ps5-launch: failed shaders, a failed backup.
+        for part in note.split("\n\n") if note else []:
+            store.add_notification(part)
+            self.push(Dialog(self, part))
         # Settings that restart the home screen (theme, text...) come back to the same page.
         try:
             with open(REOPEN) as f:
@@ -4329,8 +5469,20 @@ class Home:
     def push(self, modal):
         self.modals.append(modal)
 
-    def toast(self, text, seconds=4.0):
+    def toast(self, text, seconds=4.0, keep=True):
+        """keep: also listed in Notifications (the quick menu)."""
         self.toast_text, self.toast_until = text, self.t + seconds
+        if keep:
+            store.add_notification(text)
+
+    def set_search(self, text):
+        self.search = text.strip()
+        self.games_changed = True
+        self.refresh_games(force=True)
+        self.select(0)
+        if self.search and not any(True for g in self.games):
+            self.toast(f"No games match \"{self.search}\".", 3.0, keep=False)
+        return None
 
     def finish(self, result):
         if self.result is None:
@@ -4417,7 +5569,7 @@ class Home:
         self.games_store = store.Games(profile_id)
         self.avatar_cache.clear()
         self.games_changed = True
-        self.toast(f"Welcome, {self.settings['name']}", 3.0)
+        self.toast(f"Welcome, {self.settings['name']}", 3.0, keep=False)
 
     def set_profile(self, **changes):
         """Name or picture of the current profile."""
@@ -4480,6 +5632,10 @@ class Home:
         show_hidden = self.settings["show_hidden"]
         entries = {g.path: self.games_store.get(g.key) for g in all_games}
         visible = [g for g in all_games if show_hidden or not entries[g.path].get("hidden") or self.is_running(g)]
+        if self.search:
+            words = self.search.lower().split()
+            visible = [g for g in visible if self.is_running(g) or
+                       all(w in (g.title + " " + g.title_id).lower() for w in words)]
         recent = self.settings["sort"] == "recent"
         visible.sort(key=lambda g: (not self.is_running(g),
                                     not entries[g.path].get("favorite", False),
@@ -4497,7 +5653,8 @@ class Home:
 
     def extra_tiles(self):
         """The tiles after the games: Internet, Cheats (with the cheat manager on), then Power."""
-        return ["browser"] + (["cheats"] if self.settings["cheats"] else []) + ["power"]
+        return (["library"] if self.games else []) + ["browser"] + \
+            (["cheats"] if self.settings["cheats"] else []) + ["power"]
 
     def items(self):
         return len(self.games) + len(self.extra_tiles())
@@ -4511,6 +5668,17 @@ class Home:
 
     def on_browser(self):
         return self.tile_kind() == "browser"
+
+    def game_media(self, game):
+        """This game's screenshots and clips, newest first (from the Media tab's list)."""
+        if game is None:
+            return []
+        self.media.refresh()
+        folder = capture_folder(game.title)
+        return [p for p in self.media.paths if os.path.basename(os.path.dirname(p)) == folder]
+
+    def on_library(self):
+        return self.tile_kind() == "library"
 
     def on_cheats(self):
         return self.tile_kind() == "cheats"
@@ -4529,6 +5697,7 @@ class Home:
             self.sounds.play("move")
             self.input.rumble()
         self.selected = index
+        self.select_t = self.t       # PS5 layout: the light that sweeps over the chosen tile.
         self.info_alpha = 1.0 if self.settings["animations"] == "off" else 0.0
         self.bg_index = 0
         self.bg_switch_at = self.t + 12.0
@@ -4539,9 +5708,39 @@ class Home:
 
     def current_background(self):
         game = self.quick_game if self.quick else self.current_game()
+        if game is None and not self.quick and self.selected < self.items():
+            return self.tile_background(self.tile_kind(self.selected))
         if game is None or not game.backgrounds:
             return None
         return game.backgrounds[self.bg_index % len(game.backgrounds)]
+
+    def tile_background(self, kind):
+        """A background for Internet, Cheats or Power: its tile's color, lit from the right, with
+        its icon large and faint there (made once)."""
+        color = TILE_BACKGROUND_COLORS.get(kind)
+        if color is None:
+            return None
+        cache = self.__dict__.setdefault("tile_backgrounds", {})
+        surface = cache.get(kind)
+        if surface is None:
+            w, h = px(BG_W), px(BG_H)
+            surface = h_gradient(w, h, ui.mix(color, (0, 0, 0), 0.3), ui.mix(color, (255, 255, 255), 0.22)).convert()
+            light = glow_sprite(px(420), ui.mix(color, (255, 255, 255), 0.5))
+            surface.blit(light, light.get_rect(center=(int(w * 0.72), int(h * 0.48))),
+                         special_flags=pygame.BLEND_RGB_ADD)
+            canvas = ui.Canvas(surface, self.text)
+            faint = ui.mix(color, (255, 255, 255), 0.3)
+            cx, cy = BG_W * 0.72, BG_H * 0.48
+            if kind == "library":
+                draw_library_icon(canvas, cx, cy, 150, faint)
+            elif kind == "browser":
+                ui.draw_globe(canvas, cx, cy, 150, faint, 10)
+            elif kind == "cheats":
+                ui.draw_wand(canvas, cx, cy, 150, faint, 10)
+            else:
+                ui.draw_power(canvas, cx, cy, 120, faint, 12)
+            cache[kind] = surface
+        return surface
 
     def set_background(self, surface, animate):
         if surface is self.bg_current:
@@ -4562,7 +5761,7 @@ class Home:
             if self.running_path is not None:
                 self.finish("RESUME")           # Back to the paused game.
             else:
-                self.push(QuickMenu(self, False))
+                self.push((ControlCenter if self.ps5_layout else QuickMenu)(self, False))
             return
         if action in (PAGE_UP, PAGE_DOWN):
             tab = "games" if action == PAGE_UP else "media"
@@ -4571,35 +5770,98 @@ class Home:
                 self.focus = "tiles"
                 self.sounds.play("move")
             return
-        if self.focus in ("wifi", "settings"):
+        if self.focus in ("wifi", "settings", "notifications", "search", "profile"):
+            order = ["search", "settings", "profile"] if self.ps5_layout else ["notifications", "settings", "wifi"]
+            if self.focus not in order:
+                self.focus = "settings"
+            at = order.index(self.focus)
             if action in (DOWN, BACK):
                 self.focus = "tiles"
                 self.sounds.play("move")
-            elif action == LEFT and self.focus == "wifi":
-                self.focus = "settings"
+            elif action == LEFT and at > 0:
+                self.focus = order[at - 1]
                 self.sounds.play("move")
-            elif action == RIGHT and self.focus == "settings":
-                self.focus = "wifi"
+            elif action == RIGHT and at < len(order) - 1:
+                self.focus = order[at + 1]
                 self.sounds.play("move")
             elif action == OK:
                 self.sounds.play("select")
-                self.push(WifiPanel(self) if self.focus == "wifi" else SettingsScreen(self))
+                if self.focus == "search":
+                    self.focus = "tiles"
+                    self.push(KeyboardDialog(self, "Search games", self.search, on_done=self.set_search,
+                                             max_length=40, done_label="Search"))
+                elif self.focus == "profile":
+                    self.push(ProfileView(self))
+                else:
+                    self.push(WifiPanel(self) if self.focus == "wifi" else
+                              SettingsScreen(self) if self.focus == "settings" else NotificationList(self))
+                self.poll.forget("unread")
             return
         if self.tab == "media":
             self.media.act(action)
+            return
+        if self.focus == "media":
+            # PS5 layout: the Media card at the bottom of the game's page.
+            if action == UP:
+                self.focus = "play"
+                self.sounds.play("move")
+            elif action == BACK:
+                self.focus = "tiles"
+                self.sounds.play("back")
+            elif action == OK and self.current_game() is not None:
+                self.sounds.play("select")
+                view = GameMedia(self, self.current_game())
+                if view.paths:
+                    self.push(MediaViewer(self, view))
+            return
+        if self.focus in ("play", "more"):
+            # PS5 layout: Play Game and ... under the game's name.
+            if action == DOWN and self.game_media(self.current_game()):
+                self.focus = "media"
+                self.sounds.play("move")
+            elif action in (UP, BACK):
+                self.focus = "tiles"
+                self.sounds.play("move")
+            elif action == RIGHT and self.focus == "play" and self.current_game() is not None:
+                self.focus = "more"
+                self.sounds.play("move")
+            elif action == LEFT and self.focus == "more":
+                self.focus = "play"
+                self.sounds.play("move")
+            elif action == OPTIONS or (action == OK and self.focus == "more"):
+                if self.current_game() is not None:
+                    self.sounds.play("select")
+                    self.push(GameMenu(self, self.current_game()))
+            elif action == OK:
+                self.focus = "tiles"
+                self.act(OK)
+            return
+        if action == DOWN and self.ps5_layout and (self.current_game() is not None or self.items()):
+            self.focus = "play"
+            self.sounds.play("move")
             return
         if action == LEFT:
             self.select(self.selected - 1)
         elif action == RIGHT:
             self.select(self.selected + 1)
+        elif action == TRIANGLE:
+            self.sounds.play("select")
+            self.push(KeyboardDialog(self, "Search games", self.search, on_done=self.set_search,
+                                     max_length=40, done_label="Search"))
+        elif action == BACK and self.search:
+            self.sounds.play("back")
+            self.set_search("")
         elif action == UP:
-            self.focus = "wifi"
+            self.focus = "settings" if self.ps5_layout else "wifi"
             self.sounds.play("move")
         elif action == OPTIONS and self.current_game() is not None:
             self.sounds.play("select")
             self.push(GameMenu(self, self.current_game()))
         elif action == OK:
-            if self.on_browser():
+            if self.on_library():
+                self.sounds.play("select")
+                self.push(GameLibrary(self))
+            elif self.on_browser():
                 self.sounds.play("select")
                 if self.running_path is not None:
                     self.push(Dialog(self, "Close the paused game first (PS button, Close the game), so the "
@@ -4669,14 +5931,14 @@ class Home:
         self.bg_mix = min(1.0, self.bg_mix + dt / (0.7 if motion == "full" else 0.3))
 
         step = self.tile_small + TILE_GAP
-        before = max(0, int((TILES_RIGHT - TILES_X - self.tile_big - TILE_GAP) // step))
+        before = self.tiles_before(step)
         target = max(0, self.selected - before) * step
         rate = 1000 if motion == "off" else 12
         self.row_offset = ease(self.row_offset, target, rate, dt)
         for i in range(len(self.tile_sizes)):
             want = self.tile_small
             if i == self.selected:
-                want = self.tile_big if self.focus == "tiles" else self.tile_small + 18
+                want = self.tile_big if self.focus in ("tiles", "play", "more", "media") else self.tile_small + 18
             self.tile_sizes[i] = ease(self.tile_sizes[i], want, 1000 if motion == "off" else 14, dt)
         self.info_alpha = min(1.0, self.info_alpha + dt / (0.35 if motion == "full" else 0.15))
 
@@ -4697,7 +5959,7 @@ class Home:
             left = minutes * 60 - (time.monotonic() - self.input.last_input)
             if left <= 60 and not self.idle_warned:
                 self.idle_warned = True
-                self.toast("The PS4 turns off in a minute. Press any button to keep it on.", 60)
+                self.toast("The PS4 turns off in a minute. Press any button to keep it on.", 60, keep=False)
             if left <= 0:
                 self.finish("POWEROFF")
 
@@ -4983,6 +6245,12 @@ class Home:
                     rgb = (g, g, min(255, g + 40))
                 c.circle(rgb, x, y, size, fast=True)
 
+    def tiles_before(self, step):
+        """How many tiles stay before the chosen one: none in the PS5 layout (it is at the left)."""
+        if self.ps5_layout:
+            return 0
+        return max(0, int((self.tiles_right - self.tiles_x - self.tile_big - TILE_GAP) // step))
+
     def home_key(self):
         """What the home screen shows, or None while something moves (then it is drawn every
         frame). A still home screen is drawn once and kept; only the orbs and the breathing glow
@@ -4990,13 +6258,13 @@ class Home:
         if self.bg_mix < 1.0 or self.info_alpha < 1.0:
             return None
         step = self.tile_small + TILE_GAP
-        before = max(0, int((TILES_RIGHT - TILES_X - self.tile_big - TILE_GAP) // step))
+        before = self.tiles_before(step)
         if abs(self.row_offset - max(0, self.selected - before) * step) > 0.3:
             return None
         for i, size in enumerate(self.tile_sizes):
             want = self.tile_small
             if i == self.selected:
-                want = self.tile_big if self.focus == "tiles" else self.tile_small + 18
+                want = self.tile_big if self.focus in ("tiles", "play", "more", "media") else self.tile_small + 18
             if abs(size - want) > 0.3:
                 return None
         s = self.settings
@@ -5005,7 +6273,8 @@ class Home:
         pads = tuple((p["mac"], p["battery"], p["charging"], p["connection"])
                      for p in self.poll.get("controllers", system.controllers, 2.0, []))
         game = self.current_game()
-        media = (len(self.media.paths), self.media.index, self.media.top_row, len(self.media.thumbs)) \
+        media = (len(self.media.paths), self.media.index, self.media.top_row, len(self.media.thumbs),
+                 self.media.on_apps, self.media.app) \
             if self.tab == "media" else None
         return (self.tab, self.focus, self.selected, bool(self.modals), self.game_signature, len(self.games),
                 id(self.bg_current), id(self.static_bg), id(self.entries), self.running_path,
@@ -5013,7 +6282,9 @@ class Home:
                 net, pads, self.input.pad_count(), tuple(sorted(s.data.items())),
                 sum(1 for g in self.games if g.icon is not None),
                 self.trophy_summary(game) if game is not None else None,
-                tuple(self.poll.get("ip", system.ip_addresses, 10.0, [])) if s["show_ip"] else None, media)
+                self.media_card_key(game),
+                tuple(self.poll.get("ip", system.ip_addresses, 10.0, [])) if s["show_ip"] else None, media,
+                self.poll.get("unread", store.unread_notifications, 2.0, 0))
 
     def draw_home(self, c):
         if self.quick:
@@ -5028,17 +6299,40 @@ class Home:
                 self.frame = pygame.Surface(size).convert()
             canvas = ui.Canvas(self.frame, c.t)
             self.ring = None
+            self.shine_tile = None
             self.draw_background(canvas, orbs=False)
+            if self.ps5_layout and self.tab != "media":
+                self.draw_ps5_shade(canvas)    # Under the top bar, so Games is as bright as Media.
             self.draw_top_bar(canvas)
             if self.tab == "media":
                 self.media.draw(canvas)
             else:
                 self.draw_tiles(canvas)
-                self.draw_info(canvas)
+                if self.ps5_layout:
+                    self.draw_ps5_info(canvas)
+                else:
+                    self.draw_info(canvas)
             self.frame_key = key
         c.s.blit(self.frame, (0, 0))
-        avoid = pygame.Rect(CARD_X - 10, 0, ui.W, ui.H) if self.tab == "games" else None
+        avoid = pygame.Rect(CARD_X - 10, 0, ui.W, ui.H) if self.tab == "games" and not self.ps5_layout else None
         self.draw_orbs(c, avoid)
+        if getattr(self, "shine_tile", None) is not None and self.focus == "tiles" and not self.modals \
+                and self.settings["animations"] == "full":
+            # Over the kept frame, so only the tile is drawn again (a full redraw is slow on a PS4).
+            x, y, size = self.shine_tile
+            since = self.t - getattr(self, "select_t", -9)
+            shape = self.settings["tile_shape"]
+            self.draw_shine(c, x, y, size, shape, (since - SHINE_DELAY) / SHINE_SECONDS, 1)
+            # The outline fades in bright, then settles dimmer over a second (as on a PS5); the
+            # crossing light brightens it again.
+            if since < 0.15:
+                strength = since / 0.15
+            else:
+                strength = 1.0 - 0.35 * min(1.0, (since - 0.15) / 1.0)
+            shine = (since - SHINE_DELAY) / SHINE_SECONDS
+            if 0 <= shine < 1:
+                strength += 0.35 * math.sin(math.pi * shine)
+            self.draw_halo(c, x, y, size, max(0.0, min(1.0, strength)))
         if getattr(self, "ring", None) is not None and not self.modals:
             x, y, width, vivid = self.ring
             ring = (math.sin(self.t * 2.6) + 1) / 2
@@ -5047,8 +6341,190 @@ class Home:
             c.rect(vivid + (int(150 * (1 - ring)) // 8 * 8,), x - grow / 2, y - grow / 2, width + grow,
                    44 + grow, 28, 2)
 
+    def draw_ps5_top_bar(self, c):
+        """The PS5 layout's top bar: Games and Media at the left; Search, Settings, the profile
+        picture and the clock at the right."""
+        s = self.settings
+        x = ROW_X
+        for tab, label in (("games", "Games"), ("media", "Media")):
+            on = self.tab == tab
+            width = c.text(label, 21, x, 30, WHITE if on else ART_SOFT, on, shadow=True)
+            x += width + 30
+        right = ui.W - 56
+        clock = clock_text(s["clock_24h"], s["clock_seconds"])
+        clock_w = c.text(clock, 21, right, 30, ART_TEXT, True, "topright", shadow=True)
+        focus_home = not self.modals
+        spots = [("profile", right - clock_w - 40), ("settings", right - clock_w - 92),
+                 ("search", right - clock_w - 144)]
+        tips = {"profile": s["name"], "settings": "Settings", "search": "Search games"}
+        for name, spot in spots:
+            if self.focus == name and focus_home:
+                c.circle(ART_TEXT, spot, 44, 22, 2)
+                self.tip(c, spot, tips[name])
+        profile_x, gear_x, search_x = (spot for _, spot in spots)
+        c.blit(self.avatar(32), profile_x, 44, "center")
+        if self.poll.get("unread", store.unread_notifications, 2.0, 0):
+            # New notifications (they are in the profile page): a dot on the profile picture.
+            c.circle((10, 10, 16), profile_x + 13, 32, 7)
+            c.circle(ACCENT, profile_x + 13, 32, 5)
+        ui.draw_gear(c, gear_x, 44, ART_TEXT)
+        ui.draw_search(c, search_x, 44, ART_TEXT)
+        if self.search:
+            c.circle(ACCENT, search_x + 12, 32, 5)
+
+    def draw_ps5_shade(self, c):
+        """Darker toward the left and the bottom, so the name and buttons read on any art."""
+        size = c.s.get_size()
+        key = ("ps5-shade", size)
+        shade = GLOWS.get(key)
+        if shade is None:
+            small = pygame.Surface((64, 36), pygame.SRCALPHA)
+            for yy in range(36):
+                for xx in range(64):
+                    left = max(0.0, 1 - xx / 40) * 0.62
+                    bottom = max(0.0, (yy - 20) / 16) * 0.7
+                    top = max(0.0, 1 - yy / 6) * 0.35
+                    alpha = 1 - (1 - left) * (1 - bottom) * (1 - top)
+                    small.set_at((xx, yy), (0, 0, 0, int(255 * alpha)))
+            shade = pygame.transform.smoothscale(small, size)
+            GLOWS[key] = shade
+        c.s.blit(shade, (0, 0))
+
+    def draw_ps5_info(self, c):
+        """The PS5 layout: the chosen game's name at the left over its art, Play and ... below it,
+        the play time at the right, and cards with its details at the bottom."""
+        a = self.info_alpha
+        game = self.current_game()
+        play_on = self.focus == "play" and not self.modals
+        more_on = self.focus == "more" and not self.modals
+        title, sub, button, notes, cards = "", "", None, [], []
+        if not self.games and self.on_power():
+            title = i18n.translate("No games yet")
+            notes = ["Put PS5 game folders in one of these places:",
+                     "  •  the PS5 folder of a USB drive",
+                     f"  •  {system.PS4_GAMES_SHOWN} on the PS4, with GoldHEN FTP",
+                     "  •  a shared folder on a PC (Settings, at the top)",
+                     "They show up here by themselves."]
+        elif self.on_library():
+            title, sub, button = i18n.translate("Game Library"), "All your games in one place", "Open"
+        elif self.on_browser():
+            title, sub, button = i18n.translate("Internet"), "Browse the web with the controller", "Open"
+        elif self.on_cheats():
+            title, sub, button = i18n.translate("Cheats"), "Turn on cheats for your games", "Open"
+        elif self.on_power():
+            title, sub, button = i18n.translate("Power"), "Turn off or restart the PS4", "Power"
+        elif game is not None:
+            title, sub = game.title, game.subtitle()
+            button = "Resume" if self.is_running(game) else "Play Game"
+            entry = self.entries.get(game.path, {})
+            seconds = entry.get("play_seconds", 0)
+            trophies = self.trophy_summary(game)
+            if trophies:
+                cards.append(("Trophies", trophies))
+            cards.append(("Played", (system.play_time_text(seconds) if seconds >= 60 else "not played yet",
+                                     entry.get("last_played", 0))))
+            cards.append(("From", getattr(game, "source_name", "") or game.source))
+            shots = self.game_media(game)
+            if shots:
+                cards.append(("Media", shots))
+        x, y = PS5_INFO_X, PS5_INFO_Y + (1 - a) * 12
+        for line in c.t.wrap(title, 46, 640, True)[:2]:
+            c.text(line, 46, x, y, ART_TEXT, True, shadow=True)
+            y += 56
+        if sub:
+            c.text(c.t.fit(sub, 18, 640), 18, x + 2, y + 4, ART_SOFT, shadow=True)
+            y += 30
+        for line in notes:
+            c.text(c.t.fit(line, 15, 640), 15, x + 2, y + 6, ART_SOFT, shadow=True)
+            y += 22
+        y += 26
+        if button:
+            label = i18n.translate(button)
+            width = max(170, c.t.width(label, 18, True) + 60)
+            c.rect((255, 255, 255, 240) if play_on else (255, 255, 255, 46), x, y, width, 46, 23)
+            if play_on:
+                c.rect((255, 255, 255), x - 5, y - 5, width + 10, 56, 28, 2)
+            c.text(label, 18, x + width / 2, y + 23, (22, 22, 28) if play_on else ART_TEXT, True, "center")
+            if game is not None:
+                ox = x + width + 14
+                c.rect((255, 255, 255, 240) if more_on else (255, 255, 255, 46), ox, y, 46, 46, 23)
+                if more_on:
+                    c.rect((255, 255, 255), ox - 5, y - 5, 56, 56, 28, 2)
+                for n in (-1, 0, 1):
+                    c.circle((22, 22, 28) if more_on else ART_TEXT, ox + 23 + n * 8, y + 23, 2.5)
+            if game is not None and self.entries.get(game.path, {}).get("play_seconds", 0) >= 60:
+                hours = self.entries[game.path]["play_seconds"] / 3600
+                text = f"{int(hours)}h" if hours >= 1 else f"{int(hours * 60)}m"
+                width = c.t.width(text, 15, True) + 44
+                px0 = ui.W - 64 - width
+                c.rect((0, 0, 0, 120), px0, y + 9, width, 28, 14)
+                ui.draw_clock_icon(c, px0 + 17, y + 23, ART_TEXT)
+                c.text(text, 15, px0 + 30, y + 23, ART_TEXT, True, "midleft")
+        if cards:
+            cw, ch, cy = 250, 78, ui.H - 172
+            for n, (label, value) in enumerate(cards):
+                cx = x + n * (cw + 14)
+                self.draw_glass(c, cx, cy, cw, ch, 14, 16)
+                if label == "Trophies":
+                    # As on a PS5: a cup and the count earned for each grade, then the word.
+                    grades = value[2] if len(value) > 2 else {}
+                    tx = cx + 22
+                    for grade in ("platinum", "gold", "silver", "bronze"):
+                        ui.draw_trophy(c, tx, cy + 26, TROPHY_COLORS[grade], 8)
+                        tx += 14 + c.text(str(grades.get(grade, 0)), 17, tx + 14, cy + 15, ART_TEXT, True) + 16
+                    c.text(f"Trophies  ·  {value[0]} / {value[1]}", 14, cx + 18, cy + 44, ART_SOFT)
+                    c.rect((255, 255, 255, 50), cx + 18, cy + ch - 12, cw - 36, 3, 1)
+                    c.rect(ART_TEXT, cx + 18, cy + ch - 12, max(3, (cw - 36) * value[0] / max(1, value[1])), 3, 1)
+                    continue
+                if label == "Played":
+                    # The play time, and when it was last played.
+                    played, last = value
+                    c.text(label, 14, cx + 18, cy + 14, ART_SOFT)
+                    if last:
+                        c.text(time.strftime("%d %b", time.localtime(last)), 14, cx + cw - 18, cy + 14, ART_SOFT,
+                               False, "topright")
+                    c.text(c.t.fit(played, 20, cw - 36, True), 20, cx + 18, cy + 38, ART_TEXT, True)
+                    continue
+                if label == "Media":
+                    # This game's screenshots and videos: the newest small at the right; X opens them.
+                    if self.focus == "media" and not self.modals:
+                        c.rect((255, 255, 255), cx - 5, cy - 5, cw + 10, ch + 10, 19, 2)
+                    thumb = self.small_thumb(value[0])
+                    if thumb is not None:
+                        c.blit(thumb, cx + cw - 12 - 96, cy + 12)
+                    c.text("Media", 14, cx + 18, cy + 14, ART_SOFT)
+                    c.text(str(len(value)), 20, cx + 18, cy + 38, ART_TEXT, True)
+                    continue
+                c.text(label, 14, cx + 18, cy + 14, ART_SOFT)
+                c.text(c.t.fit(value, 20, cw - 36, True), 20, cx + 18, cy + 38, ART_TEXT, True)
+
+    def media_card_key(self, game):
+        """What the Media card shows (so the page is drawn again when it changes)."""
+        if not self.ps5_layout or game is None or self.tab != "games":
+            return None
+        shots = self.game_media(game)
+        return (len(shots), shots[0] in self.__dict__.get("small_thumbs", {}) or
+                self.media.thumbs.get(shots[0]) is not None) if shots else None
+
+    def small_thumb(self, path):
+        """A screenshot or clip, 96 x 54, for the Media card (None while it loads)."""
+        cache = self.__dict__.setdefault("small_thumbs", {})
+        if path in cache:
+            return cache[path]
+        big = self.media.thumb(path)
+        if big is None:
+            return None
+        small = pygame.transform.smoothscale(big, (px(96), px(54))) if big else None
+        if len(cache) > 50:
+            cache.clear()
+        cache[path] = small
+        return small
+
     def draw_top_bar(self, c):
         s = self.settings
+        if self.ps5_layout:
+            self.draw_ps5_top_bar(c)
+            return
         x = ROW_X
         if s["show_avatar"]:
             c.blit(self.avatar(40), x, 24)
@@ -5094,10 +6570,19 @@ class Home:
             c.circle(ART_TEXT, gear_x, 44, 22, 2)
             self.tip(c, gear_x, "Settings")
         ui.draw_gear(c, gear_x, 44, ART_TEXT)
+        bell_x = gear_x - 50
+        if self.focus == "notifications" and focus_home:
+            c.circle(ART_TEXT, bell_x, 44, 22, 2)
+            self.tip(c, bell_x, "Notifications")
+        ui.draw_bell(c, bell_x, 42, ART_TEXT)
+        unread = self.poll.get("unread", store.unread_notifications, 2.0, 0)
+        if unread:
+            c.circle(ACCENT, bell_x + 11, 32, 9)
+            c.text(str(min(unread, 9)), 12, bell_x + 11, 32, WHITE, True, "center")
         if s["show_ip"]:
             addresses = self.poll.get("ip", system.ip_addresses, 10.0, [])
             if addresses:
-                c.text(addresses[0][1], 15, gear_x - 34, 36, ART_SOFT, False, "topright", shadow=True)
+                c.text(addresses[0][1], 15, bell_x - 34, 36, ART_SOFT, False, "topright", shadow=True)
 
     def tip(self, c, x, label):
         width = c.t.width(label, 14) + 24
@@ -5147,24 +6632,27 @@ class Home:
         full = self.settings["animations"] == "full"
         big, small = self.tile_big, self.tile_small
         old_clip = c.s.get_clip()
-        c.s.set_clip(pygame.Rect(px(TILES_X - 40), 0, px(TILES_RIGHT - TILES_X + 40), c.s.get_height()))
-        x = TILES_X - self.row_offset
+        ps5 = self.ps5_layout
+        tiles_x, tiles_right = self.tiles_x, self.tiles_right
+        c.s.set_clip(pygame.Rect(px(tiles_x - 40), 0, px(tiles_right - tiles_x + 40), c.s.get_height()))
+        x = tiles_x - self.row_offset
         for i in range(self.items()):
             size = self.tile_sizes[i] if i < len(self.tile_sizes) else small
-            y = TILES_Y + (big - size) / 2
-            if x + size < TILES_X - 60 or x > TILES_RIGHT + 20:
+            # PS5: the tiles' tops line up; Aurora: their middles.
+            y = self.tiles_y if ps5 else self.tiles_y + (big - size) / 2
+            if x + size < tiles_x - 60 or x > tiles_right + 20:
                 x += size + (TILE_GAP + 11 if i == self.selected else TILE_GAP)
                 continue
             focused = i == self.selected and self.focus == "tiles" and not self.modals
             settled = abs(size - big) < 0.6
-            if focused:
+            if focused and not ps5:
                 light = glow_sprite(px(big * 0.95), vivid)
                 c.s.blit(light, light.get_rect(center=(px(x + size / 2), px(y + size / 2))),
                          special_flags=pygame.BLEND_RGB_ADD)
             game = self.games[i] if i < len(self.games) else None
             picture = self.tile_picture(game, size, shape) if game is not None else None
             if picture is not None:
-                if not focused and abs(size - small) < 0.6 and full:
+                if not focused and abs(size - small) < 0.6 and full and not ps5:
                     key = (picture.get_width(), shape, "tilted")
                     turned = game.tiles.get(key)
                     if turned is None:
@@ -5174,7 +6662,7 @@ class Home:
                     c.s.blit(turned, (px(x), px(y)))
                 else:
                     c.blit(picture, x, y)
-                    if focused and settled:
+                    if focused and settled and not ps5:
                         key = (picture.get_width(), shape, "reflection")
                         mirror = game.tiles.get(key)
                         if mirror is None:
@@ -5185,6 +6673,10 @@ class Home:
                 self.tile_shape(c, game.color, x, y, size)
                 for n, line in enumerate(c.t.wrap(game.title, 14, size - 24)[:3]):
                     c.text(line, 14, x + 12, y + 12 + n * 18, (255, 255, 255))
+            elif self.tile_kind(i) == "library":
+                self.tile_shape(c, TILE_BACKGROUND_COLORS["library"], x, y, size)
+                draw_library_icon(c, x + size / 2, y + size / 2, size / 4.2, (255, 255, 255),
+                                  TILE_BACKGROUND_COLORS["library"])
             elif self.tile_kind(i) == "browser":
                 self.tile_shape(c, (36, 52, 96), x, y, size)
                 ui.draw_globe(c, x + size / 2, y + size / 2, size / 4.2, (255, 255, 255), 3 if size < 130 else 4)
@@ -5204,13 +6696,22 @@ class Home:
                     width = c.t.width(label, 11, True) + 16
                     c.rect(vivid, x + size / 2 - width / 2, y + size - 30, width, 20, 10)
                     c.text(label, 11, x + size / 2, y + size - 20, (20, 16, 10), True, "center")
-                elif self.settings["source_labels"]:
+                elif self.settings["tile_badges"]:
                     self.draw_badge(c, game.source, x, y + size, size if shape == "circle" else None)
                 if entry.get("favorite"):
                     ui.draw_star(c, x + size - 16, y + 16, 10, GOLD)
                 if self.settings["show_compat_badges"] and shape != "circle":
                     self.draw_compat(c, game, x, y)
-            if focused:
+            if focused and ps5:
+                # PS5: a thin light-grey line a little outside the tile; the light that crosses
+                # the tile lights it up as it passes.
+                live = settled and shape != "circle" and self.settings["animations"] == "full" \
+                    and c.s is getattr(self, "frame", None)
+                if live:
+                    self.shine_tile = (x, y, size)   # draw_home draws its turning outline, frame by frame.
+                else:
+                    self.tile_shape(c, (205, 205, 212), x, y, size, 2, 4)
+            elif focused:
                 if settled and shape != "circle":
                     radius = (20 if shape == "rounded" else 4) + 5
                     border = gradient_border(px(size + 10), px(size + 10), px(radius), CHAMPAGNE, vivid,
@@ -5220,6 +6721,102 @@ class Home:
                     self.tile_shape(c, CHAMPAGNE, x, y, size, 2.5, 5)
             x += size + (TILE_GAP + 11 if i == self.selected else TILE_GAP)
         c.s.set_clip(old_clip)
+        if ps5:
+            # The chosen one's name under the small tiles, as on a PS5.
+            label = self.tile_label()
+            if label:
+                # It comes in from the left and fades in with the rest of the game's info.
+                a = ease_out(self.info_alpha)
+                lx = self.tiles_x + self.tile_big + TILE_GAP + 11 - (1 - a) * 18
+                ly = self.tiles_y + self.tile_small + 12
+                alpha = int(255 * a)
+                if self.current_game() is not None:
+                    # As on a PS5: a white tag with the name in dark letters.
+                    bw = c.t.width("PS5", 12, True) + 18
+                    c.rect((255, 255, 255, alpha // 8 * 8), lx, ly + 2, bw, 20, 3)
+                    badge = c.t.render("PS5", 12, (28, 28, 34), True)
+                    badge.set_alpha(alpha)
+                    c.blit(badge, lx + bw / 2, ly + 12, "center")
+                    lx += bw + 10
+                text = c.t.fit(label, 17, tiles_right - lx, True)
+                for color, dx in (((0, 0, 0), 2 / ui.S), (ART_TEXT, 0)):
+                    piece = c.t.render(text, 17, color, True)
+                    piece.set_alpha(alpha)
+                    c.blit(piece, lx + dx, ly + dx)
+
+    def draw_halo(self, c, x, y, size, strength=1.0):
+        """PS5: the chosen tile's thin outline, a little outside it, lit like a turning cone of
+        light: two bright arcs and two dim ones run slowly around the tile."""
+        shape = self.settings["tile_shape"]
+        side = px(size + 8)
+        key = ("halo", side, shape)
+        parts = GLOWS.get(key)
+        if parts is None:
+            # The cone of light, made small and smoothed up (its colors change slowly).
+            n = 96
+            cone = pygame.Surface((n, n), pygame.SRCALPHA)
+            for j in range(n):
+                for i in range(n):
+                    a = math.atan2(j - n / 2 + 0.5, i - n / 2 + 0.5)
+                    lit = (math.cos(2 * a) + 1) / 2          # Bright twice around, dim between.
+                    lit = lit ** 1.5
+                    v = int(120 + 135 * lit)
+                    cone.set_at((i, j), (v, v, v, int(70 + 185 * lit)))
+            big = int(side * 1.5)
+            cone = pygame.transform.smoothscale(cone, (big, big))
+            radius = (20 if shape == "rounded" else 4) + 4
+            ring = ui.round_mask(side, side, px(radius), max(2, px(2.5)))
+            parts = GLOWS[key] = (cone, ring)
+        cone, ring = parts
+        turned = pygame.transform.rotate(cone, -(self.t * HALO_SPEED) % 180)
+        piece = pygame.Surface((side, side), pygame.SRCALPHA)
+        piece.blit(turned, ((side - turned.get_width()) // 2, (side - turned.get_height()) // 2))
+        piece.blit(ring, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+        if strength < 1.0:
+            piece.set_alpha(int(255 * strength))
+        c.s.blit(piece, (px(x - 4), px(y - 4)))
+
+    def draw_shine(self, c, x, y, size, shape, progress, direction=-1, strength=255):
+        """PS5: a wide soft light that crosses the chosen tile once (progress 0 to 1), right to left
+        (direction -1) or left to right (1)."""
+        if not 0 <= progress < 1:
+            return
+        side = px(size)
+        key = ("shine", side, shape)
+        band = GLOWS.get(key)
+        if band is None:
+            half = side * 5 // 8                  # The light is 1 1/4 tiles wide, softest at its edges.
+            stripe = pygame.Surface((half * 2, side * 2), pygame.SRCALPHA)
+            stripe.blit(h_gradient(half, side * 2, (255, 255, 255, 0), (255, 255, 255, 96)), (0, 0))
+            stripe.blit(pygame.transform.flip(h_gradient(half, side * 2, (255, 255, 255, 0),
+                                                         (255, 255, 255, 96)), True, False), (half, 0))
+            band = pygame.transform.rotate(stripe, -18)
+            GLOWS[key] = band
+        piece = pygame.Surface((side, side), pygame.SRCALPHA)
+        travel = side + band.get_width()
+        if direction > 0:
+            piece.blit(band, (int(-band.get_width() + travel * ease_in_out(progress)), -band.get_height() // 4))
+        else:
+            piece.blit(band, (int(side - travel * ease_in_out(progress)), -band.get_height() // 4))
+        if strength < 255:
+            piece.set_alpha(strength)
+        radius = 20 if shape == "rounded" else 4
+        piece.blit(ui.round_mask(side, side, px(radius)), (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+        c.s.blit(piece, (px(x), px(y)))
+
+    def tile_label(self):
+        game = self.current_game()
+        if game is not None:
+            return game.title
+        if self.on_library():
+            return i18n.translate("Game Library")
+        if self.on_browser():
+            return i18n.translate("Internet")
+        if self.on_cheats():
+            return i18n.translate("Cheats")
+        if self.on_power():
+            return i18n.translate("Power")
+        return ""
 
     def draw_compat(self, c, game, x, y):
         """Works, Slow or Doesn't work, from the tested-games list, at the tile's top left."""
@@ -5278,7 +6875,11 @@ class Home:
         def read():
             _, items = system.trophies(game.path, game.title_id, self.settings["console_language"],
                                        self.profiles.current_id)
-            return (sum(1 for t in items if t["earned"]), len(items)) if items else None
+            if not items:
+                return None
+            grades = {g: sum(1 for t in items if t["earned"] and t["grade"] == g)
+                      for g in ("platinum", "gold", "silver", "bronze")}
+            return (sum(1 for t in items if t["earned"]), len(items), grades)
 
         return self.poll.get(("trophies", game.key, self.profiles.current_id), read, 120.0)
 
@@ -5312,6 +6913,8 @@ class Home:
                      f"  •  {system.PS4_GAMES_SHOWN} on the PS4, with GoldHEN FTP",
                      "  •  a shared folder on a PC (Settings, at the top)",
                      "They show up here by themselves."]
+        elif self.on_library():
+            lines, sub, button = [i18n.translate("Game Library")], "All your games in one place", "Open"
         elif self.on_browser():
             lines, sub, button = [i18n.translate("Internet")], "Browse the web with the controller", "Open"
         elif self.on_cheats():
@@ -5365,12 +6968,28 @@ class Home:
         if self.focus == "wifi":
             return [("cross", "Wi-Fi"), (None, "Left: Settings"), ("circle", "Back")]
         if self.focus == "settings":
-            return [("cross", "Settings"), (None, "Right: Wi-Fi"), ("circle", "Back")]
+            around = "Left: Search  ·  Right: Profile" if self.ps5_layout else "Left: Notifications  ·  Right: Wi-Fi"
+            return [("cross", "Settings"), (None, around), ("circle", "Back")]
+        if self.focus == "notifications":
+            return [("cross", "Notifications"), (None, "Right: Settings"), ("circle", "Back")]
+        if self.focus == "search":
+            return [("cross", "Search games"), (None, "Right: Settings"), ("circle", "Back")]
+        if self.focus == "profile":
+            return [("cross", "Profile"), (None, "Left: Settings"), ("circle", "Back")]
+        if self.focus == "play":
+            game = self.current_game()
+            down = [(None, "Down: Media")] if self.game_media(game) else []
+            return [("cross", "Open" if game is None else "Resume" if self.is_running(game) else "Play"),
+                    (None, "Right: More")] + down + [(None, "Up: Games"), back]
+        if self.focus == "more":
+            return [("cross", "Options"), (None, "Left: Play Game"), (None, "Up: Games"), back]
+        if self.focus == "media":
+            return [("cross", "View"), (None, "Up: Play Game"), back]
         if self.tab == "media":
             hints = [("cross", "View")] if self.media.paths else []
             return hints + [("l1r1", "Games"), back]
         game = self.current_game()
-        if self.on_browser() or self.on_cheats():
+        if self.on_browser() or self.on_cheats() or self.on_library():
             hints = [("cross", "Open")]
         elif self.on_power():
             hints = [("cross", "Select")]
@@ -5378,7 +6997,11 @@ class Home:
             hints = [("cross", "Resume" if game is not None and self.is_running(game) else "Play")]
         if game is not None:
             hints.append(("options", "Options"))
-        return hints + [("l1r1", "Media"), back, (None, "Up: Wi-Fi and Settings")]
+        hints.append(("triangle", f"Search: {self.search}" if self.search else "Search"))
+        if self.search:
+            hints.append(("circle", "Show all games"))
+        up = "Up: Search and Settings" if self.ps5_layout else "Up: Wi-Fi and Settings"
+        return hints + [("l1r1", "Media"), back, (None, up)]
 
     def run(self):
         last = time.monotonic()
@@ -5417,6 +7040,9 @@ class Home:
             if (idle < 10 or self.input.held or self.fade_out is not None or self.bg_mix < 1.0
                     or self.info_alpha < 1.0 or any(m.appear < 1.0 for m in self.modals)):
                 self.clock.tick(60)
+            elif getattr(self, "shine_tile", None) is not None and self.focus == "tiles" and not self.modals \
+                    and not self.quick and not self.saver_on and idle < 600:
+                self.clock.tick(40)     # The chosen tile's outline turns: smooth enough at 40.
             else:
                 self.clock.tick(5 if self.saver_on else 20 if idle < 60 else 10)
 

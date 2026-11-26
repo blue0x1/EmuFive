@@ -112,6 +112,7 @@ fi
 note=""
 failures=0
 while :; do
+    started=$(date +%s)
     choice="$(python3 "$HOME_SCREEN" ${note:+--message "$note"})"
     status=$?
     note=""
@@ -150,7 +151,12 @@ while :; do
         "$BIN/ps5-backdrop" render > "$HOME/.ps5-backdrop.log" 2>&1 &
         ;;
     *)
-        # The home screen itself failed: say so, and try again; turn off after 3 times.
+        # The home screen itself failed: say so, and try again; turn off after 3 times in a row
+        # that it could not start. One that ran a while first (stopped, or ended by an update) is
+        # not a failed start, so it never adds up to a power-off.
+        if [ $(( $(date +%s) - started )) -ge 30 ]; then
+            failures=0
+        fi
         failures=$((failures + 1))
         if [ $failures -ge 3 ]; then
             message 60 "The home screen could not start (exit code $status).\n\nThe log is ~/.ps5-session.log. The PS4 turns off in a minute."

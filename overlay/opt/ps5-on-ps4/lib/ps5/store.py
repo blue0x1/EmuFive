@@ -27,6 +27,7 @@ DEFAULT_SETTINGS = {
     "gpu_shared_memory": True, # Patch 0033: game memory the GPU uses in place (KYTY_GPU_SHARED_MEMORY).
     "gpu_submit_thread": True, # Patch 0040: GPU work is handed to Vulkan from a second core (KYTY_GPU_SUBMIT_THREAD).
     "fewer_memory_traps": True, # Patch 0041: small changing buffers are copied, not write-protected (KYTY_FEWER_TRAPS).
+    "auto_backup_saves": False, # Saves copied to the USB drive when a game closes (Settings > Saves).
     "cheats": False,           # The cheat manager (a Cheats tile on the home screen; lib/ps5/cheats.py).
     "menu_language": "en",     # i18n.LANGUAGES
     # Appearance.
@@ -40,9 +41,10 @@ DEFAULT_SETTINGS = {
     "orb_color": "white",      # white, accent, gold
     "animations": "full",      # full, reduced, off
     "cover_transition": "fade",  # fade, slide, zoom, wipe, dark, parallax, blinds, doors, push, iris, pixelate
+    "home_layout": "ps5",      # ps5 (the default: tiles at the top, the game's art and buttons below) or aurora (legacy)
     "tile_size": "medium",     # small, medium, large
     "tile_shape": "rounded",   # rounded, square, circle
-    "source_labels": True,
+    "tile_badges": False,       # USB / PS4 / PC on the game tiles (Settings > Appearance); off, as on a PS5.
     "show_compat_badges": False,   # Works / Slow / Doesn't work on tested games (lib/ps5/compat.py).
     "text_size": 100,          # 90-130 percent
     "font": "modern",          # ui.FONTS
@@ -185,6 +187,48 @@ class Settings:
             write_private(SETTINGS_FILE, text)
         except OSError:
             pass
+
+
+# Notifications shown so far (ps5-notify over games, toasts and notes on the home screen), for the
+# Notifications list in the quick menu: newest first, the last NOTIFICATIONS_KEPT.
+NOTIFICATIONS_FILE = os.path.join(CONFIG_DIR, "notifications.json")
+NOTIFICATIONS_KEPT = 50
+
+
+def notifications():
+    items = read_json(NOTIFICATIONS_FILE).get("items", [])
+    return [i for i in items if isinstance(i, dict)] if isinstance(items, list) else []
+
+
+def add_notification(title, text=""):
+    items = [{"title": str(title), "text": str(text or ""), "time": int(time.time())}] + notifications()
+    seen = read_json(NOTIFICATIONS_FILE).get("seen", 0)
+    try:
+        write_private(NOTIFICATIONS_FILE, json.dumps({"items": items[:NOTIFICATIONS_KEPT], "seen": seen},
+                                                     indent=1) + "\n")
+    except OSError:
+        pass
+
+
+def unread_notifications():
+    """Notifications newer than the last time the list was opened."""
+    seen = read_json(NOTIFICATIONS_FILE).get("seen", 0)
+    return sum(1 for i in notifications() if i.get("time", 0) > seen)
+
+
+def mark_notifications_read():
+    data = {"items": notifications(), "seen": int(time.time())}
+    try:
+        write_private(NOTIFICATIONS_FILE, json.dumps(data, indent=1) + "\n")
+    except OSError:
+        pass
+
+
+def clear_notifications():
+    try:
+        os.remove(NOTIFICATIONS_FILE)
+    except OSError:
+        pass
 
 
 def game_key(game_path, title_id):

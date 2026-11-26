@@ -33,6 +33,7 @@ GAME_LOG = os.path.expanduser("~/kytyps5.log")
 FAILED_SHADERS = os.path.expanduser("~/kytyps5-failed-shaders")
 ADMIN = "/opt/ps5-on-ps4/bin/ps5-admin"
 RUNTIME = os.environ.get("XDG_RUNTIME_DIR") or f"/run/user/{os.getuid()}"
+BROWSER_APP = os.path.join(RUNTIME, "ps5-browser-app")   # Media's app for the next browser start.
 
 
 def run(args, timeout=20, root=False, text_input=None):
@@ -846,10 +847,17 @@ def save_backups():
     return sorted(_listdir(SAVES_DIR), reverse=True)
 
 
-def backup_saves():
+AUTO_BACKUPS_KEPT = 5
+
+
+def backup_saves(auto=False):
+    """auto: the backup made when a game closes (Settings > Saves); only the newest few are kept."""
     if not mounted(USB_MOUNT):
         return False, "Plug in a USB drive first."
-    name = time.strftime("%Y-%m-%d %H.%M.%S")
+    name = time.strftime("%Y-%m-%d %H.%M.%S") + (" auto" if auto else "")
+    if auto:
+        for old in [n for n in save_backups() if n.endswith(" auto")][AUTO_BACKUPS_KEPT - 1:]:
+            shutil.rmtree(os.path.join(SAVES_DIR, old), ignore_errors=True)
     target = os.path.join(SAVES_DIR, name)
     try:
         os.makedirs(target)
@@ -862,6 +870,175 @@ def backup_saves():
         shutil.rmtree(target, ignore_errors=True)
         return False, f"Backup failed: {error}"
     return True, f"Saves backed up to PS5-saves/{name} on the USB drive."
+
+
+# Compiled shaders shared between PS4s: a game's KytyPS5 shader store (TITLE.shaders, with "Keep
+# compiled shaders") and Vulkan driver cache (TITLE.bin) copied to the USB drive (PS5-shaders/TITLE)
+# and back. KytyPS5 checks both when it loads them (its version, the GPU and driver) and builds them
+# again when they do not match, so a copy from another model or EmuFive version only costs the time.
+
+SHADERS_SHARE_DIR = USB_MOUNT + "/PS5-shaders"
+SHADER_FILES = (".shaders", ".bin")
+
+
+def _shader_files(folder, title_id):
+    return [title_id + ext for ext in SHADER_FILES if os.path.isfile(os.path.join(folder, title_id + ext))]
+
+
+def shader_status(title_id):
+    """(size of this game's compiled shaders on the PS4, the same on the USB drive), in bytes."""
+    def size(folder):
+        return sum(os.path.getsize(os.path.join(folder, n)) for n in _shader_files(folder, title_id))
+    return (size(os.path.join(store.KYTY_WORK, "_PipelineCache")) if title_id else 0,
+            size(os.path.join(SHADERS_SHARE_DIR, title_id)) if title_id and mounted(USB_MOUNT) else 0)
+
+
+def export_shaders(title_id, title=""):
+    if not mounted(USB_MOUNT):
+        return False, "Plug in a USB drive first."
+    source = os.path.join(store.KYTY_WORK, "_PipelineCache")
+    names = _shader_files(source, title_id)
+    if not names:
+        return False, "This game has no compiled shaders yet. Play it first."
+    target = os.path.join(SHADERS_SHARE_DIR, title_id)
+    try:
+        os.makedirs(target, exist_ok=True)
+        for name in names:
+            shutil.copyfile(os.path.join(source, name), os.path.join(target, name + ".new"))
+            os.replace(os.path.join(target, name + ".new"), os.path.join(target, name))
+        with open(os.path.join(target, "info.txt"), "w", encoding="utf-8") as f:
+            f.write(f"{title or title_id} ({title_id})\nCompiled shaders from EmuFive, "
+                    f"{time.strftime('%Y-%m-%d')}. Import them on another PS4 from the game's OPTIONS.\n")
+    except OSError as error:
+        return False, f"Export failed: {error}"
+    return True, f"Shaders exported to PS5-shaders/{title_id} on the USB drive."
+
+
+def import_shaders(title_id):
+    source = os.path.join(SHADERS_SHARE_DIR, title_id)
+    names = _shader_files(source, title_id)
+    if not names:
+        return False, "This game's shaders are not on the USB drive."
+    target = os.path.join(store.KYTY_WORK, "_PipelineCache")
+    try:
+        os.makedirs(target, exist_ok=True)
+        for name in names:
+            path = os.path.join(target, name)
+            if os.path.isfile(path):
+                os.replace(path, path + ".before-import")
+            shutil.copyfile(os.path.join(source, name), path + ".new")
+            os.replace(path + ".new", path)
+    except OSError as error:
+        return False, f"Import failed: {error}"
+    return True, "Shaders imported. They are used the next time the game starts."
+
+
+def shader_titles(folder):
+    """Title IDs with compiled shaders: in _PipelineCache (files TITLE.ext) or PS5-shaders (folders)."""
+    titles = set()
+    if folder == SHADERS_SHARE_DIR:
+        titles = {n for n in _listdir(folder) if _shader_files(os.path.join(folder, n), n)}
+    else:
+        try:
+            for name in os.listdir(folder):
+                title, ext = os.path.splitext(name)
+                if ext in SHADER_FILES:
+                    titles.add(title)
+        except OSError:
+            pass
+    return sorted(titles)
+
+
+def export_all_shaders():
+    if not mounted(USB_MOUNT):
+        return False, "Plug in a USB drive first."
+    titles = shader_titles(os.path.join(store.KYTY_WORK, "_PipelineCache"))
+    if not titles:
+        return False, "No game has compiled shaders yet. Play a game first."
+    for title in titles:
+        ok, message = export_shaders(title)
+        if not ok:
+            return False, message
+    return True, f"Shaders of {len(titles)} games exported to PS5-shaders on the USB drive."
+
+
+def import_all_shaders():
+    """Returns (ok, message, the title IDs imported)."""
+    if not mounted(USB_MOUNT):
+        return False, "Plug in a USB drive first.", []
+    titles = shader_titles(SHADERS_SHARE_DIR)
+    if not titles:
+        return False, "There are no shaders in PS5-shaders on the USB drive.", []
+    for title in titles:
+        ok, message = import_shaders(title)
+        if not ok:
+            return False, message, []
+    return True, f"Shaders of {len(titles)} games imported. They are used the next time each game starts.", titles
+
+
+# What ps5-launch tells the player when a game has closed; the home screen shows it once.
+AFTER_GAME_NOTE = os.path.join(RUNTIME, "ps5-after-game.txt")
+
+
+def take_after_game_note():
+    try:
+        with open(AFTER_GAME_NOTE, encoding="utf-8") as f:
+            text = f.read().strip()
+        os.remove(AFTER_GAME_NOTE)
+        return text
+    except OSError:
+        return ""
+
+
+def failed_shader_count():
+    """Shaders Mesa could not read in the last game (MESA_SPIRV_FAIL_DUMP_PATH)."""
+    try:
+        return sum(1 for n in os.listdir(FAILED_SHADERS) if n.endswith(".spv"))
+    except OSError:
+        return 0
+
+
+# Pictures for games: PS5-covers/TITLE.png (or .jpg) on the USB drive, copied to COVERS_DIR. A cover
+# there is shown in place of the game's own icon (and for games that have none).
+COVERS_USB_DIR = USB_MOUNT + "/PS5-covers"
+COVERS_DIR = os.path.join(store.CONFIG_DIR, "covers")
+COVER_TYPES = (".png", ".jpg", ".jpeg")
+
+
+def cover_file(title_id):
+    for ext in COVER_TYPES:
+        path = os.path.join(COVERS_DIR, title_id + ext)
+        if title_id and os.path.isfile(path):
+            return path
+    return None
+
+
+def import_covers():
+    if not mounted(USB_MOUNT):
+        return False, "Plug in a USB drive first."
+    try:
+        names = [n for n in os.listdir(COVERS_USB_DIR) if os.path.splitext(n)[1].lower() in COVER_TYPES]
+    except OSError:
+        names = []
+    if not names:
+        return False, "There are no pictures in PS5-covers on the USB drive. Name them by title ID, like PPSA09076.png."
+    try:
+        os.makedirs(COVERS_DIR, exist_ok=True)
+        for name in names:
+            title, ext = os.path.splitext(name)
+            title = title.upper()
+            for old in COVER_TYPES:   # One picture per game: the new one replaces any other type.
+                if os.path.isfile(os.path.join(COVERS_DIR, title + old)):
+                    os.remove(os.path.join(COVERS_DIR, title + old))
+            shutil.copyfile(os.path.join(COVERS_USB_DIR, name), os.path.join(COVERS_DIR, title + ext.lower()))
+    except OSError as error:
+        return False, f"Import failed: {error}"
+    return True, f"{len(names)} covers imported."
+
+
+def remove_covers():
+    shutil.rmtree(COVERS_DIR, ignore_errors=True)
+    return True, "Your own covers were removed. Games show their own pictures again."
 
 
 def restore_saves(name):

@@ -280,6 +280,25 @@ def after_game(game, games, settings, played, code, for_memory):
         reason = error_reason(log_text)
         ended = f"Stopped with error code {code}" + (f": {reason}" if reason else "")
     record = report.record_for(game, played, code, ended, settings_used(settings, games, game), log_text)
+    notes = []
+    failed = system.failed_shader_count()
+    record["failed_shaders"] = failed
+    if failed:
+        notes.append(f"{failed} of the game's shaders could not be built, so some graphics may be missing. "
+                     "They are kept with the log: Copy logs to USB includes them for a bug report.")
+    if settings["auto_backup_saves"] and played > 5 and system.mounted(system.USB_MOUNT):
+        ok, message = system.backup_saves(auto=True)
+        print("ps5-launch: " + message, flush=True)
+        if not ok:
+            notes.append(message)
+    try:
+        if notes:
+            with open(system.AFTER_GAME_NOTE, "w", encoding="utf-8") as f:
+                f.write("\n\n".join(notes) + "\n")
+        elif os.path.isfile(system.AFTER_GAME_NOTE):
+            os.remove(system.AFTER_GAME_NOTE)
+    except OSError:
+        pass
     report.write_last_game(record)
     if (code != 0 and not closed) or for_memory:
         try:

@@ -17,6 +17,8 @@
 # ~/.config/ps5-on-ps4/browser.json.
 #
 #   ps5-browser [URL]
+#   ps5-browser --app NAME        an app from Media (see APPS): one site full screen, no bar. A TV
+#                                 site (YouTube) is used like a TV: D-pad or left stick, X, O.
 import ctypes
 import ctypes.util
 import fcntl
@@ -31,7 +33,7 @@ import time
 import urllib.parse
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "lib"))
-from ps5 import i18n, store  # noqa: E402
+from ps5 import i18n, store, system  # noqa: E402
 
 # WebKitGTK 2.46+ draws page tiles with Skia on the GPU, which leaves checkered blocks on the PS4's
 # GPU (YouTube, the start page: #61). Drawn by the CPU, then put on screen by the GPU, they are
@@ -58,6 +60,10 @@ SEARCH = {"google": ("Google", "https://www.google.com/search?q="),
           "bing": ("Bing", "https://www.bing.com/search?q=")}
 MOBILE_AGENT = ("Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 "
                 "(KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1")
+# YouTube's TV interface (the one smart TVs and consoles open) answers a TV only.
+TV_AGENT = ("Mozilla/5.0 (SMART-TV; Linux; Tizen 6.0) AppleWebKit/537.36 (KHTML, like Gecko) "
+            "76.0.3809.146/6.0 TV Safari/537.36")
+APPS = {"youtube": {"title": "YouTube", "url": "https://www.youtube.com/tv", "agent": TV_AGENT, "tv": True}}
 ZOOMS = [50, 67, 75, 80, 90, 100, 110, 125, 150, 175, 200, 250, 300]
 DEFAULT_STATE = {
     "search": "google",
@@ -588,6 +594,12 @@ class MenuLayer(ListLayer):
 
     def rows(self):
         b = self.b
+        if b.app:
+            rows = [dict(label="Reload", ok=lambda: (b.view.reload(), self.close()))]
+            if not b.app["tv"]:
+                rows.append(dict(label="Zoom", value=f"{b.state['zoom']}%", step=b.step_zoom))
+            rows.append(dict(label="Close", sub="Back to the home screen", ok=b.quit))
+            return rows
         uri = b.current_uri()
         page = uri and not uri.startswith("emufive:")
         marked = page and any(m["url"] == uri for m in b.state["bookmarks"])
@@ -764,7 +776,8 @@ class Browser:
     REPEAT_DELAY, REPEAT_RATE = 0.35, 0.09
     POINTER_HIDE = 6.0             # Seconds: the pointer hides when it has not moved for this long.
 
-    def __init__(self, url):
+    def __init__(self, url, app=None):
+        self.app = APPS.get(app)      # An app from Media (see APPS), or None: the web browser.
         self.settings = store.Settings()
         i18n.set_language(self.settings["menu_language"])
         self.swap = self.settings["swap_buttons"]
@@ -838,11 +851,13 @@ class Browser:
         # 2D canvases are drawn by Skia on the GPU too, with black blocks on the PS4's GPU like the
         # page tiles (a canvas game: #74); WEBKIT_SKIA_ENABLE_CPU_RENDERING does not cover them.
         s.set_enable_2d_canvas_acceleration(False)
-        s.set_media_playback_requires_user_gesture(True) # No videos playing by themselves.
+        # No videos playing by themselves (an app's own previews do).
+        s.set_media_playback_requires_user_gesture(self.app is None)
         s.set_javascript_can_open_windows_automatically(False)
         self.default_agent = s.get_user_agent()
         self.apply_agent()
-        view.set_zoom_level(self.state["zoom"] / 100)
+        tv = self.app is not None and self.app["tv"]
+        view.set_zoom_level(1.0 if tv else self.state["zoom"] / 100)   # A TV site fits itself.
         view.set_background_color(Gdk.RGBA(12 / 255, 10 / 255, 28 / 255, 1))
         view.connect("create", self.on_create)
         view.connect("permission-request", self.on_permission)
@@ -856,7 +871,10 @@ class Browser:
         view.connect("mouse-target-changed", self.on_target)
         for prop in ("title", "uri", "estimated-load-progress", "is-loading"):
             view.connect("notify::" + prop, lambda *a: self.bar.queue_draw() if hasattr(self, "bar") else None)
-        self.open_url(url or self.state["last_url"] or START)
+        if self.app:
+            self.open_url(self.app["url"])
+        else:
+            self.open_url(url or self.state["last_url"] or START)
 
     def scheme(self, request):
         if request.get_path().strip("/") in ("start", ""):
@@ -886,6 +904,9 @@ class Browser:
         self.open_url(url)
 
     def apply_agent(self):
+        if self.app and self.app["agent"]:
+            self.view.get_settings().set_user_agent(self.app["agent"])
+            return
         self.view.get_settings().set_user_agent(MOBILE_AGENT if self.state["mobile"] else self.default_agent)
 
     def on_create(self, view, action):
@@ -955,7 +976,7 @@ class Browser:
         css.load_from_data(b"window { background-color: #0c0a1c; }")
         Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(), css,
                                                  Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
-        win = self.window = Gtk.Window(title="Internet")
+        win = self.window = Gtk.Window(title=self.app["title"] if self.app else "Internet")
         win.set_decorated(False)
         win.connect("delete-event", lambda *a: (self.quit(), True)[1])
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
@@ -974,6 +995,10 @@ class Browser:
         win.add(box)
         win.fullscreen()
         win.show_all()
+        if self.app:
+            self.bar.hide()                   # An app is its site alone, full screen.
+            if self.app["tv"]:
+                self.pointer_shown = False
         self.view.grab_focus()
         if self.xt:
             self.xt.move(*self.pointer)
@@ -1199,12 +1224,14 @@ class Browser:
             return
         self.quitting = True
         uri = self.current_uri()
-        if uri.startswith("http"):
+        if self.app:
+            pass                              # The browser's own page stays the one it had.
+        elif uri.startswith("http"):
             self.state.set(last_url=uri)
         elif uri.startswith("emufive:"):
             self.state.set(last_url="")
         if self.xt:
-            for name in ("Up", "Down", "Left", "Right"):
+            for name in ("Up", "Down", "Left", "Right", "Return"):
                 self.xt.key(name, False)
             self.xt.button(1, False)
         Gtk.main_quit()
@@ -1322,6 +1349,15 @@ class Browser:
                 if action is not None:
                     self.layer_action(action)
             return
+        if self.app and self.app["tv"]:
+            # As on a TV remote: X is OK (Enter), O is back (Escape); the rest is not needed.
+            key = {BTN_SOUTH: "Return", BTN_EAST: "Escape", BTN_TL: "Escape"}.get(code)
+            if key and self.xt:
+                self.view.grab_focus()
+                self.xt.key(key, down)
+            elif code == BTN_START and down:
+                self.push_layer(MenuLayer(self))
+            return
         if code == BTN_SOUTH:
             self.show_pointer()
             if self.xt:
@@ -1410,6 +1446,24 @@ class Browser:
                     self.layer_action(d)
                     self.held[d] = now + self.REPEAT_RATE
             return True
+        if self.app and self.app["tv"]:
+            # The left stick is the D-pad too (held: the keys repeat, as the D-pad's do).
+            dirs = set()
+            if self.stick[ABS_X] < -0.6:
+                dirs.add("Left")
+            elif self.stick[ABS_X] > 0.6:
+                dirs.add("Right")
+            if self.stick[ABS_Y] < -0.6:
+                dirs.add("Up")
+            elif self.stick[ABS_Y] > 0.6:
+                dirs.add("Down")
+            if self.xt:
+                for name in dirs - self.stick_dirs:
+                    self.xt.key(name, True)
+                for name in self.stick_dirs - dirs:
+                    self.xt.key(name, False)
+            self.stick_dirs = dirs
+            return True
         self.stick_dirs = set()
         # The pointer: a full push crosses the screen in about a second.
         mx, my = shaped(self.stick[ABS_X]), shaped(self.stick[ABS_Y])
@@ -1432,8 +1486,20 @@ class Browser:
 
 
 def main():
-    url = sys.argv[1] if len(sys.argv) > 1 else None
-    browser = Browser(url)
+    args = sys.argv[1:]
+    app = None
+    if len(args) >= 2 and args[0] == "--app":
+        app, args = args[1], args[2:]
+    url = args[0] if args else None
+    if app is None and url is None:
+        # An app chosen in Media (ps5-home writes its name, then asks for the browser).
+        try:
+            with open(system.BROWSER_APP) as f:
+                app = f.read().strip() or None
+            os.remove(system.BROWSER_APP)
+        except OSError:
+            pass
+    browser = Browser(url, app)
     GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGTERM, lambda: (browser.quit(), False)[1])
     GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGINT, lambda: (browser.quit(), False)[1])
     Gtk.main()
