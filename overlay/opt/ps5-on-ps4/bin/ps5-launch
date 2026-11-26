@@ -18,6 +18,7 @@
 #   ps5-launch GAME [extra KytyPS5 options...]
 import json
 import os
+import shutil
 import signal
 import subprocess
 import sys
@@ -194,12 +195,21 @@ def main():
     # stale data when a game reads the target back (white dashes in Blue Prince). Mesa's
     # switches turn those shortcuts off.
     os.environ["RADV_DEBUG"] = "nofastclears,nohiz,nofmask"
+    # A shader Mesa cannot read crashes the game in the driver (#76); Mesa saves it here so
+    # Copy logs to USB can include it.
+    shutil.rmtree(system.FAILED_SHADERS, ignore_errors=True)
+    os.makedirs(system.FAILED_SHADERS, exist_ok=True)
+    os.environ["MESA_SPIRV_FAIL_DUMP_PATH"] = system.FAILED_SHADERS
     os.environ.update(games.environment(game.key, settings))   # Game settings set by variables.
     os.makedirs(system.DATA_DIR, exist_ok=True)
     os.chdir(work)
     system.set_controller_mic(settings["controller_mic"])
 
     args = [KYTY, "--game", path, "--fullscreen", "--hide-cursor"] + kyty_options(settings, games, game, profile) + extra
+    # GPU-written images up to 64x64 go back to game memory each frame, for games that read
+    # them on the CPU: Unreal Engine 5 reads its auto-exposure from a 1x1 image, and without
+    # it every 3D frame is black or white (Invincible VS).
+    args.append("--readback-tiled-images")
     args += cheat_options(settings, game)
     print("ps5-launch: " + " ".join(args), flush=True)
     try:

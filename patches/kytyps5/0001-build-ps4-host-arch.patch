@@ -19,7 +19,7 @@ ps4/build.Dockerfile is a Debian build environment for this build.
 
 diff --git a/ps4/build.Dockerfile b/ps4/build.Dockerfile
 new file mode 100644
-index 0000000..a135d8a
+index 0000000000000000000000000000000000000000..a135d8a359a0d3438e45885c9544e35d6dab7006
 --- /dev/null
 +++ b/ps4/build.Dockerfile
 @@ -0,0 +1,11 @@
@@ -35,7 +35,7 @@ index 0000000..a135d8a
 +        qt6-base-dev \
 +    && rm -rf /var/lib/apt/lists/*
 diff --git a/src/utils.cmake b/src/utils.cmake
-index 279dd9e..92b8dc3 100644
+index 279dd9eb955f164fdc301c03095d57c81087328d..92b8dc3edbc4845fe7c026c7d7962241372fded7 100644
 --- a/src/utils.cmake
 +++ b/src/utils.cmake
 @@ -67,6 +67,17 @@ endif()
@@ -83,6 +83,3 @@ index 279dd9e..92b8dc3 100644
  	
      if(KYTY_WARNINGS_ARE_ERRORS)
          #set(KYTY_CPP_FLAGS "${KYTY_CPP_FLAGS} -Werror")
--- 
-2.47.3
-

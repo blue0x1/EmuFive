@@ -4,6 +4,8 @@ read the old value and waited again for good: Invincible VS stopped with "GameTh
 waiting for RenderThread". Such an interrupt now goes through the GPU thread too, after the label.
 Also: a command list blocked for 10 s logs what it waits for ("GPU queue N stuck for 10 s: ...").
 
+diff --git a/src/graphics/guest_gpu/graphicsRun.cpp b/src/graphics/guest_gpu/graphicsRun.cpp
+index a02dede3c88590378aa6ce8bdc0c69fac5eb46dd..8a4163d40c7a0f8764c440b8d663ba4c2058c403 100644
 --- a/src/graphics/guest_gpu/graphicsRun.cpp
 +++ b/src/graphics/guest_gpu/graphicsRun.cpp
 @@ -45,6 +45,9 @@
@@ -16,7 +18,7 @@ Also: a command list blocked for 10 s logs what it waits for ("GPU queue N stuck
  namespace Libs::Graphics {
  
  static thread_local Pm4Execution* g_current_execution = nullptr;
-@@ -249,6 +252,7 @@
+@@ -266,6 +269,7 @@ void CommandProcessor::BufferWait() {
  
  void CommandProcessor::WaitForRewind(bool valid) {
  	if (!valid) {
@@ -24,7 +26,7 @@ Also: a command list blocked for 10 s logs what it waits for ("GPU queue N stuck
  		SuspendPm4();
  	}
  }
-@@ -334,6 +338,26 @@
+@@ -351,6 +355,26 @@ static void PublishEarlyLabel(GuestGpu& gpu, void* address, uint64_t value, uint
  	}
  }
  
@@ -51,7 +53,7 @@ Also: a command list blocked for 10 s logs what it waits for ("GPU queue N stuck
  template <typename T>
  static T ReadLabel(const T* addr) {
  	std::lock_guard lock(g_early_labels_mutex);
-@@ -348,7 +372,13 @@
+@@ -365,7 +389,13 @@ void CommandProcessor::WaitRegMem(uint32_t func, const T* addr, T ref, T mask, u
  		EXIT("unsupported wait_reg_mem operation: 0x%08" PRIx32 "\n", wait_op);
  	}
  
@@ -66,7 +68,7 @@ Also: a command list blocked for 10 s logs what it waits for ("GPU queue N stuck
  		SuspendPm4();
  	}
  }
-@@ -362,6 +392,7 @@
+@@ -379,6 +409,7 @@ void CommandProcessor::MemSemaphore(uint64_t* counter, bool signal, bool write)
  	if (signal) {
  		*counter = write ? 1u : *counter + 1u;
  	} else if (*counter == 0) {
@@ -74,7 +76,7 @@ Also: a command list blocked for 10 s logs what it waits for ("GPU queue N stuck
  		SuspendPm4();
  	} else {
  		(*counter)--;
-@@ -600,6 +631,20 @@
+@@ -625,6 +656,20 @@ void GuestGpu::ThreadRun(void* data) {
  			return gpu->Process(submission);
  		}();
  
@@ -95,7 +97,7 @@ Also: a command list blocked for 10 s logs what it waits for ("GPU queue N stuck
  		Common::LockGuard lock(gpu->m_queue_mutex);
  		if (!complete) {
  			submission.blocked = true;
-@@ -669,6 +714,7 @@
+@@ -695,6 +740,7 @@ Pm4ProcessResult CommandProcessor::Process(Pm4Execution&             execution,
  	}
  	execution.m_suspended     = false;
  	execution.m_made_progress = false;
@@ -103,7 +105,7 @@ Also: a command list blocked for 10 s logs what it waits for ("GPU queue N stuck
  
  	struct ExecutionScope {
  		explicit ExecutionScope(Pm4Execution& execution) { g_current_execution = &execution; }
-@@ -831,6 +877,8 @@
+@@ -860,6 +906,8 @@ void CommandProcessor::SetPredication(uint32_t condition, uint32_t op, uint32_t
  				const auto end   = results[db * 2u + 1u];
  				if ((begin & end & ready_bit) == 0) {
  					if (wait_op == 0) {
@@ -112,7 +114,7 @@ Also: a command list blocked for 10 s logs what it waits for ("GPU queue N stuck
  						SuspendPm4();
  					} else {
  						m_predicate_skip = false;
-@@ -1117,7 +1165,7 @@
+@@ -1159,7 +1207,7 @@ void CommandProcessor::ReleaseMem(uint32_t data_sel, uint32_t interrupt_selector
  	if (interrupt) {
  		GetScheduler().DeferPriorityOperation(
  		    [&renderer = m_renderer, event_id = m_interrupt_event_id, interrupt_context_id] {
@@ -121,6 +123,8 @@ Also: a command list blocked for 10 s logs what it waits for ("GPU queue N stuck
  		    });
  	}
  }
+diff --git a/src/graphics/guest_gpu/graphicsRun.h b/src/graphics/guest_gpu/graphicsRun.h
+index fb04fdf8e039769739b9bb061335584763fcbf62..eec8b0b36503b3da54fcafb4b456fbd1a53b4d5b 100644
 --- a/src/graphics/guest_gpu/graphicsRun.h
 +++ b/src/graphics/guest_gpu/graphicsRun.h
 @@ -8,6 +8,7 @@
@@ -131,7 +135,7 @@ Also: a command list blocked for 10 s logs what it waits for ("GPU queue N stuck
  #include <atomic>
  #include <cstdint>
  #include <deque>
-@@ -62,6 +63,9 @@
+@@ -62,6 +63,9 @@ private:
  		Pm4Execution              execution;
  		bool                      blocked         = false;
  		uint64_t                  flip_request_id = 0;

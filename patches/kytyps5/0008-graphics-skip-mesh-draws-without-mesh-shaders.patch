@@ -12,10 +12,10 @@ how many (at 1, 2, 4, 8... skipped draws), so the game keeps running with that
 geometry missing. Drawing it needs mesh shaders emulated with compute shaders.
 
 diff --git a/src/graphics/host_gpu/renderer/pipeline/pipelineCache.cpp b/src/graphics/host_gpu/renderer/pipeline/pipelineCache.cpp
-index c944fdc7..5009d0b0 100644
+index d6359cae52c1dcf00411fb3dfbb61f8699e3548e..13d751818197aed1d134f761c547d3ccfc2032f3 100644
 --- a/src/graphics/host_gpu/renderer/pipeline/pipelineCache.cpp
 +++ b/src/graphics/host_gpu/renderer/pipeline/pipelineCache.cpp
-@@ -694,6 +694,18 @@ void PipelineCache::GetGraphicsPrograms(const CommandBuffer& command, DrawRender
+@@ -634,6 +634,18 @@ void PipelineCache::GetGraphicsPrograms(const CommandBuffer& command, DrawRender
  		vertex_params[0] = PrepareProgram(vertex_regs, context, user_config, vertex_info[0]);
  	}
  	const bool mesh_active = vertex_info[0].logical_stage == ShaderType::Mesh;
@@ -34,13 +34,13 @@ index c944fdc7..5009d0b0 100644
  	if (!tess_active && !mesh_active) {
  		vertex_info[0].indirect_offsets = state.indirect_offsets;
  		vertex_info[0].indirect_draw    = state.indirect_draw;
-@@ -709,8 +721,7 @@ void PipelineCache::GetGraphicsPrograms(const CommandBuffer& command, DrawRender
+@@ -649,8 +661,7 @@ void PipelineCache::GetGraphicsPrograms(const CommandBuffer& command, DrawRender
  		                         .buffer_format != Prospero::BufferFormat::k32UInt);
  	}
  	if (mesh_active) {
 -		EXIT_NOT_IMPLEMENTED(!m_graphics.mesh_shader_enabled);
 -		auto& mesh              = vertex_info[0].mesh;
-+		auto& mesh             = vertex_info[0].mesh;
++		auto& mesh               = vertex_info[0].mesh;
+ 		mesh.output_primitive_id = object_primitive_id;
  		mesh.host_subgroup_size = m_graphics.subgroup_size;
  		const auto& limits      = m_graphics.mesh_shader_properties;
- 		const auto  logical_threads =

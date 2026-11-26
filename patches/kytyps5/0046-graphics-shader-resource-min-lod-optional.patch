@@ -1,0 +1,103 @@
+From: EmuFive <blue0x1>
+Date: 2026-11-25
+Subject: [PATCH 0046] graphics: shaderResourceMinLod is optional
+
+Upstream KytyPS5 now needs shaderResourceMinLod, which the PS4's GCN2 GPU
+(RADV Liverpool/Gladius) does not have, so no device was found. The feature is
+now enabled only when the GPU has it; without it, image samples with a LOD
+clamp (implicit LOD or gradients) drop the clamp. Explicit-LOD samples still
+clamp with a max.
+
+diff --git a/src/graphics/host_gpu/renderer/pipeline/shaderResourceBarrier.cpp b/src/graphics/host_gpu/renderer/pipeline/shaderResourceBarrier.cpp
+index 5533e595417a9a64998b0737fcbba5c72c22a20b..fb37724367348ecb27c0b1ce19318f5f2a2dcee2 100644
+--- a/src/graphics/host_gpu/renderer/pipeline/shaderResourceBarrier.cpp
++++ b/src/graphics/host_gpu/renderer/pipeline/shaderResourceBarrier.cpp
+@@ -12,6 +12,7 @@ namespace Libs::Graphics {
+ namespace {
+ bool g_mesh_programs_run_as_compute = false;
+ bool g_fragment_shader_barycentric  = false;
++bool g_shader_resource_min_lod     = true;
+ } // namespace
+ 
+ void SetMeshProgramsRunAsCompute(bool value) {
+@@ -30,6 +31,14 @@ bool FragmentShaderBarycentric() {
+ 	return g_fragment_shader_barycentric;
+ }
+ 
++void SetShaderResourceMinLod(bool value) {
++	g_shader_resource_min_lod = value;
++}
++
++bool ShaderResourceMinLod() {
++	return g_shader_resource_min_lod;
++}
++
+ vk::ShaderStageFlagBits NativeShaderStage(ShaderType stage) {
+ 	switch (stage) {
+ 		case ShaderType::Local:
+diff --git a/src/graphics/host_gpu/renderer/pipeline/shaderResourceBarrier.h b/src/graphics/host_gpu/renderer/pipeline/shaderResourceBarrier.h
+index f2e5a824af510179205ebcd9a9895d767f0b70a1..b6778447b3a71a8f1f9984a64ba371fbae2aa71c 100644
+--- a/src/graphics/host_gpu/renderer/pipeline/shaderResourceBarrier.h
++++ b/src/graphics/host_gpu/renderer/pipeline/shaderResourceBarrier.h
+@@ -16,6 +16,9 @@ bool MeshProgramsRunAsCompute();
+ // inputs fall back to smooth interpolation so shaders compile without the missing extension.
+ void SetFragmentShaderBarycentric(bool value);
+ bool FragmentShaderBarycentric();
++// EmuFive: GCN2 lacks shaderResourceMinLod; samples then drop their LOD clamp.
++void SetShaderResourceMinLod(bool value);
++bool ShaderResourceMinLod();
+ vk::ShaderStageFlagBits NativeShaderStage(ShaderType stage);
+ vk::PipelineStageFlags  ShaderPipelineStages(vk::ShaderStageFlags stages);
+ vk::MemoryBarrier       MakeShaderWriteDependency();
+diff --git a/src/graphics/presentation/window/vulkanWindow.cpp b/src/graphics/presentation/window/vulkanWindow.cpp
+index 0f360d0441b860ca5ebb1bc35c5c6a750962d58f..c28a7ce3d92190b95f24e47be1c31d1dfbb1fcce 100644
+--- a/src/graphics/presentation/window/vulkanWindow.cpp
++++ b/src/graphics/presentation/window/vulkanWindow.cpp
+@@ -280,7 +280,6 @@ static void VulkanFindPhysicalDevice(vk::Instance instance, vk::SurfaceKHR surfa
+ 
+ 		check_feature(device_features2.features.shaderImageGatherExtended,
+ 		              "shaderImageGatherExtended");
+-		check_feature(device_features2.features.shaderResourceMinLod, "shaderResourceMinLod");
+ 
+ 		check_feature(device_features2.features.independentBlend, "independentBlend");
+ 		check_feature(device_features2.features.tessellationShader, "tessellationShader");
+@@ -507,6 +506,8 @@ static vk::Device VulkanCreateDevice(GraphicContext&          graphics,
+ 	SetMeshProgramsRunAsCompute(!graphics.mesh_shader_enabled);
+ 	// EmuFive: GCN2 lacks this; pixel shaders fall back to smooth interpolation.
+ 	SetFragmentShaderBarycentric(barycentric_supported);
++	// EmuFive: GCN2 lacks this too; samples drop their LOD clamp.
++	SetShaderResourceMinLod(supported2.features.shaderResourceMinLod == VK_TRUE);
+ 
+ 	vk::StructureChain<
+ 	    vk::PhysicalDeviceProperties2, vk::PhysicalDeviceFloatControlsProperties,
+@@ -604,7 +605,7 @@ static vk::Device VulkanCreateDevice(GraphicContext&          graphics,
+ 	device_features.shaderStorageImageMultisample =
+ 	    supported2.features.shaderStorageImageMultisample;
+ 	device_features.shaderImageGatherExtended            = VK_TRUE;
+-	device_features.shaderResourceMinLod                 = VK_TRUE;
++	device_features.shaderResourceMinLod                 = supported2.features.shaderResourceMinLod;
+ 	device_features.independentBlend                     = VK_TRUE;
+ 	device_features.dualSrcBlend                         = VK_TRUE;
+ 	device_features.tessellationShader                   = VK_TRUE;
+diff --git a/src/graphics/shader/recompiler/backend/spirv/spirvEmitterImage.cpp b/src/graphics/shader/recompiler/backend/spirv/spirvEmitterImage.cpp
+index 6535233494a6e015b68ecf95a0b8731ac7281c4b..a0f895da3ded94ee148d96a3e693aa157dd0b4aa 100644
+--- a/src/graphics/shader/recompiler/backend/spirv/spirvEmitterImage.cpp
++++ b/src/graphics/shader/recompiler/backend/spirv/spirvEmitterImage.cpp
+@@ -1,4 +1,5 @@
+ #include "graphics/guest_gpu/gpu_format.h"
++#include "graphics/host_gpu/renderer/pipeline/shaderResourceBarrier.h"
+ #include "graphics/shader/recompiler/backend/spirv/spirvEmitterInstructions.h"
+ #include "graphics/shader/recompiler/frontend/decode/ImageOps.h"
+ 
+@@ -1108,8 +1109,9 @@ void EmitImage(ValueEmitContext& ctx, const IR::Inst& inst) {
+ 				sample_operands[sample_operand_count++] = PackedOffset(
+ 				    ctx, offset_value, candidate.dimension, sample_operands[0]);
+ 			}
+-			// MinLod follows the offset in operand order.
+-			if (min_lod != 0) {
++			// MinLod follows the offset in operand order. Without the device feature (the PS4's
++			// GCN2) the clamp is dropped.
++			if (min_lod != 0 && ShaderResourceMinLod()) {
+ 				state.builder.RequireCapability(spv::CapabilityMinLod);
+ 				sample_operand_count = std::max(size_t{1}, sample_operand_count);
+ 				sample_operands[0] |= spv::ImageOperandsMinLodMask;

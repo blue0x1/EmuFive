@@ -8,10 +8,10 @@ resolution from these. Also logs how many timestamps the game asks for.
 An experiment, not for a release.
 
 diff --git a/src/graphics/guest_gpu/graphicsRun.cpp b/src/graphics/guest_gpu/graphicsRun.cpp
-index eebe9a8d..7093bc66 100644
+index 801058bea54afc49c1d5a53a1d3a18cf14a6a75e..1d29c1099740de1c2e55a395ada0939c5cfbb623 100644
 --- a/src/graphics/guest_gpu/graphicsRun.cpp
 +++ b/src/graphics/guest_gpu/graphicsRun.cpp
-@@ -297,12 +297,43 @@ void CommandProcessor::WriteData(uint32_t* dst, const uint32_t* src, uint32_t dw
+@@ -319,12 +319,43 @@ void CommandProcessor::WriteData(uint64_t dst, const uint32_t* src, uint32_t dw_
  	}
  }
  
@@ -55,7 +55,7 @@ index eebe9a8d..7093bc66 100644
  	const auto value = Sync::ReadReferenceClock();
  	std::memcpy(reinterpret_cast<void*>(dst_address), &value, num_bytes);
  	static std::atomic<uint32_t> clock_log_count {0};
-@@ -942,7 +973,17 @@ void CommandProcessor::ReleaseMem(uint32_t data_sel, uint32_t interrupt_selector
+@@ -985,7 +1016,17 @@ void CommandProcessor::ReleaseMem(uint32_t data_sel, uint32_t interrupt_selector
  			write_label(&value, sizeof(value));
  			break;
  		}

@@ -8,6 +8,8 @@ saved, the carry in (CF for ADCX, OF for ADOX) comes from the saved copy,
 ADC does the sum, and the carry out goes back into the saved copy, so only
 that one flag changes. tools/jaguar-test checks every register, flag and
 memory form against the real instructions.
+diff --git a/src/loader/jaguarCompat.cpp b/src/loader/jaguarCompat.cpp
+index c05ddd335e9851d775bd34df992e8e41945d41dd..d9e01b17dda21733f07b3c093f04d4c70f82229b 100644
 --- a/src/loader/jaguarCompat.cpp
 +++ b/src/loader/jaguarCompat.cpp
 @@ -1,5 +1,5 @@
@@ -17,7 +19,7 @@ memory form against the real instructions.
  // (SSE4.2, AVX, BMI1, F16C). See jaguarCompat.h.
  
  #include "loader/jaguarCompat.h"
-@@ -1244,6 +1244,43 @@
+@@ -1244,6 +1244,43 @@ bool GenerateBmi2(Emitter& e, bool flags_live) {
  	}
  }
  
@@ -61,7 +63,7 @@ memory form against the real instructions.
  } // namespace
  
  bool TrapTest() {
-@@ -1261,7 +1298,7 @@
+@@ -1261,7 +1298,7 @@ bool Enabled() {
  		}
  		const Xbyak::util::Cpu cpu;
  		return !(cpu.has(Xbyak::util::Cpu::tAVX2) && cpu.has(Xbyak::util::Cpu::tFMA) &&
@@ -70,7 +72,7 @@ memory form against the real instructions.
  	}();
  	return enabled;
  }
-@@ -1271,13 +1308,18 @@
+@@ -1271,13 +1308,18 @@ bool IsMissing(const ZydisDecodedInstruction& instruction) {
  		case ZYDIS_ISA_EXT_AVX2:
  		case ZYDIS_ISA_EXT_AVX2GATHER:
  		case ZYDIS_ISA_EXT_FMA:
@@ -90,6 +92,8 @@ memory form against the real instructions.
  	if (instruction.encoding != ZYDIS_INSTRUCTION_ENCODING_VEX) {
  		return false;
  	}
+diff --git a/src/loader/jaguarCompat.h b/src/loader/jaguarCompat.h
+index 9f16f0d5aecdb9aeb82fe48c1e32f56ca57cf3f3..d9fc474b9b5d98caf852cb3f2dee4a8c8f58a0cc 100644
 --- a/src/loader/jaguarCompat.h
 +++ b/src/loader/jaguarCompat.h
 @@ -1,5 +1,5 @@
@@ -99,7 +103,7 @@ memory form against the real instructions.
  
  #ifndef KYTY_LOADER_JAGUAR_COMPAT_H_
  #define KYTY_LOADER_JAGUAR_COMPAT_H_
-@@ -13,7 +13,7 @@
+@@ -13,7 +13,7 @@ class CodeGenerator;
  
  namespace Loader::JaguarCompat {
  
@@ -108,7 +112,7 @@ memory form against the real instructions.
  // The environment variable KYTY_JAGUAR_COMPAT=1 turns it on anyway (to test on a newer CPU),
  // KYTY_JAGUAR_COMPAT=0 turns it off.
  bool Enabled();
-@@ -22,7 +22,7 @@
+@@ -22,7 +22,7 @@ bool Enabled();
  // instructions at load time, make them fault, so that every one goes through the run-time path.
  bool TrapTest();
  

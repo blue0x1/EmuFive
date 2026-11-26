@@ -1,0 +1,2061 @@
+From: EmuFive <blue0x1>
+Date: 2026-11-25
+Subject: [PATCH 0044] graphics: run PS5 mesh shaders as compute on PS4 GPUs
+
+The PS4 GPU (Liverpool/Gladius, gfx9) has no mesh or task shaders, so games
+that draw with mesh shaders (Invincible VS, many Unreal Engine 5 titles) stop
+at "Not implemented (!m_graphics.mesh_shader_enabled)".
+
+When the Vulkan mesh+task features are absent, SetMeshProgramsRunAsCompute(true)
+is set and the GS-stage NGG/mesh program is recompiled to a compute shader that
+writes vertices and primitives into a buffer, one workgroup per NGG subgroup;
+renderDraw then draws from that buffer (dispatch_mesh). Detection and workgroup
+sizing use the GS fast-launch bits of VGT_SHADER_STAGES_EN and GE_NGG_SUBGRP_CNTL.
+
+Also adds the frameTrace GPU debug facility used while developing this.
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 1eee7f0f442cfd5833c0fc9a7a0993595969d021..a83af3d61a4887969ab361b03a85879ff8eb5c42 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -372,6 +372,8 @@ add_gpu_blit_shader(gpu_bvh_mirror gpu_bvh_mirror.comp)
+ add_gpu_blit_shader(gpu_bvh_walk gpu_bvh_mirror.comp -DWALK=1)
+ # At SPIR-V 1.6 glslang declares a task shader's workgroup size with LocalSizeId, which needs maintenance4.
+ add_gpu_blit_shader(gpu_mesh_indirect gpu_mesh_indirect.task --target-env spirv1.5)
++# EmuFive: indirect mesh draws run as compute on GPUs without mesh shaders.
++add_gpu_blit_shader(gpu_mesh_compute_indirect gpu_mesh_compute_indirect.comp --target-env spirv1.5)
+ list(APPEND kyty_emulator_src ${gpu_blit_shader_headers})
+ 
+ list(APPEND kyty_emulator_src
+diff --git a/src/graphics/guest_gpu/graphicsRun.cpp b/src/graphics/guest_gpu/graphicsRun.cpp
+index 8a4163d40c7a0f8764c440b8d663ba4c2058c403..2092ccf211248d74a816c0b41557976fbb2ce7a2 100644
+--- a/src/graphics/guest_gpu/graphicsRun.cpp
++++ b/src/graphics/guest_gpu/graphicsRun.cpp
+@@ -1,4 +1,5 @@
+ #include "graphics/guest_gpu/graphicsRun.h"
++#include "graphics/host_gpu/renderer/frameTrace.h"
+ 
+ #include "common/assert.h"
+ #include "common/debugCounters.h"
+@@ -1328,6 +1329,30 @@ void CommandProcessor::Flip(int handle, int index, int flip_mode, int64_t flip_a
+ 
+ void CommandProcessor::NoteFlipForGc() {
+ 	auto& gpu = m_renderer.GetGpu();
++	FrameTrace::OnFlip(
++	    [this](uint64_t address, uint64_t size) {
++		    m_renderer.GetCommandScheduler().Finish();
++		    m_renderer.GetBufferCache().ReadMemory(address, size);
++	    },
++	    [this](uint32_t index, uint64_t* address, uint64_t* size, uint32_t* format) {
++		    auto&      cache = m_renderer.GetTextureCache();
++		    const auto id    = ImageId {index};
++		    auto&      image = cache.GetImage(id);
++		    if (image.info.data.size > (64ull << 20u)) {
++			    return false;
++		    }
++		    *address = image.info.data.address;
++		    *size    = image.info.data.size;
++		    *format  = static_cast<uint32_t>(image.info.guest_format);
++		    if (!cache.TraceDownload(id)) {
++			    return false;
++		    }
++		    auto&      scheduler = m_renderer.GetCommandScheduler();
++		    const auto tick      = scheduler.CurrentTick();
++		    scheduler.Finish();
++		    scheduler.WaitPriorityOperations(tick);
++		    return true;
++	    });
+ 	static const bool perf_log = [] {
+ 		std::FILE* probe = std::fopen("perf-log", "r");
+ 		if (probe != nullptr) {
+diff --git a/src/graphics/host_gpu/renderer/cache/bufferCache.cpp b/src/graphics/host_gpu/renderer/cache/bufferCache.cpp
+index fb529e961cae797b26343261aa7c866b7fe81e4b..f6fd4c42e1e01eb6484375b19e50538d12b2ee51 100644
+--- a/src/graphics/host_gpu/renderer/cache/bufferCache.cpp
++++ b/src/graphics/host_gpu/renderer/cache/bufferCache.cpp
+@@ -19,6 +19,7 @@
+ #include "kernel/memory.h"
+ 
+ #include <algorithm>
++#include <chrono>
+ #include <cinttypes>
+ #include <cstdio>
+ #include <cstdlib>
+@@ -1008,8 +1009,9 @@ void BufferCache::InitDirectMemory() {
+ // EmuFive: a new GPU-shared chunk moves 32 MB of guest memory into GTT, where it stays pinned for
+ // the rest of the game. Games that keep streaming (Invincible VS: 3 GB at load, 4 GB after 6
+ // minutes) then fill the GTT and RAM, and the next submit fails ("Not enough memory for command
+-// submission"). No new chunk is made once the GTT or the free RAM gets low; later buffers use the
+-// normal path. KYTY_GPU_SHARED_RESERVE_MB sets the GTT room kept free (default 1536 MB).
++// submission"). No new chunk is made while the GTT or RAM plus swap is low; those buffers use the
++// normal path, and the room is checked again after 2 s. KYTY_GPU_SHARED_RESERVE_MB sets the GTT
++// room kept free (default 1280 MB, about 95 chunks for Invincible VS).
+ static uint64_t ReadSysValue(const char* path) {
+ 	unsigned long long value = 0;
+ 	if (std::FILE* f = std::fopen(path, "r"); f != nullptr) {
+@@ -1021,16 +1023,17 @@ static uint64_t ReadSysValue(const char* path) {
+ 	return value;
+ }
+ 
++// MemAvailable plus SwapFree: guest memory that is not GPU-shared can still be swapped out.
+ static uint64_t MemAvailableBytes() {
+ 	uint64_t value = 0;
+ 	if (std::FILE* f = std::fopen("/proc/meminfo", "r"); f != nullptr) {
+ 		char               name[64] {};
+ 		unsigned long long kb = 0;
+-		while (std::fscanf(f, "%63s %llu kB\n", name, &kb) == 2) {
+-			if (std::strcmp(name, "MemAvailable:") == 0) {
+-				value = kb * 1024;
+-				break;
++		while (std::fscanf(f, "%63s %llu", name, &kb) == 2) {
++			if (std::strcmp(name, "MemAvailable:") == 0 || std::strcmp(name, "SwapFree:") == 0) {
++				value += kb * 1024;
+ 			}
++			(void)std::fscanf(f, "%*[^\n]");
+ 		}
+ 		std::fclose(f);
+ 	}
+@@ -1040,7 +1043,7 @@ static uint64_t MemAvailableBytes() {
+ static bool GpuSharedRoomLeft(uint64_t chunk_size, std::string* why) {
+ 	static const uint64_t reserve = [] {
+ 		const char* value = std::getenv("KYTY_GPU_SHARED_RESERVE_MB");
+-		const auto  mb    = value != nullptr ? std::strtoull(value, nullptr, 10) : 1536ull;
++		const auto  mb    = value != nullptr ? std::strtoull(value, nullptr, 10) : 1280ull;
+ 		return static_cast<uint64_t>(mb) * MiB;
+ 	}();
+ 	const auto gtt_total = ReadSysValue("/sys/class/drm/card0/device/mem_info_gtt_total");
+@@ -1050,8 +1053,8 @@ static bool GpuSharedRoomLeft(uint64_t chunk_size, std::string* why) {
+ 		return false;
+ 	}
+ 	const auto available = MemAvailableBytes();
+-	if (available != 0 && available < chunk_size + 1024 * MiB) {
+-		*why = fmt::format("{} MB of RAM free", available >> 20u);
++	if (available != 0 && available < chunk_size + 512 * MiB) {
++		*why = fmt::format("{} MB of RAM and swap free", available >> 20u);
+ 		return false;
+ 	}
+ 	return true;
+@@ -1066,12 +1069,28 @@ vk::DeviceMemory BufferCache::DirectChunk(uint64_t chunk) {
+ 	}
+ 	const auto&                    dispatcher = VULKAN_HPP_DEFAULT_DISPATCHER;
+ 	const auto                     chunk_size = LibKernel::Memory::GpuSharedChunkSize();
+-	if (std::string why; !GpuSharedRoomLeft(chunk_size, &why)) {
+-		Log::WriteToConsoleAndLog(fmt::format(
+-		    "GPU-shared memory: stopped at {} chunks ({} MB), {}; later buffers are normal ones\n",
+-		    m_direct_chunks.size(), (m_direct_chunks.size() * chunk_size) >> 20u, why));
+-		m_direct_failed = true;
+-		return nullptr;
++	{
++		static std::chrono::steady_clock::time_point next_check {};
++		static bool                                  stopped = false;
++		const auto                                   now     = std::chrono::steady_clock::now();
++		if (stopped && now < next_check) {
++			return nullptr;
++		}
++		std::string why;
++		const bool  room = GpuSharedRoomLeft(chunk_size, &why);
++		if (room != !stopped) {
++			Log::WriteToConsoleAndLog(
++			    room ? fmt::format("GPU-shared memory: room again at {} chunks\n", m_direct_chunks.size())
++			         : fmt::format("GPU-shared memory: paused at {} chunks ({} MB), {}; new buffers are "
++			                       "normal ones\n",
++			                       m_direct_chunks.size(),
++			                       (m_direct_chunks.size() * chunk_size) >> 20u, why));
++		}
++		stopped    = !room;
++		next_check = now + std::chrono::seconds(2);
++		if (!room) {
++			return nullptr;
++		}
+ 	}
+ 	VkExportMemoryAllocateInfo     export_info {VK_STRUCTURE_TYPE_EXPORT_MEMORY_ALLOCATE_INFO, nullptr,
+                                             VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT};
+diff --git a/src/graphics/host_gpu/renderer/cache/textureCache.h b/src/graphics/host_gpu/renderer/cache/textureCache.h
+index 2c3c593b27f40fe6e68627e1bacc34bebf29f4b7..f07d6a9dbabe18f9f8c2769e2c1b0ba5d67e86b9 100644
+--- a/src/graphics/host_gpu/renderer/cache/textureCache.h
++++ b/src/graphics/host_gpu/renderer/cache/textureCache.h
+@@ -71,6 +71,8 @@ public:
+ 		return image;
+ 	}
+ 	void MarkGpuWritten(ImageId id);
++	// Frame trace: copies a GPU-written image back to guest memory.
++	bool TraceDownload(ImageId id) { return DownloadImageMemory(id); }
+ 
+ 	[[nodiscard]] bool ClearImageFromBuffer(CommandBuffer& command, uint64_t address, uint64_t size,
+ 	                                        uint32_t packed_clear);
+diff --git a/src/graphics/host_gpu/renderer/frameTrace.cpp b/src/graphics/host_gpu/renderer/frameTrace.cpp
+new file mode 100644
+index 0000000000000000000000000000000000000000..7c6a62204ce73bd2d0d77207aca9c0f8a0e863ea
+--- /dev/null
++++ b/src/graphics/host_gpu/renderer/frameTrace.cpp
+@@ -0,0 +1,166 @@
++#include "graphics/host_gpu/renderer/frameTrace.h"
++
++#include "common/logging/log.h"
++
++#include "kernel/memory.h"
++
++#include <algorithm>
++#include <cstdio>
++#include <cstring>
++#include <cmath>
++#include <map>
++#include <set>
++#include <vector>
++
++namespace Libs::Graphics::FrameTrace {
++
++static std::FILE* g_file   = nullptr;
++static uint32_t   g_flips  = 0;
++static uint32_t   g_checks = 0;
++static std::map<uint64_t, uint64_t> g_written;
++static std::set<uint32_t>           g_images;
++
++void NoteImage(uint32_t id) {
++	if (g_file != nullptr) {
++		g_images.insert(id);
++	}
++}
++
++static float HalfToFloat(uint16_t h) {
++	const uint32_t sign = (h >> 15u) & 1u, exp = (h >> 10u) & 31u, man = h & 1023u;
++	float v = 0;
++	if (exp == 0) {
++		v = std::ldexp(static_cast<float>(man), -24);
++	} else if (exp == 31) {
++		v = man != 0 ? NAN : INFINITY;
++	} else {
++		v = std::ldexp(static_cast<float>(man | 1024u), static_cast<int>(exp) - 25);
++	}
++	return sign ? -v : v;
++}
++
++static float Unpack11(uint32_t bits, uint32_t man_bits) {
++	const uint32_t exp = bits >> man_bits, man = bits & ((1u << man_bits) - 1u);
++	if (exp == 31) return man != 0 ? NAN : INFINITY;
++	if (exp == 0) return std::ldexp(static_cast<float>(man), -14 - static_cast<int>(man_bits));
++	return std::ldexp(static_cast<float>(man | (1u << man_bits)),
++	                  static_cast<int>(exp) - 15 - static_cast<int>(man_bits));
++}
++
++// Min, max, mean and NaN/Inf counts of a float image's channels (tiling does not matter here).
++static std::string ImageStats(uint64_t address, uint64_t size, uint32_t format) {
++	size = std::min<uint64_t>(size, 64ull << 20u);
++	std::vector<uint8_t> data(size);
++	if (!LibKernel::Memory::TryReadBacking(address, data.data(), size)) {
++		return "unreadable";
++	}
++	std::vector<float> values;
++	uint32_t           channels = 1;
++	switch (format) {
++		case 71: channels = 4; [[fallthrough]];  // 16_16_16_16 float
++		case 13:                                 // 16 float
++			for (size_t i = 0; i + 1 < size; i += 2) values.push_back(HalfToFloat(data[i] | (data[i + 1] << 8u)));
++			break;
++		case 77: channels = 4; [[fallthrough]];  // 32_32_32_32 float
++		case 64: if (format == 64) channels = 2; [[fallthrough]];
++		case 22:
++			for (size_t i = 0; i + 3 < size; i += 4) { float f; std::memcpy(&f, &data[i], 4); values.push_back(f); }
++			break;
++		case 36:                                 // 11_11_10 float
++			channels = 3;
++			for (size_t i = 0; i + 3 < size; i += 4) {
++				uint32_t w; std::memcpy(&w, &data[i], 4);
++				values.push_back(Unpack11(w & 0x7ffu, 6));
++				values.push_back(Unpack11((w >> 11u) & 0x7ffu, 6));
++				values.push_back(Unpack11(w >> 22u, 5));
++			}
++			break;
++		default: return fmt::format("format {} not decoded", format);
++	}
++	std::string text;
++	for (uint32_t c = 0; c < channels; c++) {
++		double sum = 0; float lo = INFINITY, hi = -INFINITY; uint64_t nan = 0, inf = 0, n = 0, zero = 0;
++		for (size_t i = c; i < values.size(); i += channels) {
++			const float v = values[i];
++			if (std::isnan(v)) { nan++; continue; }
++			if (std::isinf(v)) { inf++; continue; }
++			lo = std::min(lo, v); hi = std::max(hi, v); sum += v; n++; zero += v == 0.0f;
++		}
++		text += fmt::format(" c{}: min {:g} max {:g} mean {:g} zero {} nan {} inf {} |", c, lo, hi,
++		                    n ? sum / static_cast<double>(n) : 0.0, zero, nan, inf);
++	}
++	return text;
++}
++
++void NoteWritten(uint64_t address, uint64_t size) {
++	if (g_file != nullptr && size <= 4096) {
++		auto& s = g_written[address];
++		s       = std::max(s, size);
++	}
++}
++
++bool Active() {
++	return g_file != nullptr;
++}
++
++void Write(const std::string& line) {
++	if (g_file != nullptr) {
++		std::fputs(line.c_str(), g_file);
++		std::fputc('\n', g_file);
++	}
++}
++
++void OnFlip(const std::function<void(uint64_t, uint64_t)>&                       download,
++            const std::function<bool(uint32_t, uint64_t*, uint64_t*, uint32_t*)>& download_image) {
++	if (g_file != nullptr) {
++		std::fprintf(g_file, "FLIP %u\n", g_flips);
++		if (++g_flips >= 2) {
++			for (const auto& [address, size]: g_written) {
++				download(address, size);
++				std::vector<uint32_t> words((std::min<uint64_t>(size, 256) + 3) / 4);
++				if (!LibKernel::Memory::TryReadBacking(address, words.data(), words.size() * 4)) {
++					continue;
++				}
++				std::string text = fmt::format("BUFFER {:x} size {}:", address, size);
++				for (size_t i = 0; i < words.size(); i++) {
++					float f = 0;
++					std::memcpy(&f, &words[i], 4);
++					text += fmt::format(" {:08x}({:g})", words[i], f);
++				}
++				std::fprintf(g_file, "%s\n", text.c_str());
++			}
++			g_written.clear();
++			for (const auto id: g_images) {
++				uint64_t address = 0, size = 0;
++				uint32_t format = 0;
++				if (!download_image(id, &address, &size, &format)) {
++					std::fprintf(g_file, "IMAGE %u not downloadable\n", id);
++					continue;
++				}
++				std::fprintf(g_file, "IMAGE %u addr=%llx size=%llu fmt=%u:%s\n", id,
++				             static_cast<unsigned long long>(address),
++				             static_cast<unsigned long long>(size), format,
++				             ImageStats(address, size, format).c_str());
++			}
++			g_images.clear();
++			std::fclose(g_file);
++			g_file = nullptr;
++			Log::WriteToConsoleAndLog("Frame trace written to frame-trace.txt\n");
++		}
++		return;
++	}
++	if ((++g_checks & 7u) != 0) {
++		return;
++	}
++	if (std::FILE* probe = std::fopen("trace-frame", "r"); probe != nullptr) {
++		std::fclose(probe);
++		std::remove("trace-frame");
++		g_file  = std::fopen("frame-trace.txt", "w");
++		g_flips = 0;
++		if (g_file != nullptr) {
++			std::fputs("FLIP start\n", g_file);
++		}
++	}
++}
++
++} // namespace Libs::Graphics::FrameTrace
+diff --git a/src/graphics/host_gpu/renderer/frameTrace.h b/src/graphics/host_gpu/renderer/frameTrace.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..97a8570eabd3ecff67360b2246d476a7dc8f17bc
+--- /dev/null
++++ b/src/graphics/host_gpu/renderer/frameTrace.h
+@@ -0,0 +1,33 @@
++#ifndef EMULATOR_SRC_GRAPHICS_HOST_GPU_RENDERER_FRAMETRACE_H_
++#define EMULATOR_SRC_GRAPHICS_HOST_GPU_RENDERER_FRAMETRACE_H_
++
++#include <fmt/format.h>
++
++#include <cstdint>
++#include <functional>
++#include <string>
++
++// EmuFive: a one-frame trace of what the GPU thread runs. Create the file "trace-frame" in the
++// work folder while a game runs; the next frame's draws, dispatches, targets and textures go to
++// frame-trace.txt there, and the trigger file is removed.
++namespace Libs::Graphics::FrameTrace {
++
++bool Active();
++void Write(const std::string& line);
++// `download` brings a GPU-written range back to guest memory before it is printed.
++// `download_image` brings an image back to guest memory and gives its range and guest format.
++void OnFlip(const std::function<void(uint64_t, uint64_t)>&                       download,
++            const std::function<bool(uint32_t, uint64_t*, uint64_t*, uint32_t*)>& download_image);
++void NoteImage(uint32_t id);
++void NoteWritten(uint64_t address, uint64_t size);
++
++template <typename... Args>
++inline void Line(fmt::format_string<Args...> format, Args&&... args) {
++	if (Active()) {
++		Write(fmt::format(format, std::forward<Args>(args)...));
++	}
++}
++
++} // namespace Libs::Graphics::FrameTrace
++
++#endif
+diff --git a/src/graphics/host_gpu/renderer/pipeline/descriptors.cpp b/src/graphics/host_gpu/renderer/pipeline/descriptors.cpp
+index cd367f8d9bf4b2c741c01ca6c0e6b8d530de5734..19dbd53d779a6aca2ea1158492a46dc530b03d17 100644
+--- a/src/graphics/host_gpu/renderer/pipeline/descriptors.cpp
++++ b/src/graphics/host_gpu/renderer/pipeline/descriptors.cpp
+@@ -1,4 +1,5 @@
+ #include "graphics/host_gpu/renderer/pipeline/descriptors.h"
++#include "graphics/host_gpu/renderer/frameTrace.h"
+ 
+ #include "common/alignment.h"
+ #include "common/assert.h"
+@@ -542,6 +543,12 @@ TextureBinding RenderExecutor::ResolveTexture(const ShaderRecompiler::IR::ImageR
+ 		     descriptor.fields[6], descriptor.fields[7]);
+ 	}
+ 	const auto samples = multisampled ? 1u << last_level : 1u;
++	FrameTrace::Line("  {} addr={:x} {}x{}x{} fmt={} tile={} type={} mips={}-{}{}",
++	                 storage ? "write" : "read ", address, width, height,
++	                 static_cast<uint32_t>(descriptor.Depth()) + 1u,
++	                 static_cast<uint32_t>(descriptor.Format()), static_cast<uint32_t>(tile),
++	                 static_cast<uint32_t>(type), base_level, last_level,
++	                 resource.heap ? " heap" : "");
+ 	const auto depth          = static_cast<uint32_t>(descriptor.Depth()) + 1u;
+ 	const auto format         = ShaderRecompiler::IR::ReadsDepthBits(resource)
+ 	                                ? Prospero::BufferFormat::k16UNorm
+@@ -638,6 +645,9 @@ TextureBinding RenderExecutor::ResolveTexture(const ShaderRecompiler::IR::ImageR
+ 	desc.heap = resource.heap;
+ 
+ 	auto id = texture_cache.FindImage(desc);
++	if (id && !storage) {
++		FrameTrace::NoteImage(id.index);
++	}
+ 	if (!id) {
+ 		// Another extent at the address holds it; the heap retries once an image is created.
+ 		return {.desc = std::move(desc), .layout = vk::ImageLayout::eGeneral};
+@@ -821,6 +831,14 @@ void RenderExecutor::FindBuffers(std::span<PreparedBindings* const> stages) {
+ 				size = Libs::LibKernel::Memory::ClampRangeSize(address, size, true);
+ 			}
+ 			source = {address, size, cache.FindBuffer(address, size)};
++			if (FrameTrace::Active()) {
++				const bool written = program.info.buffers[resource].written;
++				FrameTrace::Line("  {} buf addr={:x} size={}", written ? "write" : "read ", address,
++				                 size);
++				if (written) {
++					FrameTrace::NoteWritten(address, size);
++				}
++			}
+ 		}
+ 	}
+ }
+diff --git a/src/graphics/host_gpu/renderer/pipeline/pipelineCache.cpp b/src/graphics/host_gpu/renderer/pipeline/pipelineCache.cpp
+index f7a60f3b0981b915f2574884d2c3d388f0715b01..eea8ab7cc4eb09773b8f1c63b1cbf745b55cdb0b 100644
+--- a/src/graphics/host_gpu/renderer/pipeline/pipelineCache.cpp
++++ b/src/graphics/host_gpu/renderer/pipeline/pipelineCache.cpp
+@@ -1,4 +1,5 @@
+ #include "graphics/host_gpu/renderer/pipeline/pipelineCache.h"
++#include "graphics/host_gpu/renderer/frameTrace.h"
+ 
+ #include "common/assert.h"
+ #include "common/debugCounters.h"
+@@ -646,18 +647,41 @@ void PipelineCache::GetGraphicsPrograms(const CommandBuffer& command, DrawRender
+ 	} else {
+ 		vertex_params[0] = PrepareProgram(vertex_regs, context, user_config, vertex_info[0]);
+ 	}
+-	const bool mesh_active = vertex_info[0].logical_stage == ShaderType::Mesh;
+-	if (mesh_active && !m_graphics.mesh_shader_enabled) {
+-		// GPUs without mesh shaders (the PS4's GCN GPUs) cannot run these draws yet: skip
+-		// them instead of stopping the game. Logged at 1, 2, 4, 8... skipped draws.
+-		static std::atomic<uint32_t> skipped = 0;
+-		const auto count = skipped.fetch_add(1, std::memory_order_relaxed) + 1u;
+-		if ((count & (count - 1u)) == 0) {
+-			Log::WriteToConsoleAndLog(fmt::format(
+-			    "Warning: no mesh shaders on this GPU; skipped {} mesh draw(s) (shader 0x{:016x}).\n",
+-			    count, vertex_params[0].hash));
++	const bool mesh_active  = vertex_info[0].logical_stage == ShaderType::Mesh;
++	const bool mesh_compute = mesh_active && !m_graphics.mesh_shader_enabled;
++	if (mesh_compute) {
++		// EmuFive: GPUs without mesh shaders (the PS4's GCN GPUs) run the mesh program as a
++		// compute shader and draw what it wrote (see MeshComputeHeaderDwords). Draws whose
++		// workgroup does not fit a compute workgroup are skipped, logged at 1, 2, 4... draws.
++		auto&       mesh   = vertex_info[0].mesh;
++		const auto& limits = m_graphics.GetPhysicalDeviceProperties().limits;
++		mesh.compute            = true;
++		mesh.host_subgroup_size = m_graphics.subgroup_size;
++		const auto threads = mesh.threads_num[0] * std::max(mesh.threads_num[1], 1u) *
++		                     std::max(mesh.threads_num[2], 1u);
++		const auto shared  = (mesh.lds_size_dwords + 2u + mesh.max_vertices) * sizeof(uint32_t);
++		if (threads > limits.maxComputeWorkGroupInvocations ||
++		    mesh.threads_num[0] > limits.maxComputeWorkGroupSize[0] ||
++		    shared > limits.maxComputeSharedMemorySize || mesh.max_vertices > 512u ||
++		    mesh.max_primitives > 512u) {
++			static std::atomic<uint32_t> skipped = 0;
++			const auto count = skipped.fetch_add(1, std::memory_order_relaxed) + 1u;
++			FrameTrace::Line("DRAW mesh SKIPPED shader={:016x}", vertex_params[0].hash);
++			if ((count & (count - 1u)) == 0) {
++				Log::WriteToConsoleAndLog(fmt::format(
++				    "Warning: skipped {} mesh draw(s) too large for a compute workgroup (shader "
++				    "0x{:016x}: {} threads, {} bytes shared, {} vertices, {} primitives).\n",
++				    count, vertex_params[0].hash, threads, shared, mesh.max_vertices,
++				    mesh.max_primitives));
++			}
++			return;
++		}
++		// Reading indirect records on the GPU (gpu_mesh_compute_indirect.comp) made Invincible VS
++		// fights 10x slower (0.2 FPS) without fixing anything visible, so the CPU still reads them.
++		if (state.indirect_draw && false) {
++			vertex_info[0].indirect_offsets = state.indirect_offsets;
++			vertex_info[0].indirect_draw    = true;
+ 		}
+-		return;
+ 	}
+ 	if (!tess_active && !mesh_active) {
+ 		vertex_info[0].indirect_offsets = state.indirect_offsets;
+@@ -673,7 +697,7 @@ void PipelineCache::GetGraphicsPrograms(const CommandBuffer& command, DrawRender
+ 		                                                       target.info.channel_type)
+ 		                         .buffer_format != Prospero::BufferFormat::k32UInt);
+ 	}
+-	if (mesh_active) {
++	if (mesh_active && !mesh_compute) {
+ 		auto& mesh               = vertex_info[0].mesh;
+ 		mesh.output_primitive_id = object_primitive_id;
+ 		mesh.host_subgroup_size = m_graphics.subgroup_size;
+@@ -815,8 +839,16 @@ void PipelineCache::GetGraphicsPrograms(const CommandBuffer& command, DrawRender
+ 		                     Prospero::IsRectList(user_config.GetPrimType()));
+ 		last_stage.user_clip_planes = clip_control.user_clip_planes;
+ 	}
++	if (mesh_compute && last_stage.user_clip_planes != 0) {
++		// The vertex records of a mesh program run as compute hold no user clip distances.
++		static std::atomic_bool warned = false;
++		if (!warned.exchange(true, std::memory_order_relaxed)) {
++			Log::WriteToConsoleAndLog("Warning: user clip planes ignored on mesh draws.\n");
++		}
++		last_stage.user_clip_planes = 0;
++	}
+ 	auto push_data = ShaderRecompiler::IR::PushData::GraphicsWindow(
+-	    mesh_active, object_primitive_id, last_stage.user_clip_planes);
++	    mesh_active, object_primitive_id, last_stage.user_clip_planes, mesh_compute);
+ 	if (pixel_active) {
+ 		const auto& pixel_module = *GetProgram(pixel_params, pixel_info, push_data);
+ 		for (const auto& output: pixel_module.info.info.outputs) {
+@@ -1066,4 +1098,14 @@ PipelineCache::Pipeline& PipelineCache::GetComputePipeline(const ShaderComputeIn
+ 
+ 	return pipeline;
+ }
++
++PipelineCache::Pipeline& PipelineCache::GetMeshComputePipeline(const ShaderModule& module) {
++	auto [iter, inserted] = m_compute_pipelines.try_emplace(module.id);
++	auto& pipeline        = iter->second;
++	if (inserted) {
++		CreatePipelineInternal(m_graphics, pipeline, module, m_driver_cache);
++		CheckpointDriverCache();
++	}
++	return pipeline;
++}
+ } // namespace Libs::Graphics
+diff --git a/src/graphics/host_gpu/renderer/pipeline/pipelineCache.h b/src/graphics/host_gpu/renderer/pipeline/pipelineCache.h
+index 4e79a378a40b471c7f16deaa70b6ef3443d0dcc6..56028bc0ad23ca3cb68edbf2e76c10da93739e2a 100644
+--- a/src/graphics/host_gpu/renderer/pipeline/pipelineCache.h
++++ b/src/graphics/host_gpu/renderer/pipeline/pipelineCache.h
+@@ -207,6 +207,8 @@ public:
+ 	Pipeline& GetGraphicsPipeline(const CommandBuffer& command, const DrawRenderState& state,
+ 	                              const DrawTargets& targets);
+ 	Pipeline& GetComputePipeline(const ShaderComputeInputInfo& input_info);
++	// EmuFive: the compute pipeline of a mesh program run as compute (no host mesh shaders).
++	Pipeline& GetMeshComputePipeline(const ShaderModule& module);
+ 
+ private:
+ 	friend struct PipelineCacheTestAccess;
+diff --git a/src/graphics/host_gpu/renderer/pipeline/shaderResourceBarrier.cpp b/src/graphics/host_gpu/renderer/pipeline/shaderResourceBarrier.cpp
+index a7424fc68fd1c02e336695e297ad54c85e30442d..7c14dacbb7d94eea8e23e613897df01ee1e4a584 100644
+--- a/src/graphics/host_gpu/renderer/pipeline/shaderResourceBarrier.cpp
++++ b/src/graphics/host_gpu/renderer/pipeline/shaderResourceBarrier.cpp
+@@ -9,11 +9,25 @@
+ 
+ namespace Libs::Graphics {
+ 
++namespace {
++bool g_mesh_programs_run_as_compute = false;
++} // namespace
++
++void SetMeshProgramsRunAsCompute(bool value) {
++	g_mesh_programs_run_as_compute = value;
++}
++
++bool MeshProgramsRunAsCompute() {
++	return g_mesh_programs_run_as_compute;
++}
++
+ vk::ShaderStageFlagBits NativeShaderStage(ShaderType stage) {
+ 	switch (stage) {
+ 		case ShaderType::Local:
+ 		case ShaderType::Vertex: return vk::ShaderStageFlagBits::eVertex;
+-		case ShaderType::Mesh: return vk::ShaderStageFlagBits::eMeshEXT;
++		case ShaderType::Mesh:
++			return g_mesh_programs_run_as_compute ? vk::ShaderStageFlagBits::eCompute
++			                                      : vk::ShaderStageFlagBits::eMeshEXT;
+ 		case ShaderType::TessellationControl: return vk::ShaderStageFlagBits::eTessellationControl;
+ 		case ShaderType::TessellationEvaluation:
+ 			return vk::ShaderStageFlagBits::eTessellationEvaluation;
+diff --git a/src/graphics/host_gpu/renderer/pipeline/shaderResourceBarrier.h b/src/graphics/host_gpu/renderer/pipeline/shaderResourceBarrier.h
+index 0d7b9701c1128890b38f8ccfc6557f61dbb11c11..0f1a890b686ed6900736dd1d5d3c98be5d661d6d 100644
+--- a/src/graphics/host_gpu/renderer/pipeline/shaderResourceBarrier.h
++++ b/src/graphics/host_gpu/renderer/pipeline/shaderResourceBarrier.h
+@@ -8,6 +8,10 @@ namespace Libs::Graphics {
+ 
+ struct ShaderStageRuntime;
+ 
++// EmuFive: on GPUs without mesh shaders (the PS4's), mesh programs run as compute shaders, so
++// their resources belong to the compute stage.
++void SetMeshProgramsRunAsCompute(bool value);
++bool MeshProgramsRunAsCompute();
+ vk::ShaderStageFlagBits NativeShaderStage(ShaderType stage);
+ vk::PipelineStageFlags  ShaderPipelineStages(vk::ShaderStageFlags stages);
+ vk::MemoryBarrier       MakeShaderWriteDependency();
+diff --git a/src/graphics/host_gpu/renderer/pipeline/shaders.cpp b/src/graphics/host_gpu/renderer/pipeline/shaders.cpp
+index 05efe5754be2c60460bdc2a0445f4df30255e93f..61f89e8faa84af4eb784ad7379f38df98e557434 100644
+--- a/src/graphics/host_gpu/renderer/pipeline/shaders.cpp
++++ b/src/graphics/host_gpu/renderer/pipeline/shaders.cpp
+@@ -13,6 +13,7 @@
+ #include "graphics/host_gpu/vulkanCommon.h"
+ #include "graphics/shader/recompiler/BufferFormat.h"
+ #include "graphics/shader/recompiler/ir/ShaderIR.h"
++#include "graphics/shader/meshComputeShader.h"
+ #include "graphics/shader/rectListShader.h"
+ #include "graphics/shader/shader.h"
+ 
+@@ -208,14 +209,21 @@ void CreatePipelineInternal(GraphicContext& graphics, PipelineCache::Pipeline& p
+ 	const auto* pixel         = stages[3];
+ 	const bool  with_depth    = rendering.depth_format != vk::Format::eUndefined ||
+ 	                            rendering.stencil_format != vk::Format::eUndefined;
+-	const bool  mesh          = vertex.info.stage == ShaderType::Mesh;
+-	EXIT_NOT_IMPLEMENTED(mesh && !graphics.mesh_shader_enabled);
++	// EmuFive: without mesh shaders, a mesh program ran as compute and a generated vertex
++	// shader draws its triangles (see MeshComputeHeaderDwords).
++	const bool  mesh_compute  = vertex.info.stage == ShaderType::Mesh && !graphics.mesh_shader_enabled;
++	const bool  mesh          = vertex.info.stage == ShaderType::Mesh && !mesh_compute;
++	const auto  mesh_vertex_module =
++	    mesh_compute ? CompileSPV(BuildMeshComputeVertexShader(vertex.info.info.outputs),
++	                              graphics.device)
++	                 : vk::ShaderModule {};
+ 	const bool rect_list = static_params.patch_control_points != 0 && stages[1] == nullptr;
+ 
+ 	vk::ShaderModule tess_control_shader_module = nullptr;
+ 	vk::ShaderModule tess_eval_shader_module    = nullptr;
+ 	const auto       task_module =
+-	    vertex.mesh_task ? CompileSPV(GPU_MESH_INDIRECT_SPV, graphics.device) : vk::ShaderModule {};
++	    vertex.mesh_task && !mesh_compute ? CompileSPV(GPU_MESH_INDIRECT_SPV, graphics.device)
++	                                      : vk::ShaderModule {};
+ 
+ 	if (rect_list) {
+ 		std::span<const RectListParameter> parameters;
+@@ -228,7 +236,11 @@ void CreatePipelineInternal(GraphicContext& graphics, PipelineCache::Pipeline& p
+ 	vk::PipelineShaderStageCreateInfo shader_stages[4] {};
+ 	uint32_t                          shader_stage_count = 0;
+ 	for (const auto* stage: stages) {
+-		if (stage != nullptr) {
++		if (stage == stages[0] && mesh_compute) {
++			shader_stages[shader_stage_count++] = {.stage  = vk::ShaderStageFlagBits::eVertex,
++			                                       .module = mesh_vertex_module,
++			                                       .pName  = "main"};
++		} else if (stage != nullptr) {
+ 			shader_stages[shader_stage_count++] = {.stage  = NativeShaderStage(stage->info.stage),
+ 			                                       .module = stage->module,
+ 			                                       .pName  = "main"};
+@@ -275,9 +287,14 @@ void CreatePipelineInternal(GraphicContext& graphics, PipelineCache::Pipeline& p
+ 	vertex_input_info.pVertexAttributeDescriptions    = input_attr;
+ 
+ 	vk::PipelineInputAssemblyStateCreateInfo input_assembly {};
+-	input_assembly.topology = static_params.topology;
++	input_assembly.topology = mesh_compute ? vk::PrimitiveTopology::eTriangleList
++	                                       : static_params.topology;
+ 	input_assembly.primitiveRestartEnable =
+-	    static_params.primitive_restart_enable ? VK_TRUE : VK_FALSE;
++	    static_params.primitive_restart_enable && !mesh_compute ? VK_TRUE : VK_FALSE;
++	if (mesh_compute) {
++		vertex_input_info.vertexBindingDescriptionCount   = 0;
++		vertex_input_info.vertexAttributeDescriptionCount = 0;
++	}
+ 
+ 	vk::PipelineViewportDepthClipControlCreateInfoEXT depth_clip_control {};
+ 	depth_clip_control.negativeOneToOne = (static_params.negative_one_to_one ? VK_TRUE : VK_FALSE);
+@@ -347,8 +364,12 @@ void CreatePipelineInternal(GraphicContext& graphics, PipelineCache::Pipeline& p
+ 	if (task_module) {
+ 		pipeline.push_stages |= vk::ShaderStageFlagBits::eTaskEXT;
+ 	}
++	if (mesh_compute) {
++		// The generated vertex shader binds nothing; it reads push constants and the buffer.
++		pipeline.push_stages |= vk::ShaderStageFlagBits::eVertex;
++	}
+ 	for (const auto* stage: stages) {
+-		if (stage != nullptr) {
++		if (stage != nullptr && !(stage == stages[0] && mesh_compute)) {
+ 			const auto native_stage = NativeShaderStage(stage->info.stage);
+ 			AddLayoutBindings(descriptor_bindings, stage->info, native_stage);
+ 			pipeline.uses_image_heap |= stage->info.info.uses_image_heap;
+@@ -419,6 +440,7 @@ void CreatePipelineInternal(GraphicContext& graphics, PipelineCache::Pipeline& p
+ 	graphics.device.destroyShaderModule(tess_control_shader_module, nullptr);
+ 	graphics.device.destroyShaderModule(tess_eval_shader_module, nullptr);
+ 	graphics.device.destroyShaderModule(task_module, nullptr);
++	graphics.device.destroyShaderModule(mesh_vertex_module, nullptr);
+ }
+ 
+ void CreatePipelineInternal(GraphicContext& graphics, PipelineCache::Pipeline& pipeline,
+@@ -442,7 +464,8 @@ void CreatePipelineInternal(GraphicContext& graphics, PipelineCache::Pipeline& p
+ 	CreateLayouts(graphics, pipeline, descriptor_bindings);
+ 
+ 	vk::ComputePipelineCreateInfo info {};
+-	if (module.info.info.uses_gds) {
++	// Mesh programs run as compute dispatch large draws in parts (EmuFive).
++	if (module.info.info.uses_gds || module.info.stage == ShaderType::Mesh) {
+ 		info.flags = vk::PipelineCreateFlagBits::eDispatchBase;
+ 	}
+ 	info.stage  = comp_shader_stage_info;
+diff --git a/src/graphics/host_gpu/renderer/render.h b/src/graphics/host_gpu/renderer/render.h
+index f5e67da4b208906f87f2db9b47238814638569b0..5c0810fd69ee8d5f81808a2f7c7a0a80f24fb3b4 100644
+--- a/src/graphics/host_gpu/renderer/render.h
++++ b/src/graphics/host_gpu/renderer/render.h
+@@ -11,6 +11,7 @@
+ #include "graphics/host_gpu/vulkanCommon.h"
+ 
+ #include <array>
++#include <memory>
+ #include <span>
+ #include <vector>
+ 
+@@ -135,6 +136,8 @@ namespace Pssr {
+ struct Request;
+ }
+ 
++class Buffer;
++
+ class RenderExecutor {
+ public:
+ 	explicit RenderExecutor(RenderContext& context): m_context(context) {}
+@@ -217,6 +220,13 @@ private:
+ 	GraphicsBindings                     m_graphics_bindings;
+ 	// The current draw's targets; PrepareDrawRenderState resolves them again for each draw.
+ 	DrawTargets                           m_targets;
++	// EmuFive: what mesh programs run as compute write for the draw that follows.
++	std::shared_ptr<Buffer>               m_mesh_output;
++	// The setup records of indirect ones (IR::MeshComputeSetupDwords), used in turn.
++	std::shared_ptr<Buffer>               m_mesh_setup;
++	uint32_t                              m_mesh_setup_slot     = 0;
++	vk::PipelineLayout                    m_mesh_setup_layout   = nullptr;
++	vk::Pipeline                          m_mesh_setup_pipeline = nullptr;
+ 	PreparedBindings                     m_compute_bindings;
+ 	std::vector<ImageId>                  m_bound_images;
+ 	std::vector<vk::DescriptorImageInfo>  m_descriptor_images;
+diff --git a/src/graphics/host_gpu/renderer/renderCompute.cpp b/src/graphics/host_gpu/renderer/renderCompute.cpp
+index 6a9ed58c588c9373ede3500c17b8d5fbb87b878f..e2c45abc0db9abe5a385dcc7ed99211eba8408cd 100644
+--- a/src/graphics/host_gpu/renderer/renderCompute.cpp
++++ b/src/graphics/host_gpu/renderer/renderCompute.cpp
+@@ -9,6 +9,7 @@
+ #include "common/stringUtils.h"
+ #include "common/threads.h"
+ #include "graphics/host_gpu/renderer/gpuProfile.h"
++#include "graphics/host_gpu/renderer/frameTrace.h"
+ #include "graphics/guest_gpu/gpu_defs.h"
+ #include "graphics/guest_gpu/graphicsRun.h"
+ #include "graphics/guest_gpu/hardwareContext.h"
+@@ -357,10 +358,13 @@ void RenderExecutor::DispatchDirect(CommandBuffer& buffer, uint32_t thread_group
+ 
+ 	const auto& program   = input_info.stage.module->info;
+ 	const auto& resources = *input_info.stage.resources;
++	FrameTrace::Line("DISPATCH cs={:016x} groups={}x{}x{}", input_info.stage.module->id,
++	                 thread_group_x, thread_group_y, thread_group_z);
+ 	if (resources.specialization_reads.empty() &&
+ 	    (TryConsumeComputeMetaClear(input_info, buffer) ||
+ 	     TryConsumeComputeFill(input_info, buffer, thread_group_x, thread_group_y,
+ 	                           thread_group_z, mode))) {
++		FrameTrace::Line("  consumed as a clear/fill");
+ 		ResetBindings();
+ 		return;
+ 	}
+@@ -516,6 +520,7 @@ void RenderExecutor::DispatchIndirect(CommandBuffer& buffer, uint64_t args_addr,
+ 	input_info.indirect_args_address = args_addr;
+ 	m_context.GetImageHeap().BeginDraw();
+ 	if (!m_context.GetPipelineCache().GetComputeProgram(cs_regs, input_info)) return;
++	FrameTrace::Line("DISPATCH indirect cs={:016x} args={:x}", input_info.stage.module->id, args_addr);
+ 	buffer.EndRendering();
+ 	auto& pipeline = m_context.GetPipelineCache().GetComputePipeline(input_info);
+ 	auto& bindings = m_compute_bindings;
+diff --git a/src/graphics/host_gpu/renderer/renderDraw.cpp b/src/graphics/host_gpu/renderer/renderDraw.cpp
+index f1263aceb0d53a2b22dc67ceb84c63377c2c33bd..164217311f1a268c545c2266bfb5caf5c7890729 100644
+--- a/src/graphics/host_gpu/renderer/renderDraw.cpp
++++ b/src/graphics/host_gpu/renderer/renderDraw.cpp
+@@ -1,4 +1,6 @@
++#include "gpu_blit_shaders/gpu_mesh_compute_indirect_spv.h"
+ #include "graphics/host_gpu/renderer/gpuProfile.h"
++#include "graphics/host_gpu/renderer/frameTrace.h"
+ #include "graphics/host_gpu/renderer/renderDraw.h"
+ 
+ #include "common/perfTrace.h"
+@@ -614,6 +616,24 @@ struct MeshTaskParams {
+ 	uint32_t          max_total      = 0;
+ };
+ 
++// EmuFive: the push constants of gpu_mesh_compute_indirect.comp.
++struct MeshComputeSetupParams {
++	vk::DeviceAddress record         = 0;
++	uint64_t          index_address  = 0;
++	vk::DeviceAddress setup          = 0;
++	uint32_t          index_size     = 0;
++	uint32_t          index_limit    = 0;
++	uint32_t          primitive_size = 0;
++	uint32_t          group_step     = 0;
++	uint32_t          max_groups     = 0;
++	uint32_t          max_instances  = 0;
++	uint32_t          max_total      = 0;
++	uint32_t          triangles      = 0;
++};
++static_assert(sizeof(MeshComputeSetupParams) == 56);
++// Setup records in m_mesh_setup.
++constexpr uint32_t MeshSetupSlots = 4096;
++
+ struct PreparedIndexBuffer {
+ 	vk::Buffer     buffer = nullptr;
+ 	vk::DeviceSize offset = 0;
+@@ -1051,6 +1071,31 @@ void RenderExecutor::ExecutePreparedDraw(CommandBuffer& buffer, const DrawCallIn
+ 	const auto  vertex_stages = state.VertexStages();
+ 	const bool  mesh_active   = state.vertex_info[0].stage.module->info.stage == ShaderType::Mesh;
+ 	const bool  mesh_task     = state.vertex_info[0].stage.module->mesh_task;
++	const bool  mesh_compute  = mesh_active && state.vertex_info[0].mesh.compute;
++	if (FrameTrace::Active()) {
++		std::string text = fmt::format(
++		    "DRAW {} vs={:016x} ps={:016x} count={} inst={} indirect={}",
++		    mesh_active ? "mesh" : (draw.indexed ? "indexed" : "auto"),
++		    state.vertex_info[0].stage.module->id,
++		    state.ps_active && state.ps_input_info.stage.module != nullptr
++		        ? state.ps_input_info.stage.module->id
++		        : 0,
++		    emit.indirect.address != 0 ? emit.indirect.count : 0u, 0, emit.indirect.address != 0);
++		for (uint32_t i = 0; i < m_targets.color_count; i++) {
++			const auto& c = m_targets.colors[i];
++			text += fmt::format("\n  rt{} addr={:x} {}x{} fmt={} tile={} img={} layer={} mip={}",
++			                    c.target_slot, c.desc.info.data.address, c.desc.info.extent.width,
++			                    c.desc.info.extent.height,
++			                    static_cast<uint32_t>(c.desc.info.guest_format),
++			                    static_cast<uint32_t>(c.desc.info.tile_mode), c.image_id.index,
++			                    c.guest_array_layer, c.guest_mip_level);
++		}
++		const auto& d = m_targets.depth;
++		text += fmt::format("\n  depth addr={:x} {}x{} img={}", d.desc.info.data.address,
++		                    d.desc.info.extent.width, d.desc.info.extent.height,
++		                    d.image_id.index);
++		FrameTrace::Write(text);
++	}
+ 	const auto& mesh          = state.vertex_info[0].mesh;
+ 	const auto& limits        = m_context.GetGraphics().mesh_shader_properties;
+ 	uint32_t    mesh_groups   = 0;
+@@ -1068,7 +1113,8 @@ void RenderExecutor::ExecutePreparedDraw(CommandBuffer& buffer, const DrawCallIn
+ 		}
+ 	}
+ 	if (mesh_task) {
+-		EXIT_NOT_IMPLEMENTED(emit.indirect.count > std::min(limits.maxTaskWorkGroupCount[0],
++		EXIT_NOT_IMPLEMENTED(!mesh_compute &&
++		                     emit.indirect.count > std::min(limits.maxTaskWorkGroupCount[0],
+ 		                                                    limits.maxTaskWorkGroupTotalCount));
+ 	} else if (mesh_active) {
+ 		const auto primitives = mesh.InputPrimitiveCount(draw.index_count);
+@@ -1076,10 +1122,22 @@ void RenderExecutor::ExecutePreparedDraw(CommandBuffer& buffer, const DrawCallIn
+ 			return;
+ 		}
+ 		mesh_groups = (primitives - 1u) / mesh.primitives_per_group + 1u;
+-		if (mesh_groups > limits.maxMeshWorkGroupCount[0] ||
++		const auto& compute_limits = m_context.GetGraphics().GetPhysicalDeviceProperties().limits;
++		if (mesh_compute && (mesh_groups > compute_limits.maxComputeWorkGroupCount[0] ||
++		                     draw.instance_count > compute_limits.maxComputeWorkGroupCount[1])) {
++			// Invincible VS issues some with garbage counts (millions by millions); skip them.
++			static std::atomic_bool warned = false;
++			if (!warned.exchange(true, std::memory_order_relaxed)) {
++				Log::WriteToConsoleAndLog(fmt::format(
++				    "Warning: skipped a mesh draw of {}x{} workgroups.\n", mesh_groups,
++				    draw.instance_count));
++			}
++			return;
++		}
++		if (!mesh_compute && (mesh_groups > limits.maxMeshWorkGroupCount[0] ||
+ 		    draw.instance_count > limits.maxMeshWorkGroupCount[1] ||
+ 		    static_cast<uint64_t>(mesh_groups) * draw.instance_count >
+-		        limits.maxMeshWorkGroupTotalCount) {
++		        limits.maxMeshWorkGroupTotalCount)) {
+ 			EXIT("mesh draw exceeds host workgroup limits: %ux%u\n", mesh_groups,
+ 			     draw.instance_count);
+ 		}
+@@ -1108,6 +1166,92 @@ void RenderExecutor::ExecutePreparedDraw(CommandBuffer& buffer, const DrawCallIn
+ 	}
+ 	const auto stages = std::span {descriptor_stages.data(), stage_count};
+ 	PrepareGraphicsBindings(stages, m_targets);
++	// EmuFive: a mesh program run as compute writes its workgroups' vertices and triangles to
++	// m_mesh_output (see MeshComputeHeaderDwords). A draw with more workgroups than fit runs as
++	// several dispatch and draw pairs over consecutive workgroups.
++	using ShaderRecompiler::IR::PushData;
++	struct MeshChunk {
++		uint32_t x = 0, y = 0, width = 0, height = 0;
++	};
++	std::vector<MeshChunk> mesh_chunks;
++	uint32_t               mesh_record    = 0;
++	uint32_t               mesh_triangles = 0;
++	uint32_t               mesh_fit       = 0;
++	if (mesh_compute) {
++		constexpr uint64_t OutputBytes = uint64_t {32} << 20u;
++		const auto vertex_dwords = ShaderRecompiler::IR::MeshComputeVertexDwords(
++		    state.vertex_info[0].stage.module->info.info.outputs);
++		mesh_triangles =
++		    ShaderRecompiler::IR::MeshComputeHeaderDwords + mesh.max_vertices * vertex_dwords;
++		mesh_record =
++		    mesh_triangles + mesh.max_primitives * ShaderRecompiler::IR::MeshComputeTriangleDwords;
++		const auto fit =
++		    static_cast<uint32_t>(OutputBytes / (uint64_t {mesh_record} * sizeof(uint32_t)));
++		const uint64_t total = uint64_t {mesh_groups} * draw.instance_count;
++		mesh_fit             = fit;
++		if (fit == 0 || (!mesh_task && total > uint64_t {fit} * 4096u)) {
++			static std::atomic_bool warned = false;
++			if (!warned.exchange(true, std::memory_order_relaxed)) {
++				Log::WriteToConsoleAndLog(fmt::format(
++				    "Warning: skipped a mesh draw of {}x{} workgroups of {} bytes.\n", mesh_groups,
++				    draw.instance_count, mesh_record * sizeof(uint32_t)));
++			}
++			return;
++		}
++		if (mesh_task) {
++			// One pass per indirect record, sized on the GPU.
++		} else if (mesh_groups <= fit) {
++			const auto rows = std::min(draw.instance_count, fit / mesh_groups);
++			for (uint32_t y = 0; y < draw.instance_count; y += rows) {
++				mesh_chunks.push_back({0, y, mesh_groups, std::min(rows, draw.instance_count - y)});
++			}
++		} else {
++			for (uint32_t y = 0; y < draw.instance_count; y++) {
++				for (uint32_t x = 0; x < mesh_groups; x += fit) {
++					mesh_chunks.push_back({x, y, std::min(fit, mesh_groups - x), 1});
++				}
++			}
++		}
++		if (m_mesh_output == nullptr) {
++			m_mesh_output = std::make_shared<Buffer>(
++			    m_context.GetGraphics(), m_context.GetCommandScheduler(), MemoryUsage::DeviceLocal,
++			    0,
++			    vk::BufferUsageFlagBits::eStorageBuffer |
++			        vk::BufferUsageFlagBits::eShaderDeviceAddress,
++			    OutputBytes);
++			Log::WriteToConsoleAndLog("Mesh draws run as compute shaders on this GPU.\n");
++		}
++		if (mesh_task && m_mesh_setup_pipeline == nullptr) {
++			auto&                     graphics = m_context.GetGraphics();
++			const vk::PushConstantRange push {vk::ShaderStageFlagBits::eCompute, 0,
++			                                  sizeof(MeshComputeSetupParams)};
++			vk::PipelineLayoutCreateInfo layout_info {};
++			layout_info.pushConstantRangeCount = 1;
++			layout_info.pPushConstantRanges    = &push;
++			RequireVulkanSuccess(graphics.device.createPipelineLayout(&layout_info, nullptr,
++			                                                          &m_mesh_setup_layout),
++			                     "create mesh setup pipeline layout");
++			const auto shader = CompileSPV(GPU_MESH_COMPUTE_INDIRECT_SPV, graphics.device);
++			vk::ComputePipelineCreateInfo create {};
++			create.stage.stage  = vk::ShaderStageFlagBits::eCompute;
++			create.stage.module = shader;
++			create.stage.pName  = "main";
++			create.layout       = m_mesh_setup_layout;
++			const auto result   = graphics.device.createComputePipelines(nullptr, 1, &create,
++			                                                             nullptr, &m_mesh_setup_pipeline);
++			graphics.device.destroyShaderModule(shader, nullptr);
++			RequireVulkanSuccess(result, "create mesh setup pipeline");
++			m_mesh_setup = std::make_shared<Buffer>(
++			    graphics, m_context.GetCommandScheduler(), MemoryUsage::DeviceLocal, 0,
++			    vk::BufferUsageFlagBits::eStorageBuffer |
++			        vk::BufferUsageFlagBits::eShaderDeviceAddress |
++			        vk::BufferUsageFlagBits::eIndirectBuffer,
++			    uint64_t {MeshSetupSlots} * ShaderRecompiler::IR::MeshComputeSetupDwords *
++			        sizeof(uint32_t));
++		}
++	}
++	const size_t mesh_passes =
++	    !mesh_compute ? 0 : mesh_task ? emit.indirect.count : mesh_chunks.size();
+ 	PreparedVertexBuffers vertex_bindings;
+ 	PreparedIndexBuffer   index_binding;
+ 	vk::DeviceAddress     mesh_indices = 0;
+@@ -1132,7 +1276,7 @@ void RenderExecutor::ExecutePreparedDraw(CommandBuffer& buffer, const DrawCallIn
+ 	const auto rendering = AcquireRenderTargets(buffer, m_targets.colors, m_targets.color_count,
+ 	                                            m_targets.depth, feedback_aspects, stages);
+ 	vk::DeviceAddress task_params = 0;
+-	if (mesh_task) {
++	if (mesh_task && !mesh_compute) {
+ 		const MeshTaskParams params {
+ 		    .records        = args_buffer.first->BufferDeviceAddress() + args_buffer.second,
+ 		    .index_address  = mesh_indices,
+@@ -1153,16 +1297,151 @@ void RenderExecutor::ExecutePreparedDraw(CommandBuffer& buffer, const DrawCallIn
+ 	// point onward, every operation targets the current command buffer and cannot touch guest
+ 	// memory.
+ 	auto vk_buffer = buffer.Handle();
++	const auto mesh_output_address =
++	    mesh_compute ? m_mesh_output->BufferDeviceAddress() : vk::DeviceAddress {0};
++	constexpr uint32_t SetupBytes = ShaderRecompiler::IR::MeshComputeSetupDwords * sizeof(uint32_t);
++	vk::DeviceSize     mesh_setup_offset = 0;
++	const auto dispatch_mesh = [&](size_t pass) {
++		auto& compute = m_context.GetPipelineCache().GetMeshComputePipeline(
++		    *state.vertex_info[0].stage.module);
++		buffer.EndRendering();
++		// The previous mesh draw's vertex shader reads the buffer this dispatch writes.
++		vk::MemoryBarrier reuse {};
++		reuse.srcAccessMask = vk::AccessFlagBits::eShaderRead |
++		                      vk::AccessFlagBits::eIndirectCommandRead;
++		reuse.dstAccessMask = vk::AccessFlagBits::eShaderWrite;
++		vk_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eVertexShader |
++		                              vk::PipelineStageFlagBits::eDrawIndirect,
++		                          vk::PipelineStageFlagBits::eComputeShader, {}, 1, &reuse, 0,
++		                          nullptr, 0, nullptr);
++		const bool writes = HasShaderBufferWrites(state.vertex_info[0].stage);
++		if (writes) {
++			ShaderWriteHazardBarrier(vk_buffer, vk::PipelineStageFlagBits::eComputeShader);
++		}
++		vk::DeviceAddress setup_address = 0;
++		if (mesh_task) {
++			// The GPU may have just written the record.
++			mesh_setup_offset = vk::DeviceSize {m_mesh_setup_slot++ % MeshSetupSlots} * SetupBytes;
++			setup_address     = m_mesh_setup->BufferDeviceAddress() + mesh_setup_offset;
++			vk::MemoryBarrier record {};
++			record.srcAccessMask = vk::AccessFlagBits::eShaderWrite |
++			                       vk::AccessFlagBits::eTransferWrite;
++			record.dstAccessMask = vk::AccessFlagBits::eShaderRead;
++			vk_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eAllCommands,
++			                          vk::PipelineStageFlagBits::eComputeShader, {}, 1, &record, 0,
++			                          nullptr, 0, nullptr);
++			const auto&                  compute_limits =
++			    m_context.GetGraphics().GetPhysicalDeviceProperties().limits;
++			const MeshComputeSetupParams params {
++			    .record = args_buffer.first->BufferDeviceAddress() + args_buffer.second +
++			              pass * emit.indirect.stride,
++			    .index_address  = mesh_indices,
++			    .setup          = setup_address,
++			    .index_size     = index_source.guest_element_size,
++			    .index_limit    = draw.index_count,
++			    .primitive_size = mesh.InputPrimitiveSize(),
++			    .group_step     = mesh.primitives_per_group * mesh.InputPrimitiveStep(),
++			    .max_groups     = std::min(compute_limits.maxComputeWorkGroupCount[0], mesh_fit),
++			    .max_instances  = compute_limits.maxComputeWorkGroupCount[1],
++			    .max_total      = mesh_fit,
++			    .triangles      = mesh.max_primitives,
++			};
++			vk_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, m_mesh_setup_pipeline);
++			vk_buffer.pushConstants(m_mesh_setup_layout, vk::ShaderStageFlagBits::eCompute, 0,
++			                        sizeof(params), &params);
++			vk_buffer.dispatch(1, 1, 1);
++			vk::MemoryBarrier setup {};
++			setup.srcAccessMask = vk::AccessFlagBits::eShaderWrite;
++			setup.dstAccessMask =
++			    vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eIndirectCommandRead;
++			vk_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eComputeShader,
++			                          vk::PipelineStageFlagBits::eComputeShader |
++			                              vk::PipelineStageFlagBits::eDrawIndirect,
++			                          {}, 1, &setup, 0, nullptr, 0, nullptr);
++		}
++		vk_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, compute.pipeline);
++		std::array<PreparedBindings*, 1> mesh_stage {&bindings.vertex[0]};
++		CommitBindings(buffer, vk::PipelineBindPoint::eCompute, compute, mesh_stage);
++		if (mesh_task) {
++			const std::array<uint32_t, PushData::MeshComputeDwordCount> data {
++			    static_cast<uint32_t>(setup_address),
++			    static_cast<uint32_t>(setup_address >> 32u),
++			    0,
++			    0,
++			    0,
++			    static_cast<uint32_t>(mesh_output_address),
++			    static_cast<uint32_t>(mesh_output_address >> 32u),
++			    0,
++			    0,
++			    0};
++			vk_buffer.pushConstants(compute.pipeline_layout, compute.push_stages, 0,
++			                        sizeof(data), data.data());
++			vk_buffer.dispatchIndirect(m_mesh_setup->Handle(),
++			                           mesh_setup_offset +
++			                               ShaderRecompiler::IR::MeshComputeSetupDispatchDword *
++			                                   sizeof(uint32_t));
++		} else {
++			const auto& chunk = mesh_chunks[pass];
++			const std::array<uint32_t, PushData::MeshComputeDwordCount> data {
++			    draw.index_count,
++			    static_cast<uint32_t>(emit.vertex_offset),
++			    index_source.guest_element_size,
++			    static_cast<uint32_t>(mesh_indices),
++			    static_cast<uint32_t>(mesh_indices >> 32u),
++			    static_cast<uint32_t>(mesh_output_address),
++			    static_cast<uint32_t>(mesh_output_address >> 32u),
++			    mesh_groups,
++			    chunk.y * mesh_groups + chunk.x,
++			    0};
++			vk_buffer.pushConstants(compute.pipeline_layout, compute.push_stages, 0,
++			                        sizeof(data), data.data());
++			vk_buffer.dispatchBase(chunk.x, chunk.y, 0, chunk.width, chunk.height, 1);
++		}
++		vk::MemoryBarrier written {};
++		written.srcAccessMask = vk::AccessFlagBits::eShaderWrite;
++		written.dstAccessMask = vk::AccessFlagBits::eShaderRead;
++		vk_buffer.pipelineBarrier(vk::PipelineStageFlagBits::eComputeShader,
++		                          vk::PipelineStageFlagBits::eVertexShader, {}, 1, &written, 0,
++		                          nullptr, 0, nullptr);
++		if (writes) {
++			ShaderWriteBarrier(vk_buffer, vk::PipelineStageFlagBits::eComputeShader);
++		}
++	};
++	const auto draw_mesh = [&](size_t pass) {
++		if (mesh_task) {
++			vk_buffer.drawIndirect(m_mesh_setup->Handle(),
++			                       mesh_setup_offset +
++			                           ShaderRecompiler::IR::MeshComputeSetupDrawDword *
++			                               sizeof(uint32_t),
++			                       1, 0);
++		} else {
++			const auto& chunk = mesh_chunks[pass];
++			vk_buffer.draw(chunk.width * chunk.height * mesh.max_primitives * 3u, 1, 0, 0);
++		}
++	};
++	if (mesh_compute) {
++		dispatch_mesh(0);
++	}
+ 	if (!mesh_active) {
+ 		CommitVertexBuffers(vk_buffer, vertex_bindings);
+ 	}
+-	CommitBindings(buffer, vk::PipelineBindPoint::eGraphics, pipeline, stages);
++	CommitBindings(buffer, vk::PipelineBindPoint::eGraphics, pipeline,
++	               mesh_compute ? stages.subspan(1) : stages);
+ 	if (!mesh_active) {
+ 		CommitIndexBuffer(vk_buffer, index_binding);
+ 	}
+ 	using ShaderRecompiler::IR::PushData;
+-	if (mesh_active) {
+-		std::array<uint32_t, PushData::MeshDrawDwordCount> draw_data {};
++	std::array<uint32_t, PushData::MeshComputeDwordCount> draw_data {};
++	uint32_t                                              draw_dwords = 0;
++	if (mesh_compute) {
++		draw_data[PushData::MeshComputeAddressDword]      = static_cast<uint32_t>(mesh_output_address);
++		draw_data[PushData::MeshComputeAddressDword + 1u] =
++		    static_cast<uint32_t>(mesh_output_address >> 32u);
++		draw_data[PushData::MeshComputeRecordDword]    = mesh_record;
++		draw_data[PushData::MeshComputePrimitiveDword] = mesh.max_primitives;
++		draw_data[PushData::MeshComputeTriangleDword]  = mesh_triangles;
++		draw_dwords                                    = PushData::MeshComputeDwordCount;
++	} else if (mesh_active) {
+ 		if (mesh_task) {
+ 			draw_data[0] = static_cast<uint32_t>(task_params);
+ 			draw_data[1] = static_cast<uint32_t>(task_params >> 32u);
+@@ -1173,8 +1452,11 @@ void RenderExecutor::ExecutePreparedDraw(CommandBuffer& buffer, const DrawCallIn
+ 			             static_cast<uint32_t>(mesh_indices),
+ 			             static_cast<uint32_t>(mesh_indices >> 32u)};
+ 		}
++		draw_dwords = PushData::MeshDrawDwordCount;
++	}
++	if (draw_dwords != 0) {
+ 		vk_buffer.pushConstants(pipeline.pipeline_layout, pipeline.push_stages, 0,
+-		                        sizeof(draw_data), draw_data.data());
++		                        draw_dwords * sizeof(uint32_t), draw_data.data());
+ 	}
+ 	if (state.ps_input_info.object_primitive_id) {
+ 		const auto object_id = buffer.GetUserConfig().GetObjectId();
+@@ -1196,7 +1478,7 @@ void RenderExecutor::ExecutePreparedDraw(CommandBuffer& buffer, const DrawCallIn
+ 
+ 	vk::PipelineStageFlags shader_write_stages = {};
+ 	for (const auto& stage: vertex_stages) {
+-		if (HasShaderBufferWrites(stage.stage)) {
++		if (!mesh_compute && HasShaderBufferWrites(stage.stage)) {
+ 			shader_write_stages |= ShaderPipelineStages(NativeShaderStage(stage.logical_stage));
+ 		}
+ 	}
+@@ -1213,7 +1495,23 @@ void RenderExecutor::ExecutePreparedDraw(CommandBuffer& buffer, const DrawCallIn
+ 	auto&         occlusion_queries = m_context.GetOcclusionQueries();
+ 	const int32_t occlusion_query   = occlusion_queries.Begin(vk_buffer);
+ 	GpuProfile::Stamp(vk_buffer, "before-draw", reinterpret_cast<uint64_t>(static_cast<VkPipeline>(pipeline.pipeline)), m_targets.color_count != 0 ? m_targets.colors[0].Extent().width : 0, m_targets.color_count != 0 ? m_targets.colors[0].Extent().height : 0);
+-	if (mesh_task) {
++	if (mesh_compute) {
++		draw_mesh(0);
++		if (mesh_passes > 1) {
++			// Leaving the render pass ends the occlusion query; the other passes are not counted.
++			occlusion_queries.End(vk_buffer, occlusion_query);
++			for (size_t i = 1; i < mesh_passes; i++) {
++				dispatch_mesh(i);
++				// The dispatch replaced the push constants and the compute bindings.
++				CommitBindings(buffer, vk::PipelineBindPoint::eGraphics, pipeline, stages.subspan(1));
++				vk_buffer.pushConstants(pipeline.pipeline_layout, pipeline.push_stages, 0,
++				                        draw_dwords * sizeof(uint32_t), draw_data.data());
++				buffer.BeginRendering(rendering);
++				vk_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline.pipeline);
++				draw_mesh(i);
++			}
++		}
++	} else if (mesh_task) {
+ 		vk_buffer.drawMeshTasksEXT(emit.indirect.count, 1, 1);
+ 	} else if (mesh_active) {
+ 		vk_buffer.drawMeshTasksEXT(mesh_groups, draw.instance_count, 1);
+@@ -1226,7 +1524,9 @@ void RenderExecutor::ExecutePreparedDraw(CommandBuffer& buffer, const DrawCallIn
+ 		vk_buffer.drawIndirect(args_buffer.first->Handle(), args_buffer.second,
+ 		                       emit.indirect.count, emit.indirect.stride);
+ 	}
+-	occlusion_queries.End(vk_buffer, occlusion_query);
++	if (!mesh_compute || mesh_passes == 1) {
++		occlusion_queries.End(vk_buffer, occlusion_query);
++	}
+ 	GpuProfile::Stamp(vk_buffer, state.ps_active ? "draw" : "draw-no-ps", reinterpret_cast<uint64_t>(static_cast<VkPipeline>(pipeline.pipeline)), m_targets.color_count != 0 ? m_targets.colors[0].Extent().width : 0, m_targets.color_count != 0 ? m_targets.colors[0].Extent().height : 0);
+ 	Common::DebugCounters::Add(Common::DebugCounters::Counter::Draws);
+ 	Common::DebugCounters::Add(Common::DebugCounters::Counter::DrawInstances, draw.instance_count);
+@@ -1286,6 +1586,7 @@ bool RenderExecutor::DrawIndex(CommandBuffer& buffer, const DrawIndexArgs& args)
+ 
+ 	if (ConsumeMetadataColorOperation(buffer) || DepthStencilCopy(buffer) ||
+ 	    ResolveColorTargets(buffer)) {
++		FrameTrace::Line("DRAW consumed as a metadata/copy/resolve operation");
+ 		ResetBindings();
+ 		return true;
+ 	}
+@@ -1377,6 +1678,7 @@ bool RenderExecutor::DrawAuto(CommandBuffer& buffer, const DrawAutoArgs& args) {
+ 
+ 	if (ConsumeMetadataColorOperation(buffer) || DepthStencilCopy(buffer) ||
+ 	    ResolveColorTargets(buffer)) {
++		FrameTrace::Line("DRAW consumed as a metadata/copy/resolve operation");
+ 		ResetBindings();
+ 		return true;
+ 	}
+diff --git a/src/graphics/host_gpu/renderer/renderPssr.cpp b/src/graphics/host_gpu/renderer/renderPssr.cpp
+index 7967765c833cf6337580472650fe052e81c840c7..816adca737854be37ba3825390c64ecb6aff17e2 100644
+--- a/src/graphics/host_gpu/renderer/renderPssr.cpp
++++ b/src/graphics/host_gpu/renderer/renderPssr.cpp
+@@ -41,6 +41,8 @@ RenderExecutor::~RenderExecutor() {
+ 	device.destroyPipeline(m_pssr_pipeline, nullptr);
+ 	device.destroyPipelineLayout(m_pssr_pipeline_layout, nullptr);
+ 	device.destroyDescriptorSetLayout(m_pssr_descriptor_layout, nullptr);
++	device.destroyPipeline(m_mesh_setup_pipeline, nullptr);
++	device.destroyPipelineLayout(m_mesh_setup_layout, nullptr);
+ }
+ 
+ bool RenderExecutor::Upscale(vk::CommandBuffer command, const Pssr::Request& request,
+diff --git a/src/graphics/host_gpu/shaders/gpu_mesh_compute_indirect.comp b/src/graphics/host_gpu/shaders/gpu_mesh_compute_indirect.comp
+new file mode 100644
+index 0000000000000000000000000000000000000000..c40315b246cbb283862ed6ae6bae2bf2761c8968
+--- /dev/null
++++ b/src/graphics/host_gpu/shaders/gpu_mesh_compute_indirect.comp
+@@ -0,0 +1,74 @@
++#version 460
++#extension GL_EXT_buffer_reference : require
++#extension GL_EXT_shader_explicit_arithmetic_types_int64 : require
++
++// EmuFive: one indirect record of a mesh draw run as compute on a GPU without mesh shaders
++// (IR::MeshComputeSetupDwords). Reads the record like gpu_mesh_indirect.task and writes the draw
++// parameters, the groups per instance, the dispatch of the mesh program and the draw of its
++// triangles. Records past the output buffer draw their first workgroups only.
++layout(local_size_x = 1) in;
++
++layout(buffer_reference, std430, buffer_reference_align = 4) readonly buffer Record {
++	uint dwords[5];
++};
++layout(buffer_reference, std430, buffer_reference_align = 4) writeonly buffer Setup {
++	uint dwords[16];
++};
++// MeshComputeSetupParams in renderDraw.cpp.
++layout(push_constant) uniform Push {
++	uint64_t record_address;
++	uint64_t index_address;
++	uint64_t setup_address;
++	uint     index_size;
++	uint     index_limit;
++	uint     primitive_size;
++	uint     group_step;
++	uint     max_groups;
++	uint     max_instances;
++	uint     max_total;
++	uint     triangles;
++};
++
++void main() {
++	Record   record    = Record(record_address);
++	uint     count     = record.dwords[0];
++	uint     instances = record.dwords[1];
++	uint64_t address   = index_address;
++	// The base vertex and first instance follow the first index in indexed records.
++	uint base = 2;
++	if (index_size != 0) {
++		// Indices past INDEX_BUFFER_SIZE are never read.
++		const uint first = record.dwords[2];
++		count = min(count, index_limit - min(first, index_limit));
++		address += uint64_t(first) * index_size;
++		base = 3;
++	}
++	uint groups = count < primitive_size ? 0 : (count - primitive_size) / group_step + 1;
++	instances   = min(instances, max_instances);
++	if (groups == 0 || instances == 0) {
++		groups    = 0;
++		instances = 0;
++	} else if (groups >= max_total || groups > max_groups) {
++		groups    = min(min(groups, max_total), max_groups);
++		instances = 1;
++	} else {
++		instances = min(instances, max_total / groups);
++	}
++	Setup setup     = Setup(setup_address);
++	setup.dwords[0] = count;
++	setup.dwords[1] = record.dwords[base];
++	setup.dwords[2] = index_size;
++	setup.dwords[3] = uint(address);
++	setup.dwords[4] = uint(address >> 32);
++	setup.dwords[5] = record.dwords[base + 1];
++	setup.dwords[6] = groups;
++	setup.dwords[7] = 0;
++	setup.dwords[8] = groups;
++	setup.dwords[9] = instances;
++	setup.dwords[10] = 1;
++	setup.dwords[11] = 0;
++	setup.dwords[12] = groups * instances * triangles * 3;
++	setup.dwords[13] = 1;
++	setup.dwords[14] = 0;
++	setup.dwords[15] = 0;
++}
+diff --git a/src/graphics/presentation/window/vulkanWindow.cpp b/src/graphics/presentation/window/vulkanWindow.cpp
+index 5500ee3cd539b77ac75f1f8e4eb89dc5616207ac..bcbc0b4957a1c273c9be2a0eb5da2f60e18f8528 100644
+--- a/src/graphics/presentation/window/vulkanWindow.cpp
++++ b/src/graphics/presentation/window/vulkanWindow.cpp
+@@ -7,6 +7,7 @@
+ #include "common/stringUtils.h"
+ #include "common/threads.h"
+ #include "graphics/host_gpu/graphicContext.h"
++#include "graphics/host_gpu/renderer/pipeline/shaderResourceBarrier.h"
+ #include "graphics/host_gpu/renderer/render.h"
+ #include "graphics/host_gpu/renderer/renderContext.h"
+ #include "graphics/host_gpu/renderer/upscaler/dlss.h"
+@@ -502,6 +503,8 @@ static vk::Device VulkanCreateDevice(GraphicContext&          graphics,
+ 	}
+ 	// Indirect mesh draws launch their records' groups from a task shader.
+ 	graphics.mesh_shader_enabled = mesh.meshShader && mesh.taskShader;
++	// EmuFive: without them (the PS4's GCN GPUs), mesh programs run as compute shaders.
++	SetMeshProgramsRunAsCompute(!graphics.mesh_shader_enabled);
+ 
+ 	vk::StructureChain<
+ 	    vk::PhysicalDeviceProperties2, vk::PhysicalDeviceFloatControlsProperties,
+diff --git a/src/graphics/shader/meshComputeShader.cpp b/src/graphics/shader/meshComputeShader.cpp
+new file mode 100644
+index 0000000000000000000000000000000000000000..b48f8d92936b0b350e8dd1600d2d3aedada1a7f0
+--- /dev/null
++++ b/src/graphics/shader/meshComputeShader.cpp
+@@ -0,0 +1,255 @@
++#include "graphics/shader/meshComputeShader.h"
++
++#include "graphics/shader/recompiler/backend/spirv/SpirvBuilder.h"
++#include "graphics/shader/recompiler/ir/ShaderIR.h"
++
++#include <algorithm>
++#include <cstdint>
++
++namespace Libs::Graphics {
++
++namespace {
++
++using ShaderRecompiler::Spirv::Builder;
++namespace IR = ShaderRecompiler::IR;
++
++class MeshComputeVertexEmitter {
++public:
++	explicit MeshComputeVertexEmitter(std::span<const IR::StageOutput> outputs_)
++	    : outputs(outputs_) {}
++
++	std::vector<uint32_t> Emit() {
++		builder.AddMemoryModel(spv::AddressingModelPhysicalStorageBuffer64,
++		                       spv::MemoryModelGLSL450);
++		builder.RequireCapability(spv::CapabilityShader);
++		builder.RequireCapability(spv::CapabilityInt64);
++		builder.RequireCapability(spv::CapabilityPhysicalStorageBufferAddresses);
++		builder.RequireExtension("SPV_KHR_physical_storage_buffer");
++
++		void_type     = builder.Type(spv::OpTypeVoid);
++		bool_type     = builder.Type(spv::OpTypeBool);
++		uint_type     = builder.Type(spv::OpTypeInt, 32u, 0u);
++		int_type      = builder.Type(spv::OpTypeInt, 32u, 1u);
++		u64_type      = builder.Type(spv::OpTypeInt, 64u, 0u);
++		float_type    = builder.Type(spv::OpTypeFloat, 32u);
++		vec4_type     = builder.Type(spv::OpTypeVector, float_type, 4u);
++		uvec2_type    = builder.Type(spv::OpTypeVector, uint_type, 2u);
++		function_type = builder.Type(spv::OpTypeFunction, void_type);
++		physical_uint = builder.Type(spv::OpTypePointer, spv::StorageClassPhysicalStorageBuffer,
++		                             uint_type);
++
++		DefineInterface();
++		main = Result(spv::OpFunction, void_type, spv::FunctionControlMaskNone, function_type);
++		builder.AddEntryPoint(spv::ExecutionModelVertex, main, "main", interfaces);
++		ResultWithoutType(spv::OpLabel);
++
++		base = Result(spv::OpBitcast, u64_type,
++		              Result(spv::OpCompositeConstruct, uvec2_type,
++		                     Push(IR::PushData::MeshComputeAddressDword),
++		                     Push(IR::PushData::MeshComputeAddressDword + 1u)));
++		const auto vertex   = Result(spv::OpBitcast, uint_type, Load(int_type, vertex_index));
++		const auto triangle = Result(spv::OpUDiv, uint_type, vertex, Uint(3));
++		const auto corner   = Result(spv::OpUMod, uint_type, vertex, Uint(3));
++		const auto per_group = Push(IR::PushData::MeshComputePrimitiveDword);
++		const auto group     = Result(spv::OpUDiv, uint_type, triangle, per_group);
++		const auto local     = Result(spv::OpUMod, uint_type, triangle, per_group);
++		const auto record =
++		    Result(spv::OpIMul, uint_type, group, Push(IR::PushData::MeshComputeRecordDword));
++		const auto count = LoadDword(record);
++		const auto valid = Result(spv::OpULessThan, bool_type, local, count);
++		const auto entry = Add(Add(record, Push(IR::PushData::MeshComputeTriangleDword)),
++		                       Result(spv::OpIMul, uint_type, local,
++		                              Uint(IR::MeshComputeTriangleDwords)));
++		// Triangles past the count collapse onto the workgroup's first vertex record.
++		auto dword = Result(spv::OpSelect, uint_type, valid, LoadDword(Add(entry, corner)),
++		                    Add(record, Uint(IR::MeshComputeHeaderDwords)));
++		if (layer != 0) {
++			Store(layer,
++			      Result(spv::OpSelect, uint_type, valid, LoadDword(Add(entry, Uint(3))), Uint(0)));
++		}
++		for (size_t i = 0; i < outputs.size(); i++) {
++			const auto& output = outputs[i];
++			const auto  count  = IR::MeshComputeOutputDwords(output.kind);
++			if (count == 0) {
++				continue;
++			}
++			if (count == 1) {
++				const auto value = Result(spv::OpBitcast, float_type, LoadDword(dword));
++				const auto array = output.kind == IR::StageOutputKind::ClipDistance ? clip : cull;
++				Store(Result(spv::OpAccessChain, output_float, array, Int(output.index)), value);
++			} else {
++				uint32_t components[4] {};
++				for (uint32_t c = 0; c < 4; c++) {
++					components[c] =
++					    Result(spv::OpBitcast, float_type, LoadDword(Add(dword, Uint(c))));
++				}
++				const auto value = Result(spv::OpCompositeConstruct, vec4_type, components[0],
++				                          components[1], components[2], components[3]);
++				if (output.kind == IR::StageOutputKind::Position) {
++					Store(Result(spv::OpAccessChain, output_vec4, per_vertex, Int(0)), value);
++				} else {
++					Store(parameters[i], value);
++				}
++			}
++			dword = Add(dword, Uint(count));
++		}
++		builder.AddFunction(spv::OpReturn);
++		builder.AddFunction(spv::OpFunctionEnd);
++		return builder.Build();
++	}
++
++private:
++	void DefineInterface() {
++		vertex_index = AddInterface(spv::StorageClassInput, int_type);
++		Decorate(vertex_index, spv::DecorationBuiltIn, spv::BuiltInVertexIndex);
++
++		const auto push_array = builder.DecoratedType(
++		    spv::OpTypeArray, {{spv::OpDecorate, {spv::DecorationArrayStride, sizeof(uint32_t)}}},
++		    uint_type, Uint(IR::PushData::DwordCount));
++		const auto push_block = builder.DecoratedType(
++		    spv::OpTypeStruct,
++		    {{spv::OpMemberDecorate, {0, spv::DecorationOffset, 0}},
++		     {spv::OpDecorate, {spv::DecorationBlock}}},
++		    push_array);
++		push = AddInterface(spv::StorageClassPushConstant, push_block);
++		push_uint = Pointer(spv::StorageClassPushConstant, uint_type);
++
++		const auto per_vertex_type = builder.DecoratedType(
++		    spv::OpTypeStruct,
++		    {{spv::OpMemberDecorate, {0u, spv::DecorationBuiltIn, spv::BuiltInPosition}},
++		     {spv::OpDecorate, {spv::DecorationBlock}}},
++		    vec4_type);
++		per_vertex  = AddInterface(spv::StorageClassOutput, per_vertex_type);
++		output_vec4 = Pointer(spv::StorageClassOutput, vec4_type);
++
++		uint32_t clip_count = 0;
++		uint32_t cull_count = 0;
++		parameters.resize(outputs.size());
++		for (size_t i = 0; i < outputs.size(); i++) {
++			const auto& output = outputs[i];
++			switch (output.kind) {
++				case IR::StageOutputKind::Parameter:
++					parameters[i] = AddInterface(spv::StorageClassOutput, vec4_type);
++					Decorate(parameters[i], spv::DecorationLocation, output.location);
++					break;
++				case IR::StageOutputKind::ClipDistance:
++					clip_count = std::max(clip_count, output.index + 1u);
++					break;
++				case IR::StageOutputKind::CullDistance:
++					cull_count = std::max(cull_count, output.index + 1u);
++					break;
++				case IR::StageOutputKind::Layer:
++					if (layer == 0) {
++						builder.RequireCapability(spv::CapabilityShaderLayer);
++						layer = AddInterface(spv::StorageClassOutput, uint_type);
++						Decorate(layer, spv::DecorationBuiltIn, spv::BuiltInLayer);
++					}
++					break;
++				default: break;
++			}
++		}
++		output_float = Pointer(spv::StorageClassOutput, float_type);
++		if (clip_count != 0) {
++			builder.RequireCapability(spv::CapabilityClipDistance);
++			clip = AddInterface(spv::StorageClassOutput,
++			                    builder.Type(spv::OpTypeArray, float_type, Uint(clip_count)));
++			Decorate(clip, spv::DecorationBuiltIn, spv::BuiltInClipDistance);
++		}
++		if (cull_count != 0) {
++			builder.RequireCapability(spv::CapabilityCullDistance);
++			cull = AddInterface(spv::StorageClassOutput,
++			                    builder.Type(spv::OpTypeArray, float_type, Uint(cull_count)));
++			Decorate(cull, spv::DecorationBuiltIn, spv::BuiltInCullDistance);
++		}
++	}
++
++	uint32_t Push(uint32_t index) {
++		return Load(uint_type, Result(spv::OpAccessChain, push_uint, push, Int(0), Int(index)));
++	}
++
++	uint32_t LoadDword(uint32_t dword) {
++		const auto offset =
++		    Result(spv::OpShiftLeftLogical, u64_type, Result(spv::OpUConvert, u64_type, dword),
++		           builder.Constant(spv::OpConstant, u64_type, 2u, 0u));
++		const auto pointer = Result(spv::OpConvertUToPtr, physical_uint,
++		                            Result(spv::OpIAdd, u64_type, base, offset));
++		const auto value = builder.AllocateId();
++		builder.AddFunction(spv::OpLoad, uint_type, value, pointer, spv::MemoryAccessAlignedMask,
++		                    4u);
++		return value;
++	}
++
++	uint32_t Add(uint32_t left, uint32_t right) {
++		return Result(spv::OpIAdd, uint_type, left, right);
++	}
++
++	uint32_t Load(uint32_t type, uint32_t pointer) { return Result(spv::OpLoad, type, pointer); }
++
++	void Store(uint32_t pointer, uint32_t value) { builder.AddFunction(spv::OpStore, pointer, value); }
++
++	uint32_t Int(uint32_t value) { return builder.Constant(spv::OpConstant, int_type, value); }
++
++	uint32_t Uint(uint32_t value) { return builder.Constant(spv::OpConstant, uint_type, value); }
++
++	uint32_t Pointer(spv::StorageClass storage, uint32_t type) {
++		return builder.Type(spv::OpTypePointer, storage, type);
++	}
++
++	uint32_t AddInterface(spv::StorageClass storage, uint32_t type) {
++		const auto variable = builder.DefineGlobalVariable(Pointer(storage, type), storage);
++		interfaces.push_back(variable);
++		return variable;
++	}
++
++	void Decorate(uint32_t target, spv::Decoration decoration, uint32_t value) {
++		builder.AddAnnotation(spv::OpDecorate, target, decoration, value);
++	}
++
++	template <typename... Args>
++	uint32_t Result(spv::Op opcode, uint32_t type, Args... operands) {
++		const auto id = builder.AllocateId();
++		builder.AddFunction(opcode, type, id, operands...);
++		return id;
++	}
++
++	template <typename... Args>
++	uint32_t ResultWithoutType(spv::Op opcode, Args... operands) {
++		const auto id = builder.AllocateId();
++		builder.AddFunction(opcode, id, operands...);
++		return id;
++	}
++
++	Builder                          builder {0x00010500u};
++	std::span<const IR::StageOutput> outputs;
++	std::vector<uint32_t>            interfaces;
++	std::vector<uint32_t>            parameters;
++	uint32_t                         main          = 0;
++	uint32_t                         void_type     = 0;
++	uint32_t                         bool_type     = 0;
++	uint32_t                         uint_type     = 0;
++	uint32_t                         int_type      = 0;
++	uint32_t                         u64_type      = 0;
++	uint32_t                         float_type    = 0;
++	uint32_t                         vec4_type     = 0;
++	uint32_t                         uvec2_type    = 0;
++	uint32_t                         function_type = 0;
++	uint32_t                         physical_uint = 0;
++	uint32_t                         push_uint     = 0;
++	uint32_t                         output_vec4   = 0;
++	uint32_t                         output_float  = 0;
++	uint32_t                         vertex_index  = 0;
++	uint32_t                         push          = 0;
++	uint32_t                         per_vertex    = 0;
++	uint32_t                         layer         = 0;
++	uint32_t                         clip          = 0;
++	uint32_t                         cull          = 0;
++	uint32_t                         base          = 0;
++};
++
++} // namespace
++
++std::vector<uint32_t> BuildMeshComputeVertexShader(std::span<const IR::StageOutput> outputs) {
++	return MeshComputeVertexEmitter(outputs).Emit();
++}
++
++} // namespace Libs::Graphics
+diff --git a/src/graphics/shader/meshComputeShader.h b/src/graphics/shader/meshComputeShader.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..45400976bcc8c167e66cca7ddf348280a6d63058
+--- /dev/null
++++ b/src/graphics/shader/meshComputeShader.h
+@@ -0,0 +1,22 @@
++#ifndef EMULATOR_SRC_GRAPHICS_SHADER_MESHCOMPUTESHADER_H_
++#define EMULATOR_SRC_GRAPHICS_SHADER_MESHCOMPUTESHADER_H_
++
++#include <cstdint>
++#include <span>
++#include <vector>
++
++namespace Libs::Graphics {
++
++namespace ShaderRecompiler::IR {
++struct StageOutput;
++} // namespace ShaderRecompiler::IR
++
++// EmuFive: the vertex shader that draws what a mesh program run as compute wrote (see
++// MeshComputeHeaderDwords): vertex i is corner i % 3 of triangle i / 3, and triangles past a
++// workgroup's primitive count collapse onto one vertex. `outputs` are the mesh program's.
++std::vector<uint32_t> BuildMeshComputeVertexShader(
++    std::span<const ShaderRecompiler::IR::StageOutput> outputs);
++
++} // namespace Libs::Graphics
++
++#endif // EMULATOR_SRC_GRAPHICS_SHADER_MESHCOMPUTESHADER_H_
+diff --git a/src/graphics/shader/recompiler/backend/spirv/SpirvEmitter.cpp b/src/graphics/shader/recompiler/backend/spirv/SpirvEmitter.cpp
+index f700c477db36a557809021d5bbf0d61e0817a50d..0710010e0c6a89512ef58b328ba6ba80b4bf6c3d 100644
+--- a/src/graphics/shader/recompiler/backend/spirv/SpirvEmitter.cpp
++++ b/src/graphics/shader/recompiler/backend/spirv/SpirvEmitter.cpp
+@@ -46,8 +46,9 @@ std::vector<uint32_t> EmitProgram(IR::Program& program, ShaderStageInputInfo inp
+ 	        : 1u;
+ 	DefineModule(state);
+ 	EmitProgram(state);
+-	state.builder.AddEntryPoint(ExecutionModelForStage(state.program.stage), state.main_func,
+-	                            "main", state.interface_variables);
++	state.builder.AddEntryPoint(IsMeshCompute(state) ? spv::ExecutionModelGLCompute
++	                                                 : ExecutionModelForStage(state.program.stage),
++	                            state.main_func, "main", state.interface_variables);
+ 
+ 	return state.builder.Build();
+ }
+diff --git a/src/graphics/shader/recompiler/backend/spirv/spirvEmitterFlow.cpp b/src/graphics/shader/recompiler/backend/spirv/spirvEmitterFlow.cpp
+index c45e59738c13a7458ac3fe5415b5e993d1bc367e..7229c8acc14ba9f503e20e4b9307126b74266e5b 100644
+--- a/src/graphics/shader/recompiler/backend/spirv/spirvEmitterFlow.cpp
++++ b/src/graphics/shader/recompiler/backend/spirv/spirvEmitterFlow.cpp
+@@ -742,11 +742,15 @@ uint32_t EmitLaneId(EmitterState& state) {
+ uint32_t EmitMeshDrawParameter(ValueEmitContext& ctx, const IR::Inst& inst) {
+ 	auto&      state  = ctx.state;
+ 	const auto index  = inst.Arg(0).U32();
+-	const auto count  = state.mesh_payload != 0 ? IR::PushData::MeshTaskPayloadDwordCount
+-	                                            : IR::PushData::MeshDrawDwordCount;
++	const bool setup  = IsMeshComputeIndirect(state);
++	const auto count  = state.mesh_payload != 0 || setup ? IR::PushData::MeshTaskPayloadDwordCount
++	                                                     : IR::PushData::MeshDrawDwordCount;
+ 	if (state.program.stage != ShaderType::Mesh || index >= count) {
+ 		ctx.Fail(inst, "invalid mesh draw parameter");
+ 	}
++	if (setup) {
++		return EmitMeshComputeSetupLoad(state, index);
++	}
+ 	if (state.mesh_payload == 0) {
+ 		return EmitPushDataLoad(state, ConstantU32(state, index));
+ 	}
+diff --git a/src/graphics/shader/recompiler/backend/spirv/spirvEmitterInternal.h b/src/graphics/shader/recompiler/backend/spirv/spirvEmitterInternal.h
+index 274d9bc8d302282a87afd8764944aec23085150b..a6e513edce4935870ee9bd0f3c5a91c3142662da 100644
+--- a/src/graphics/shader/recompiler/backend/spirv/spirvEmitterInternal.h
++++ b/src/graphics/shader/recompiler/backend/spirv/spirvEmitterInternal.h
+@@ -75,6 +75,14 @@ struct ImageDefinition {
+ 	uint32_t sampled_type = 0;
+ };
+ 
++struct EmitterState;
++// EmuFive: a mesh program run as a compute shader, on GPUs without mesh shaders.
++bool IsMeshCompute(const EmitterState& state);
++// EmuFive: an indirect mesh draw run as compute, which reads its draw parameters from the
++// setup record (IR::MeshComputeSetupDwords) at push dwords 0 and 1.
++bool     IsMeshComputeIndirect(const EmitterState& state);
++uint32_t EmitMeshComputeSetupLoad(EmitterState& state, uint32_t dword);
++
+ struct EmitterState {
+ 	EmitterState(IR::Program& program_, ShaderStageInputInfo input_info_, const Profile& profile_)
+ 	    : builder(program_.stage == ShaderType::Mesh ? 0x00010400u : 0x00010300u),
+@@ -150,6 +158,8 @@ struct EmitterState {
+ 	uint32_t                   mesh_primitives                       = 0;
+ 	uint32_t                   mesh_cull                             = 0;
+ 	uint32_t                   mesh_payload                          = 0;
++	// EmuFive: the workgroup id a mesh program run as compute defines when the guest reads none.
++	uint32_t                   mesh_workgroup_id                     = 0;
+ 	uint32_t                   entry_label                           = 0;
+ 	uint32_t                   current_label                         = 0;
+ 	const IR::Block*           current_block                         = nullptr;
+diff --git a/src/graphics/shader/recompiler/backend/spirv/spirvEmitterMesh.cpp b/src/graphics/shader/recompiler/backend/spirv/spirvEmitterMesh.cpp
+index 9515223995104b0a4cdba87b076ecc583cfcb1b2..0b9a3993c40846c41728a04401657537c5fe4455 100644
+--- a/src/graphics/shader/recompiler/backend/spirv/spirvEmitterMesh.cpp
++++ b/src/graphics/shader/recompiler/backend/spirv/spirvEmitterMesh.cpp
+@@ -42,16 +42,38 @@ uint32_t MeshPrimitiveType(EmitterState& state) {
+ 
+ } // namespace
+ 
++bool IsMeshCompute(const EmitterState& state) {
++	return state.program.stage == ShaderType::Mesh && state.input_info.vertex != nullptr &&
++	       state.input_info.vertex->mesh.compute;
++}
++
++bool IsMeshComputeIndirect(const EmitterState& state) {
++	return IsMeshCompute(state) && state.input_info.vertex->indirect_draw;
++}
++
++uint32_t EmitMeshComputeSetupLoad(EmitterState& state, uint32_t dword) {
++	const auto base   = PackU64(state, EmitPushDataLoad(state, ConstantU32(state, 0)),
++	                            EmitPushDataLoad(state, ConstantU32(state, 1)));
++	const auto offset = ConstantU64(state, uint64_t {dword} * sizeof(uint32_t));
++	const auto address = Binary(state, spv::OpIAdd, TypeU64(state), base, offset);
++	const auto pointer = Unary(state, spv::OpConvertUToPtr, TypePhysicalU32Pointer(state), address);
++	const auto value   = state.builder.AllocateId();
++	state.builder.AddFunction(spv::OpLoad, TypeU32(state), value, pointer,
++	                          spv::MemoryAccessAlignedMask, 4u);
++	return value;
++}
++
+ void DefineMeshOutputs(EmitterState& state, uint32_t clip_distance_count,
+                        uint32_t cull_distance_count) {
+-	const auto& mesh = state.input_info.vertex->mesh;
++	const auto& mesh    = state.input_info.vertex->mesh;
++	const bool  compute = IsMeshCompute(state);
+ 	for (auto& output: state.outputs) {
+ 		const auto type = MeshOutputType(state, output.kind);
+ 		const bool clip = output.kind == IR::StageOutputKind::ClipDistance;
+ 		const bool cull = output.kind == IR::StageOutputKind::CullDistance;
+ 		auto& variable = clip ? state.clip_distance_variable
+ 		                 : cull ? state.cull_distance_variable : output.variable_id;
+-		if (variable == 0) {
++		if (variable == 0 && !compute) {
+ 			const auto element_type = clip || cull
+ 			                              ? state.builder.Type(spv::OpTypeArray, type,
+ 			                                                   ConstantU32(state, clip ? clip_distance_count
+@@ -86,6 +108,15 @@ void DefineMeshOutputs(EmitterState& state, uint32_t clip_distance_count,
+ 	state.mesh_allocation = MeshArray(state, spv::StorageClassWorkgroup, TypeU32(state), 2);
+ 	state.mesh_primitive_data[0] =
+ 	    MeshArray(state, spv::StorageClassPrivate, TypeU32(state), state.lane_count);
++	if (compute) {
++		if (InputVariableForKind(state, IR::StageInputKind::WorkgroupId) == 0) {
++			state.mesh_workgroup_id = DefineInterfaceVariable(
++			    state, TypeU32Vector(state, 3), spv::StorageClassInput, "gl_WorkGroupID");
++			state.builder.AddAnnotation(spv::OpDecorate, state.mesh_workgroup_id,
++			                            spv::DecorationBuiltIn, spv::BuiltInWorkgroupId);
++		}
++		return;
++	}
+ 	state.mesh_primitives = MeshArray(state, spv::StorageClassOutput, MeshPrimitiveType(state),
+ 	                                  mesh.max_primitives);
+ 	const auto per_primitive = [&](uint32_t type, spv::BuiltIn builtin) {
+@@ -149,7 +180,188 @@ void EmitMeshAllocate(ValueEmitContext& ctx, const IR::Inst& inst) {
+ 	});
+ }
+ 
++namespace {
++
++uint32_t U32Bits(EmitterState& state, uint32_t type, uint32_t value, uint32_t component) {
++	if (type == TypeU32(state)) {
++		return value;
++	}
++	if (type != TypeF32(state)) {
++		const auto scalar = state.builder.AllocateId();
++		state.builder.AddFunction(spv::OpCompositeExtract, TypeF32(state), scalar, value, component);
++		value = scalar;
++	}
++	return Unary(state, spv::OpBitcast, TypeU32(state), value);
++}
++
++// Stores a dword `dword` dwords past the output buffer start.
++void StoreOutputDword(EmitterState& state, uint32_t base, uint32_t dword, uint32_t value) {
++	const auto offset  = Binary(state, spv::OpShiftLeftLogical, TypeU64(state),
++	                            Unary(state, spv::OpUConvert, TypeU64(state), dword),
++	                            ConstantU64(state, 2));
++	const auto address = Binary(state, spv::OpIAdd, TypeU64(state), base, offset);
++	const auto pointer = Unary(state, spv::OpConvertUToPtr, TypePhysicalU32Pointer(state), address);
++	state.builder.AddFunction(spv::OpStore, pointer, value, spv::MemoryAccessAlignedMask, 4u);
++}
++
++uint32_t WorkgroupIdComponent(EmitterState& state, uint32_t component) {
++	if (state.mesh_workgroup_id == 0) {
++		return EmitInputComponentU32(state, IR::StageInputKind::WorkgroupId, component);
++	}
++	const auto pointer = state.builder.AllocateId();
++	const auto value   = state.builder.AllocateId();
++	state.builder.AddFunction(spv::OpAccessChain,
++	                          TypePointer(state, spv::StorageClassInput, TypeU32(state)), pointer,
++	                          state.mesh_workgroup_id, ConstantU32(state, component));
++	state.builder.AddFunction(spv::OpLoad, TypeU32(state), value, pointer);
++	return value;
++}
++
++// EmuFive: the exports of a mesh program run as compute go to the output buffer (see
++// MeshComputeHeaderDwords) instead of mesh outputs.
++void EmitMeshComputeEntryPoint(EmitterState& state) {
++	const auto& mesh          = state.input_info.vertex->mesh;
++	const auto  vertex_dwords = IR::MeshComputeVertexDwords(state.outputs);
++	const auto  triangles     = IR::MeshComputeHeaderDwords + mesh.max_vertices * vertex_dwords;
++	const auto  record_dwords = triangles + mesh.max_primitives * IR::MeshComputeTriangleDwords;
++	state.builder.AddFunction(spv::OpFunction, TypeVoid(state), state.main_func,
++	                          spv::FunctionControlMaskNone, TypeFunction(state));
++	EmitLabel(state, state.builder.AllocateId());
++	state.builder.AddFunction(spv::OpFunctionCall, TypeVoid(state), state.builder.AllocateId(),
++	                          state.mesh_guest_func);
++	EmitBarrier(state);
++	// Counts past the declared maximums would write into the next part of the record.
++	const auto Clamp = [&](uint32_t value, uint32_t limit) {
++		const auto inside = state.builder.AllocateId();
++		state.builder.AddFunction(spv::OpULessThanEqual, TypeBool(state), inside, value,
++		                          ConstantU32(state, limit));
++		const auto result = state.builder.AllocateId();
++		state.builder.AddFunction(spv::OpSelect, TypeU32(state), result, inside, value,
++		                          ConstantU32(state, limit));
++		return result;
++	};
++	const auto vertices   = Clamp(MeshLoad(state, state.mesh_allocation, spv::StorageClassWorkgroup,
++	                                       TypeU32(state), ConstantU32(state, 0)),
++	                              mesh.max_vertices);
++	const auto primitives = Clamp(MeshLoad(state, state.mesh_allocation, spv::StorageClassWorkgroup,
++	                                       TypeU32(state), ConstantU32(state, 1)),
++	                              mesh.max_primitives);
++	const auto base = PackU64(
++	    state, EmitPushDataLoad(state, ConstantU32(state, IR::PushData::MeshComputeAddressDword)),
++	    EmitPushDataLoad(state, ConstantU32(state, IR::PushData::MeshComputeAddressDword + 1u)));
++	const auto groups =
++	    IsMeshComputeIndirect(state)
++	        ? EmitMeshComputeSetupLoad(state, IR::MeshComputeSetupGroupsDword)
++	        : EmitPushDataLoad(state, ConstantU32(state, IR::PushData::MeshComputeGroupsDword));
++	const auto group = EmitBinaryU32(
++	    state, spv::OpISub,
++	    EmitAddU32(state,
++	               EmitBinaryU32(state, spv::OpIMul, WorkgroupIdComponent(state, 1), groups),
++	               WorkgroupIdComponent(state, 0)),
++	    EmitPushDataLoad(state, ConstantU32(state, IR::PushData::MeshComputeFirstGroupDword)));
++	const auto record = EmitBinaryU32(state, spv::OpIMul, group, ConstantU32(state, record_dwords));
++	const auto first_vertex = EmitAddU32(state, record, ConstantU32(state, IR::MeshComputeHeaderDwords));
++	const auto first_triangle = EmitAddU32(state, record, ConstantU32(state, triangles));
++	const auto VertexRecord = [&](uint32_t vertex) {
++		return EmitAddU32(state, first_vertex,
++		                  EmitBinaryU32(state, spv::OpIMul, vertex, ConstantU32(state, vertex_dwords)));
++	};
++	for (uint32_t half = 0; half < state.lane_count; half++) {
++		state.lane_half      = half;
++		const auto index     = EmitLocalInvocationIndex(state);
++		if (half == 0) {
++			const auto first = state.builder.AllocateId();
++			state.builder.AddFunction(spv::OpIEqual, TypeBool(state), first, index,
++			                          ConstantU32(state, 0));
++			EmitIfCondition(state, first,
++			                [&] { StoreOutputDword(state, base, record, primitives); });
++		}
++		const auto is_vertex = state.builder.AllocateId();
++		state.builder.AddFunction(spv::OpULessThan, TypeBool(state), is_vertex, index, vertices);
++		EmitIfCondition(state, is_vertex, [&] {
++			auto dword = VertexRecord(index);
++			for (const auto& output: state.outputs) {
++				const auto count = IR::MeshComputeOutputDwords(output.kind);
++				if (count == 0) {
++					continue;
++				}
++				const auto type  = MeshOutputType(state, output.kind);
++				const auto value = MeshLoad(state, output.mesh_data_variable,
++				                            spv::StorageClassPrivate, type, ConstantU32(state, half));
++				for (uint32_t component = 0; component < count; component++) {
++					StoreOutputDword(state, base, dword, U32Bits(state, type, value, component));
++					dword = EmitAddU32(state, dword, ConstantU32(state, 1));
++				}
++			}
++		});
++		const auto is_primitive = state.builder.AllocateId();
++		state.builder.AddFunction(spv::OpULessThan, TypeBool(state), is_primitive, index,
++		                          primitives);
++		EmitIfCondition(state, is_primitive, [&] {
++			const auto packed = MeshLoad(state, state.mesh_primitive_data[0], spv::StorageClassPrivate,
++			                             TypeU32(state), ConstantU32(state, half));
++			const auto null_bit =
++			    EmitBinaryU32(state, spv::OpBitwiseAnd, packed, ConstantU32(state, 0x80000000u));
++			const auto culled = state.builder.AllocateId();
++			state.builder.AddFunction(spv::OpINotEqual, TypeBool(state), culled, null_bit,
++			                          ConstantU32(state, 0));
++			uint32_t vertex[3] {};
++			const auto triangle = EmitAddU32(
++			    state, first_triangle,
++			    EmitBinaryU32(state, spv::OpIMul, index,
++			                  ConstantU32(state, IR::MeshComputeTriangleDwords)));
++			// A culled or broken triangle collapses whole onto vertex 0 and draws nothing; moving
++			// only its bad corners would stretch it across the screen.
++			uint32_t raw[3] {};
++			uint32_t keep = Unary(state, spv::OpLogicalNot, TypeBool(state), culled);
++			// Line and point outputs repeat their last vertex, so they draw nothing.
++			const auto size = mesh.output_primitive_size;
++			for (uint32_t component = 0; component < 3; component++) {
++				if (component >= size) {
++					raw[component] = raw[size - 1u];
++					continue;
++				}
++				raw[component] = state.builder.AllocateId();
++				state.builder.AddFunction(spv::OpBitFieldUExtract, TypeU32(state), raw[component],
++				                          packed, ConstantU32(state, component * 10u),
++				                          ConstantU32(state, 9));
++				const auto inside = state.builder.AllocateId();
++				state.builder.AddFunction(spv::OpULessThan, TypeBool(state), inside, raw[component],
++				                          vertices);
++				const auto both = state.builder.AllocateId();
++				state.builder.AddFunction(spv::OpLogicalAnd, TypeBool(state), both, keep, inside);
++				keep = both;
++			}
++			for (uint32_t component = 0; component < 3; component++) {
++				vertex[component] = state.builder.AllocateId();
++				state.builder.AddFunction(spv::OpSelect, TypeU32(state), vertex[component], keep,
++				                          raw[component], ConstantU32(state, 0));
++				StoreOutputDword(state, base,
++				                 EmitAddU32(state, triangle, ConstantU32(state, component)),
++				                 VertexRecord(vertex[component]));
++			}
++			uint32_t layer = ConstantU32(state, 0);
++			for (const auto& output: state.outputs) {
++				if (output.kind == IR::StageOutputKind::Layer) {
++					layer = MeshLoad(state, output.mesh_data_variable, spv::StorageClassWorkgroup,
++					                 TypeU32(state), vertex[mesh.provoking_vertex]);
++				}
++			}
++			StoreOutputDword(state, base, EmitAddU32(state, triangle, ConstantU32(state, 3)), layer);
++		});
++	}
++	state.lane_half = 0;
++	state.builder.AddFunction(spv::OpReturn);
++	state.builder.AddFunction(spv::OpFunctionEnd);
++}
++
++} // namespace
++
+ void EmitMeshEntryPoint(EmitterState& state) {
++	if (IsMeshCompute(state)) {
++		EmitMeshComputeEntryPoint(state);
++		return;
++	}
+ 	state.builder.AddFunction(spv::OpFunction, TypeVoid(state), state.main_func,
+ 	                          spv::FunctionControlMaskNone, TypeFunction(state));
+ 	EmitLabel(state, state.builder.AllocateId());
+diff --git a/src/graphics/shader/recompiler/backend/spirv/spirvEmitterModule.cpp b/src/graphics/shader/recompiler/backend/spirv/spirvEmitterModule.cpp
+index 8f12a7ff82249c50d64a580e0836ae42928487cf..bada865f7ddafe0e72b5b4176f579d247dd459b8 100644
+--- a/src/graphics/shader/recompiler/backend/spirv/spirvEmitterModule.cpp
++++ b/src/graphics/shader/recompiler/backend/spirv/spirvEmitterModule.cpp
+@@ -733,7 +733,12 @@ void DefineModule(EmitterState& state) {
+ 		}
+ 	}
+ 	state.main_func = state.builder.AllocateId();
+-	if (state.program.stage == ShaderType::Mesh) {
++	if (IsMeshCompute(state)) {
++		state.mesh_guest_func = state.builder.AllocateId();
++		state.builder.RequireCapability(spv::CapabilityInt64);
++		state.builder.RequireCapability(spv::CapabilityPhysicalStorageBufferAddresses);
++		state.builder.RequireExtension("SPV_KHR_physical_storage_buffer");
++	} else if (state.program.stage == ShaderType::Mesh) {
+ 		state.mesh_guest_func = state.builder.AllocateId();
+ 		state.builder.RequireCapability(spv::CapabilityMeshShadingEXT); // MeshShadingEXT
+ 		state.builder.RequireExtension("SPV_EXT_mesh_shader");
+@@ -772,7 +777,8 @@ void DefineModule(EmitterState& state) {
+ 	}
+ 	const bool physical_addresses =
+ 	    state.program.info.uses_dma || state.program.info.uses_image_heap ||
+-	    state.program.info.uses_device_address || state.program.info.ray_query;
++	    state.program.info.uses_device_address || state.program.info.ray_query ||
++	    IsMeshCompute(state);
+ 	if (physical_addresses) {
+ 		state.builder.RequireCapability(spv::CapabilityInt64);
+ 		state.builder.RequireCapability(spv::CapabilityPhysicalStorageBufferAddresses);
+diff --git a/src/graphics/shader/recompiler/ir/ShaderIR.h b/src/graphics/shader/recompiler/ir/ShaderIR.h
+index 39f5badc6538216e118ec4ab841c5cc5e92d99bd..8a5792dfd6ee9bacbd9a874c12263985dfd10a2d 100644
+--- a/src/graphics/shader/recompiler/ir/ShaderIR.h
++++ b/src/graphics/shader/recompiler/ir/ShaderIR.h
+@@ -338,6 +338,42 @@ struct StageOutput {
+ 	bool operator==(const StageOutput& other) const = default;
+ };
+ 
++// EmuFive: GPUs without mesh shaders (the PS4's GCN GPUs) run a mesh program as a compute
++// shader. Each workgroup writes a record to a buffer: a header (its primitive count, padded to
++// MeshComputeHeaderDwords), max_vertices vertex records with the outputs below in program
++// order, then max_primitives triangles of MeshComputeTriangleDwords (three vertex record offsets
++// in dwords from the buffer start, then the layer). A generated vertex shader draws them.
++inline constexpr uint32_t MeshComputeHeaderDwords   = 4u;
++inline constexpr uint32_t MeshComputeTriangleDwords = 4u;
++// An indirect mesh draw run as compute reads its records on the GPU: a setup shader
++// (gpu_mesh_compute_indirect.comp) writes, per record, the draw parameters
++// (MeshTaskPayloadDwordCount of them) and the groups per instance at MeshComputeSetupGroupsDword,
++// then a VkDispatchIndirectCommand and a VkDrawIndirectCommand. The compute pass finds the
++// setup's address in push dwords 0 and 1.
++inline constexpr uint32_t MeshComputeSetupGroupsDword   = 6u;
++inline constexpr uint32_t MeshComputeSetupDispatchDword = 8u;
++inline constexpr uint32_t MeshComputeSetupDrawDword     = 12u;
++inline constexpr uint32_t MeshComputeSetupDwords        = 16u;
++
++[[nodiscard]] constexpr uint32_t MeshComputeOutputDwords(StageOutputKind kind) {
++	switch (kind) {
++		case StageOutputKind::Position:
++		case StageOutputKind::Parameter: return 4u;
++		case StageOutputKind::ClipDistance:
++		case StageOutputKind::CullDistance: return 1u;
++		default: return 0u;
++	}
++}
++
++template <typename Outputs>
++[[nodiscard]] uint32_t MeshComputeVertexDwords(const Outputs& outputs) {
++	uint32_t dwords = 0;
++	for (const auto& output: outputs) {
++		dwords += MeshComputeOutputDwords(output.kind);
++	}
++	return dwords == 0 ? 1u : dwords;
++}
++
+ inline constexpr uint32_t FirstImageBinding           = 1u;
+ inline constexpr uint32_t FirstComparisonImageBinding = 22u;
+ inline constexpr uint32_t FirstStorageImageBinding    = 29u;
+@@ -389,11 +425,26 @@ struct PushData {
+ 		}
+ 	};
+ 
++	// EmuFive: a mesh draw run as compute (MeshCompute* below) adds the output buffer address
++	// after the mesh draw parameters. The compute pass then reads its groups per instance and the
++	// first workgroup of the dispatch (record 0), the vertex pass the workgroup record size, the
++	// primitives per workgroup and the triangle offset.
++	static constexpr uint32_t MeshComputeAddressDword   = MeshDrawDwordCount;
++	static constexpr uint32_t MeshComputeGroupsDword    = MeshDrawDwordCount + 2;
++	static constexpr uint32_t MeshComputeRecordDword    = MeshDrawDwordCount + 2;
++	static constexpr uint32_t MeshComputePrimitiveDword = MeshDrawDwordCount + 3;
++	static constexpr uint32_t MeshComputeFirstGroupDword = MeshDrawDwordCount + 3;
++	static constexpr uint32_t MeshComputeTriangleDword  = MeshDrawDwordCount + 4;
++	static constexpr uint32_t MeshComputeDwordCount     = MeshDrawDwordCount + 5;
++
+ 	[[nodiscard]] static constexpr Window GraphicsWindow(bool mesh, bool object_id,
+-	                                                     uint32_t user_clip_planes = 0) {
++	                                                     uint32_t user_clip_planes = 0,
++	                                                     bool     mesh_compute     = false) {
+ 		Window window {.begin = mesh ? MeshDrawDwordCount : 0u,
+ 		               .end = object_id ? ObjectIdDword : DwordCount};
+-		if (user_clip_planes != 0) {
++		if (mesh_compute) {
++			window.begin = MeshComputeDwordCount;
++		} else if (user_clip_planes != 0) {
+ 			window.begin = UserClipPlaneDword + 4u * std::bit_width(user_clip_planes);
+ 		}
+ 		return window;
+diff --git a/src/graphics/shader/shader.cpp b/src/graphics/shader/shader.cpp
+index b13fdc51bed0328594f080be84a84aa8d69b5cae..899f42153457c8259e8768f4f5ad700b3bdfe5c2 100644
+--- a/src/graphics/shader/shader.cpp
++++ b/src/graphics/shader/shader.cpp
+@@ -461,7 +461,9 @@ void BuildStageStaticKey(const ShaderVertexInputInfo& info, std::vector<uint32_t
+ 		                       mesh.vertices_per_group, mesh.max_vertices, mesh.max_primitives,
+ 		                       mesh.provoking_vertex, static_cast<uint32_t>(mesh.fast_launch),
+ 		                       static_cast<uint32_t>(mesh.input_primitive_id),
+-		                       static_cast<uint32_t>(mesh.output_primitive_id)});
++		                       static_cast<uint32_t>(mesh.output_primitive_id),
++		                       // EmuFive: 3 is the version of the compute form (whole-triangle collapse).
++		                       mesh.compute ? 3u : 0u});
+ 	}
+ 	// Each tessellation stage keys only the layout fields its module depends on.
+ 	const auto& tess = info.tess;
+diff --git a/src/graphics/shader/shader.h b/src/graphics/shader/shader.h
+index 85f4fd6dea18c4d80f98b5a27c53e3d0bc61b93e..7b5e6b1a8d9ea6c20398b93246ed33a0117e581e 100644
+--- a/src/graphics/shader/shader.h
++++ b/src/graphics/shader/shader.h
+@@ -93,6 +93,9 @@ struct ShaderMeshInputInfo: ShaderWorkgroupInputInfo {
+ 	bool     fast_launch           = false;
+ 	bool     input_primitive_id    = false;
+ 	bool     output_primitive_id   = false;
++	// EmuFive: run as a compute shader that writes its vertices and triangles to a buffer, on
++	// GPUs without mesh shaders (see MeshComputeHeaderDwords).
++	bool     compute               = false;
+ 
+ 	[[nodiscard]] constexpr uint32_t InputPrimitiveSize() const {
+ 		switch (static_cast<Prospero::PrimitiveType>(input_primitive)) {

@@ -14,6 +14,8 @@ unwatched; Map falls back to the normal path when the ring is full. The
 perf log counts stream uploads (KB) as "stream-upload".
 
 ---
+diff --git a/src/common/perfTrace.h b/src/common/perfTrace.h
+index 2c9738504a62d5375526e9ccd5c11eb2eff09ab6..090c906e8de7a08866da4fa33ef2fbb9526217ec 100644
 --- a/src/common/perfTrace.h
 +++ b/src/common/perfTrace.h
 @@ -31,6 +31,7 @@ enum Site : int {
@@ -34,6 +36,8 @@ perf log counts stream uploads (KB) as "stream-upload".
  
  inline std::array<std::atomic<uint64_t>, Count> g_count {};
  inline std::array<std::atomic<uint64_t>, Count> g_work {};
+diff --git a/src/graphics/host_gpu/renderer/cache/bufferCache.cpp b/src/graphics/host_gpu/renderer/cache/bufferCache.cpp
+index 4524cfcc806cb97b26222e5dea38121f6853c87e..9308631d2b39504866b640d873af6d0455d0d3f0 100644
 --- a/src/graphics/host_gpu/renderer/cache/bufferCache.cpp
 +++ b/src/graphics/host_gpu/renderer/cache/bufferCache.cpp
 @@ -20,6 +20,7 @@
@@ -63,7 +67,7 @@ perf log counts stream uploads (KB) as "stream-upload".
  std::pair<Buffer*, uint64_t> UploadMemory(GraphicContext& graphics, CommandScheduler& scheduler,
                                          StreamBuffer& staging, uint64_t size, uint64_t alignment,
                                          vk::BufferUsageFlags usage, const auto& write) {
-@@ -265,7 +278,8 @@ BufferCache::BufferCache(GraphicContext& graphics, CommandScheduler& scheduler,
+@@ -257,7 +270,8 @@ BufferCache::BufferCache(GraphicContext& graphics, CommandScheduler& scheduler,
                               0, AllFlags, BDA_PAGETABLE_SIZE),
        m_memory_tracker(page_manager),
        m_staging_buffer(graphics, scheduler, MemoryUsage::Upload, StagingSize(graphics)),
@@ -73,7 +77,7 @@ perf log counts stream uploads (KB) as "stream-upload".
        m_download_buffer(graphics, scheduler, MemoryUsage::Download, 64 * MiB),
        m_device_buffer(graphics, scheduler, MemoryUsage::DeviceLocal, 128 * MiB),
        m_texture_cache(texture_cache) {
-@@ -517,7 +531,8 @@ std::pair<Buffer*, uint64_t> BufferCache::ObtainBuffer(uint64_t vaddr, uint64_t
+@@ -512,7 +526,8 @@ std::pair<Buffer*, uint64_t> BufferCache::ObtainBuffer(uint64_t vaddr, uint64_t
                                                         BufferId id) {
  	EXIT_IF(!(GuestRange {vaddr, size}.Valid()));
  
@@ -82,11 +86,11 @@ perf log counts stream uploads (KB) as "stream-upload".
 +	if (!is_written && size <= stream_max &&
  	    !m_memory_tracker.IsRegionGpuModified(vaddr, size) &&
  	    m_memory_tracker.IsRegionCpuModified(vaddr, size)) {
- 		const auto alignment = std::max<uint64_t>(
-@@ -528,6 +543,7 @@ std::pair<Buffer*, uint64_t> BufferCache::ObtainBuffer(uint64_t vaddr, uint64_t
- 				EXIT("BufferCache: failed to read sparse guest buffer memory\n");
+ 		// Within one draw window the guest has no signal to rewrite the range. A copy made in this
+@@ -534,6 +549,7 @@ std::pair<Buffer*, uint64_t> BufferCache::ObtainBuffer(uint64_t vaddr, uint64_t
  			}
  			m_stream_buffer.Commit();
+ 			copy = {vaddr, size, m_draw_window, tick, offset, m_stream_buffer.Position()};
 +			Common::PerfTrace::Add(Common::PerfTrace::StreamUpload, size >> 10u);
  			return {&m_stream_buffer, offset};
  		}

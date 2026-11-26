@@ -4,9 +4,11 @@ Subject: [PATCH] presentation: KYTY_FPS_LOG writes the frame rate to the log eve
 EmuFive reads the fps-log lines for its test reports (average, lowest and
 highest FPS of a session).
 ---
+diff --git a/src/graphics/presentation/performanceOverlay.cpp b/src/graphics/presentation/performanceOverlay.cpp
+index 64b7d2a8e83dcab957e179ef418eb39597f9a270..7ea9a0679a62c55e5bdbef25a3cba0c970347c53 100644
 --- a/src/graphics/presentation/performanceOverlay.cpp
 +++ b/src/graphics/presentation/performanceOverlay.cpp
-@@ -748,10 +748,46 @@
+@@ -748,10 +748,46 @@ void DrawMemoryAndIo(const Snapshot& shown) {
  
  std::atomic<uint64_t> g_fps_flips {0};
  

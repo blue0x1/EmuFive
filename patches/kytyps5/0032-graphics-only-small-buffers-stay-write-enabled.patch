@@ -7,18 +7,20 @@ hundreds of MB, so that became about 3.4 GB of uploads per frame (0.4 FPS).
 Only buffers up to 4 MB (KYTY_HOT_MAX_KB) are treated that way now;
 larger ones keep page-level dirty tracking and upload only changed pages.
 ---
+diff --git a/src/graphics/host_gpu/renderer/cache/bufferCache.cpp b/src/graphics/host_gpu/renderer/cache/bufferCache.cpp
+index a2e5f9e5b48aea87ef9f6c72bdcabc7e931ac4fb..2ffa0ded3b91805bac87bb552542bcea6974de68 100644
 --- a/src/graphics/host_gpu/renderer/cache/bufferCache.cpp
 +++ b/src/graphics/host_gpu/renderer/cache/bufferCache.cpp
-@@ -822,7 +822,11 @@
-             m_batch_copies.emplace_back(m_batch_size, buffer.Offset(address), bytes);
-             m_batch_size += bytes;
- 		};
--		const bool hot = m_synced_last_frame.contains(buffer.CpuAddress());
-+		// Only small buffers: a hot buffer is uploaded whole at every sync, which for a buffer of
-+		// hundreds of MB (Teardown's world) is gigabytes per frame. Large ones keep page tracking.
-+		static const uint64_t hot_max = EnvSize("KYTY_HOT_MAX_KB", 1024, 4 * 1024 * 1024);
-+		const bool            hot     = buffer.Size() <= hot_max &&
-+		                               m_synced_last_frame.contains(buffer.CpuAddress());
- 		if (hot) {
- 			m_memory_tracker.ForEachUploadRange<false>(start, finish - start, false, add,
- 			                                           []() noexcept {});
+@@ -827,7 +827,11 @@ void BufferCache::SynchronizeBda(const RangeSet& mapped) {
+ 					};
+ 					// Reads follow every range's protection; a write in between re-queues its page.
+ 					// A buffer synced in the last frame too stays CPU-dirty and write-enabled.
+-					const bool hot = m_synced_last_frame.contains(buffer.CpuAddress());
++					// Only small buffers: a hot buffer is uploaded whole at every sync, which for a
++					// buffer of hundreds of MB (Teardown's world) is gigabytes per frame.
++					static const uint64_t hot_max = EnvSize("KYTY_HOT_MAX_KB", 1024, 4 * 1024 * 1024);
++					const bool hot = buffer.Size() <= hot_max &&
++					                 m_synced_last_frame.contains(buffer.CpuAddress());
+ 					if (hot) {
+ 						m_memory_tracker.ForEachUploadRange<false>(first, last - first, false, add,
+ 						                                           []() noexcept {});

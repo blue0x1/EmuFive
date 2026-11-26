@@ -1,0 +1,280 @@
+From: EmuFive <blue0x1>
+Date: 2026-11-26
+Subject: [PATCH 0047] buffer cache: Garlic memory for GPU-shared chunks
+
+Sony's GPU driver maps GPU data with non-snooped page entries (Garlic);
+only Onion memory snoops the CPU caches. With KYTY_GARLIC_MEMORY=1, GPU-shared
+chunks the game fully allocated with a Garlic type (KYTY_GARLIC_TYPES, default 3)
+take a write-combined memory type instead of the cached one. Chunks holding
+command buffers stay cached; images in Garlic chunks upload by GPU copy. Each
+guest memory type is logged the first time a chunk of it moves.
+---
+diff --git a/src/graphics/host_gpu/renderer/cache/bufferCache.cpp b/src/graphics/host_gpu/renderer/cache/bufferCache.cpp
+index f6fd4c42e1e01eb6484375b19e50538d12b2ee51..0f88d5d91454bd9459d8412f843665d708fa9778 100644
+--- a/src/graphics/host_gpu/renderer/cache/bufferCache.cpp
++++ b/src/graphics/host_gpu/renderer/cache/bufferCache.cpp
+@@ -656,7 +656,8 @@ std::pair<Buffer*, uint64_t> BufferCache::ObtainBufferForImage(uint64_t vaddr, u
+ 			return {&buffer, buffer.Offset(vaddr)};
+ 		}
+ 	}
+-	if (IsRegionGpuModified(vaddr, size)) {
++	// EmuFive Garlic memory: CPU reads of write-combined memory are slow; the GPU copies it.
++	if (IsRegionGpuModified(vaddr, size) || IsGarlicChunkAt(vaddr, size)) {
+ 		return ObtainBuffer(vaddr, size, false, false);
+ 	}
+ 
+@@ -937,6 +938,7 @@ void BufferCache::SynchronizeBda(const RangeSet& mapped) {
+ 
+ void WaitGpuWritesTo(uint64_t vaddr, uint64_t size) {
+ 	if (g_direct_cache != nullptr) {
++		g_direct_cache->NoteCpuRead(vaddr, size);
+ 		g_direct_cache->WaitDirectWrites(vaddr, size);
+ 	}
+ }
+@@ -1004,6 +1006,111 @@ void BufferCache::InitDirectMemory() {
+ 	g_direct_cache = this;
+ 	Log::WriteToConsoleAndLog(fmt::format("GPU-shared memory: on, type {}, page {} KB\n",
+ 	                                      m_direct_type, m_direct_page >> 10u));
++
++	// EmuFive Garlic memory (KYTY_GARLIC_MEMORY=1): Sony's GPU driver maps GPU data with
++	// non-snooped page entries (the Garlic bus); only Onion memory snoops the CPU caches.
++	// Chunks the game allocated with a Garlic type (KYTY_GARLIC_TYPES, default 3 =
++	// WC_GARLIC) take a write-combined type here instead of the cached one. The game already
++	// expects write-combined CPU access there.
++	const char* garlic = std::getenv("KYTY_GARLIC_MEMORY");
++	if (garlic == nullptr || std::strcmp(garlic, "1") != 0) {
++		return;
++	}
++	const char* list = std::getenv("KYTY_GARLIC_TYPES");
++	for (const char* p = list != nullptr ? list : "3"; *p != '\0';) {
++		char*      end   = nullptr;
++		const long value = std::strtol(p, &end, 0);
++		if (end == p) {
++			++p;
++			continue;
++		}
++		m_garlic_guest_types.push_back(static_cast<int>(value));
++		p = end;
++	}
++	const auto host = vk::MemoryPropertyFlagBits::eHostVisible |
++	                  vk::MemoryPropertyFlagBits::eHostCoherent;
++	for (uint32_t i = 0; i < types.memoryTypeCount; i++) {
++		const auto flags = types.memoryTypes[i].propertyFlags;
++		if ((requirements.memoryTypeBits & (1u << i)) != 0 && (flags & host) == host &&
++		    !(flags & vk::MemoryPropertyFlagBits::eHostCached) &&
++		    !(flags & vk::MemoryPropertyFlagBits::eDeviceLocal)) {
++			m_garlic_type = i;
++			break;
++		}
++	}
++	std::string names;
++	for (const int type: m_garlic_guest_types) {
++		names += fmt::format("{}{}", names.empty() ? "" : ",", type);
++	}
++	Log::WriteToConsoleAndLog(
++	    m_garlic_type == UINT32_MAX || m_garlic_guest_types.empty()
++	        ? std::string("Garlic memory: off (no write-combined memory type)\n")
++	        : fmt::format("Garlic memory: on, type {}, guest types {}\n", m_garlic_type, names));
++	if (m_garlic_guest_types.empty()) {
++		m_garlic_type = UINT32_MAX;
++	}
++}
++
++// The Vulkan memory type for a new chunk. Logs each guest memory type the first time a chunk
++// of it moves, so a run shows which types a game uses.
++uint32_t BufferCache::DirectChunkType(uint64_t chunk, bool* busy) {
++	*busy = false;
++	const int guest = LibKernel::Memory::BackingChunkMemoryType(chunk, busy);
++	if (*busy) {
++		// Without Garlic memory the type only feeds the log: do not hold the chunk back.
++		*busy = m_garlic_type != UINT32_MAX;
++		return m_direct_type;
++	}
++	if (m_seen_guest_types.insert(guest).second) {
++		Log::WriteToConsoleAndLog(fmt::format(
++		    "GPU-shared memory: first chunk of guest memory type {} (chunk {})\n", guest, chunk));
++	}
++	if (m_garlic_type == UINT32_MAX || guest < 0 || m_cpu_read_chunks.contains(chunk) ||
++	    std::find(m_garlic_guest_types.begin(), m_garlic_guest_types.end(), guest) ==
++	        m_garlic_guest_types.end()) {
++		return m_direct_type;
++	}
++	return m_garlic_type;
++}
++
++bool BufferCache::IsGarlicChunkAt(uint64_t vaddr, uint64_t size) {
++	if (m_garlic_chunks.empty()) {
++		return false;
++	}
++	uint64_t backing = 0;
++	if (!LibKernel::Memory::GetLinearBacking(vaddr, size, &backing)) {
++		return false;
++	}
++	const auto chunk_size = LibKernel::Memory::GpuSharedChunkSize();
++	for (auto chunk = backing / chunk_size; chunk <= (backing + size - 1) / chunk_size; ++chunk) {
++		if (m_garlic_chunks.contains(chunk)) {
++			return true;
++		}
++	}
++	return false;
++}
++
++void BufferCache::NoteCpuRead(uint64_t vaddr, uint64_t size) {
++	if (m_garlic_type == UINT32_MAX || size == 0) {
++		return;
++	}
++	const auto chunk_size = LibKernel::Memory::GpuSharedChunkSize();
++	// Command buffers are small; one look per 1 MB and the last byte finds their chunks.
++	constexpr uint64_t Step = 1024 * 1024;
++	for (uint64_t done = 0;; done = std::min(done + Step, size - 1)) {
++		uint64_t backing = 0;
++		if (LibKernel::Memory::GetLinearBacking(vaddr + done, 1, &backing)) {
++			const auto chunk = backing / chunk_size;
++			if (m_cpu_read_chunks.insert(chunk).second && m_garlic_chunks.contains(chunk)) {
++				Log::WriteToConsoleAndLog(fmt::format(
++				    "Garlic memory: chunk {} holds command buffers (CPU reads are slower)\n",
++				    chunk));
++			}
++		}
++		if (done == size - 1) {
++			break;
++		}
++	}
+ }
+ 
+ // EmuFive: a new GPU-shared chunk moves 32 MB of guest memory into GTT, where it stays pinned for
+@@ -1092,10 +1199,15 @@ vk::DeviceMemory BufferCache::DirectChunk(uint64_t chunk) {
+ 			return nullptr;
+ 		}
+ 	}
++	bool       type_busy   = false;
++	const auto memory_type = DirectChunkType(chunk, &type_busy);
++	if (type_busy) {
++		return nullptr;
++	}
+ 	VkExportMemoryAllocateInfo     export_info {VK_STRUCTURE_TYPE_EXPORT_MEMORY_ALLOCATE_INFO, nullptr,
+                                             VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT};
+ 	VkMemoryAllocateInfo allocate {VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO, &export_info, chunk_size,
+-	                               m_direct_type};
++	                               memory_type};
+ 	VkDeviceMemory       memory = VK_NULL_HANDLE;
+ 	const VkDevice       device = m_graphics.device;
+ 	int                  fd     = -1;
+@@ -1134,10 +1246,14 @@ vk::DeviceMemory BufferCache::DirectChunk(uint64_t chunk) {
+ 		return nullptr;
+ 	}
+ 	m_direct_chunks.emplace(chunk, vk::DeviceMemory(memory));
++	if (memory_type == m_garlic_type) {
++		m_garlic_chunks.insert(chunk);
++	}
+ 	if ((m_direct_chunks.size() & 15u) == 1u) {
+-		Log::WriteToConsoleAndLog(fmt::format("GPU-shared memory: {} chunks ({} MB)\n",
++		Log::WriteToConsoleAndLog(fmt::format("GPU-shared memory: {} chunks ({} MB), {} Garlic\n",
+ 		                                      m_direct_chunks.size(),
+-		                                      (m_direct_chunks.size() * chunk_size) >> 20u));
++		                                      (m_direct_chunks.size() * chunk_size) >> 20u,
++		                                      m_garlic_chunks.size()));
+ 	}
+ 	return vk::DeviceMemory(memory);
+ }
+diff --git a/src/graphics/host_gpu/renderer/cache/bufferCache.h b/src/graphics/host_gpu/renderer/cache/bufferCache.h
+index 86bf6ce3233564813cf8869e22fa66836c4523bb..14bf34fec1448c70e4922bf2d0ca83fc769de91a 100644
+--- a/src/graphics/host_gpu/renderer/cache/bufferCache.h
++++ b/src/graphics/host_gpu/renderer/cache/bufferCache.h
+@@ -14,6 +14,7 @@
+ #include <array>
+ #include <map>
+ #include <mutex>
++#include <set>
+ #include <span>
+ #include <unordered_set>
+ #include <utility>
+@@ -160,9 +161,14 @@ private:
+ 	[[nodiscard]] bool PrepareDirect(uint64_t vaddr, uint64_t size, std::vector<DirectBind>* binds);
+ 	void               NoteDirectWrite(uint64_t vaddr, uint64_t size);
+ 	[[nodiscard]] bool IsDirectPending(uint64_t vaddr, uint64_t size);
++	[[nodiscard]] uint32_t DirectChunkType(uint64_t chunk, bool* busy);
++	[[nodiscard]] bool     IsGarlicChunkAt(uint64_t vaddr, uint64_t size);
+ 
+ public:
+ 	void WaitDirectWrites(uint64_t vaddr, uint64_t size);
++	// EmuFive Garlic memory: the GPU thread reads this guest memory on the CPU (command
++	// buffers); its chunk keeps cached memory.
++	void NoteCpuRead(uint64_t vaddr, uint64_t size);
+ 	[[nodiscard]] bool DirectMemoryEnabled() const noexcept { return m_direct_page != 0; }
+ 
+ private:
+@@ -192,6 +198,13 @@ private:
+ 	PageManager&                                      m_page_manager;
+ 	uint64_t                                          m_direct_page = 0; // 0: direct buffers off.
+ 	uint32_t                                          m_direct_type = 0;
++	// EmuFive Garlic memory: chunks the game gave a Garlic type get write-combined memory,
++	// which the GPU reads without snooping the CPU caches (Sony's Garlic bus).
++	uint32_t                                          m_garlic_type = UINT32_MAX;
++	std::vector<int>                                  m_garlic_guest_types;
++	std::set<uint64_t>                                m_garlic_chunks;
++	std::set<uint64_t>                                m_cpu_read_chunks;
++	std::set<int>                                     m_seen_guest_types;
+ 	bool                                              m_direct_failed = false;
+ 	std::map<uint64_t, vk::DeviceMemory>              m_direct_chunks;
+ 	RangeSet                                          m_direct_pending;
+diff --git a/src/kernel/memory.cpp b/src/kernel/memory.cpp
+index 16ca9bf3ec3f890d09ca68a25d424159b1192ba6..d3ae6f35f2084ad2991df6b6987ad410d407266a 100644
+--- a/src/kernel/memory.cpp
++++ b/src/kernel/memory.cpp
+@@ -899,6 +899,40 @@ uint64_t GpuSharedChunkSize() {
+ 	return kGpuSharedChunk;
+ }
+ 
++int BackingChunkMemoryType(uint64_t chunk, bool* busy) {
++	*busy = false;
++	std::unique_lock operation(g_memory_operation_mutex, std::try_to_lock);
++	if (!operation.owns_lock()) {
++		*busy = true;
++		return -1;
++	}
++	if (g_physical_memory == nullptr || chunk >= PhysicalMemory::Size() / kGpuSharedChunk) {
++		return -1;
++	}
++	const uint64_t begin   = chunk * kGpuSharedChunk;
++	const uint64_t end     = begin + kGpuSharedChunk;
++	const auto&    blocks  = g_physical_memory->GetPhysicalBlocks();
++	int            type    = -1;
++	uint64_t       covered = begin;
++	auto           it      = blocks.upper_bound(begin);
++	if (it != blocks.begin()) {
++		--it;
++	}
++	for (; it != blocks.end() && it->first < end && covered < end; ++it) {
++		const auto& block     = it->second;
++		const auto  block_end = block.start_addr + block.size;
++		if (block_end <= covered) {
++			continue;
++		}
++		if (block.start_addr > covered || (type != -1 && type != block.memory_type)) {
++			return -1;
++		}
++		type    = block.memory_type;
++		covered = block_end;
++	}
++	return covered >= end ? type : -1;
++}
++
+ bool PromoteBackingChunk(uint64_t chunk, int fd,
+                          const std::function<void(const RemappedRange&)>& restore, bool* busy) {
+ 	*busy = false;
+diff --git a/src/kernel/memory.h b/src/kernel/memory.h
+index 21d77075f53cd14c76689acf6a48c83545c9905b..e96e75c73043338b82e94615a155ffe3647211e5 100644
+--- a/src/kernel/memory.h
++++ b/src/kernel/memory.h
+@@ -154,6 +154,10 @@ void                   InstallGpuResources(Graphics::RenderContext* renderer) no
+ // EmuFive GPU-shared memory: guest backing chunks can move into dma-buf GPU memory.
+ [[nodiscard]] bool     GetLinearBacking(uint64_t vaddr, uint64_t size, uint64_t* backing_offset);
+ [[nodiscard]] uint64_t GpuSharedChunkSize();
++// EmuFive Garlic memory: the memory type the game gave all of backing chunk `chunk` (direct
++// memory only), or -1 when it is free in part, flexible memory or of mixed types. Sets *busy
++// and returns -1 when a guest memory operation holds the lock (as PromoteBackingChunk).
++[[nodiscard]] int BackingChunkMemoryType(uint64_t chunk, bool* busy);
+ struct RemappedRange {
+ 	uint64_t vaddr;
+ 	uint64_t size;

@@ -12,7 +12,7 @@ For PS5 homebrew built with the ps5-native-app-boilerplate (Snes9x PS5):
   "/data=/home/ps5/data;/mnt/usb0=/media/ps5-usb".
 ---
 diff --git a/src/emulator.cpp b/src/emulator.cpp
-index 306bf9e..4058b42 100644
+index e93e98c5ca30468362d6bd7f279a7e7811b4b64c..c63bc7bc114b62d7ce219025dbd5e2d02a81c7b7 100644
 --- a/src/emulator.cpp
 +++ b/src/emulator.cpp
 @@ -86,6 +86,38 @@ static void MountSandboxDirs() {
@@ -55,10 +55,10 @@ index 306bf9e..4058b42 100644
  
  static void Init(const Config::ConfigOptions& cfg, const std::filesystem::path& param_json,
 diff --git a/src/libs/libC.cpp b/src/libs/libC.cpp
-index fafa91d..1f43d73 100644
+index 5c8ed37e6df565566cd4d596b063b6fd8bdf4ebf..182a1dcd513798cd8b531cabef0be6a1a8cd33a4 100644
 --- a/src/libs/libC.cpp
 +++ b/src/libs/libC.cpp
-@@ -627,11 +627,11 @@ static KYTY_SYSV_ABI int snprintf(VA_ARGS) {
+@@ -612,11 +612,11 @@ static KYTY_SYSV_ABI int snprintf(VA_ARGS) {
  	return GetGuestSnprintfCtxFunc()(&ctx);
  }
  
@@ -72,38 +72,8 @@ index fafa91d..1f43d73 100644
  	return ::fflush(stream);
  }
  
-diff --git a/src/libs/libUserService.cpp b/src/libs/libUserService.cpp
-index 0380f9b..ac77216 100644
---- a/src/libs/libUserService.cpp
-+++ b/src/libs/libUserService.cpp
-@@ -72,6 +72,17 @@ static KYTY_SYSV_ABI int UserServiceGetInitialUser(int* user_id) {
- 	return OK;
- }
- 
-+// The only logged-in user is always the one in front.
-+static KYTY_SYSV_ABI int UserServiceGetForegroundUser(int* user_id) {
-+	PRINT_NAME();
-+
-+	EXIT_NOT_IMPLEMENTED(user_id == nullptr);
-+
-+	*user_id = Config::GetUserId();
-+
-+	return OK;
-+}
-+
- static KYTY_SYSV_ABI int UserServiceGetEvent(SceUserServiceEvent* event) {
- 	PRINT_NAME();
- 
-@@ -289,6 +300,7 @@ LIB_DEFINE(InitUserService_1) {
- 	LIB_FUNC("j3YMu1MVNNo", UserService::UserServiceInitialize);
- 	LIB_FUNC("az-0R6eviZ0", UserService::UserServiceInitialize2);
- 	LIB_FUNC("CdWp0oHWGr0", UserService::UserServiceGetInitialUser);
-+	LIB_FUNC("eNb53LQJmIM", UserService::UserServiceGetForegroundUser);
- 	LIB_FUNC("yH17Q6NWtVg", UserService::UserServiceGetEvent);
- 	LIB_FUNC("fPhymKNvK-A", UserService::UserServiceGetLoginUserIdList);
- 	LIB_FUNC("1xxcMiGu2fo", UserService::UserServiceGetUserName);
 diff --git a/src/libs/libcCompat.cpp b/src/libs/libcCompat.cpp
-index 7bfc151..314ff89 100644
+index 1d6666e1d19436a67a029328687fa1817eeb2188..49a5a12674de73b3abcefdebc1847d1debea15f2 100644
 --- a/src/libs/libcCompat.cpp
 +++ b/src/libs/libcCompat.cpp
 @@ -22,6 +22,7 @@

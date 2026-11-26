@@ -9,11 +9,27 @@ changed anyway, for example the Unreal Engine command line file
 (uecommandline.txt) to lower Invincible VS's (PPSA30568) render resolution
 on the PS4.
 
+diff --git a/src/emulator.cpp b/src/emulator.cpp
+index c63bc7bc114b62d7ce219025dbd5e2d02a81c7b7..f7589f8352c19fedba5d2e07447679004cbb7a02 100644
+--- a/src/emulator.cpp
++++ b/src/emulator.cpp
+@@ -86,6 +86,11 @@ static void MountSandboxDirs() {
+ 	MountOrCreateDir("_DownloadData/" + title_id, "/download0");
+ 	MountOrCreateDir("_TempData/" + title_id, "/temp0");
+ 	MountOrCreateDir("_TempData/" + title_id, "/temp");
++	// _Override/<title>/ holds replacements for the game's own files (see SetAppOverride).
++	if (std::error_code ec; std::filesystem::is_directory("_Override/" + title_id, ec)) {
++		Libs::LibKernel::FileSystem::SetAppOverride(std::filesystem::absolute("_Override/" + title_id));
++		Log::WriteToConsoleAndLog(fmt::format("Game files from _Override/{} replace the game's own.\n", title_id));
++	}
+ 
+ 	// KYTY_MOUNTS adds host folders as guest paths, for example
+ 	// "/data=/home/user/ps5-data;/mnt/usb0=/media/usb". A missing folder is created.
 diff --git a/src/kernel/fileSystem.cpp b/src/kernel/fileSystem.cpp
-index dcff91f..71adcc4 100644
+index c5b76755910b0e24768b0983ab9caf30310049bd..e37d9d3cf80ab74213a238aaeaf5970a767dae81 100644
 --- a/src/kernel/fileSystem.cpp
 +++ b/src/kernel/fileSystem.cpp
-@@ -100,6 +100,7 @@ private:
+@@ -103,6 +103,7 @@ private:
  };
  
  static MountPoints*     g_mount_points = nullptr;
@@ -21,7 +37,7 @@ index dcff91f..71adcc4 100644
  static FileDescriptors* g_files        = nullptr;
  
  static bool IsRandomDevice(const std::string& path) {
-@@ -381,6 +382,17 @@ std::filesystem::path MountPoints::ResolvePath(const std::string& mounted_name)
+@@ -394,6 +395,17 @@ std::filesystem::path MountPoints::ResolvePath(std::string_view mounted_name, bo
  		}
  
  		const auto native_rel_path = Common::PathFromUtf8(rel_path);
@@ -39,7 +55,7 @@ index dcff91f..71adcc4 100644
  		if (Common::IsArchivePath(p.dir)) {
  			return p.dir / native_rel_path;
  		}
-@@ -428,6 +440,10 @@ void Umount(const std::string& folder_or_point) {
+@@ -442,6 +454,10 @@ void Umount(const std::string& folder_or_point) {
  	g_mount_points->Umount(folder_or_point);
  }
  
@@ -51,10 +67,10 @@ index dcff91f..71adcc4 100644
  
  	return g_mount_points->ResolvePath(mounted_file_name);
 diff --git a/src/kernel/fileSystem.h b/src/kernel/fileSystem.h
-index fd090dc..f80e41a 100644
+index d1afdf0ae61235df59b1cdf7a67c65a5ca386112..b145da542d5981788d58193dffc74de4c80b263e 100644
 --- a/src/kernel/fileSystem.h
 +++ b/src/kernel/fileSystem.h
-@@ -56,6 +56,9 @@ void                  Mount(const std::filesystem::path& folder, const std::stri
+@@ -56,6 +56,9 @@ void Mount(const std::filesystem::path& folder, const std::string& point, bool r
  void                  Umount(const std::string& folder_or_point);
  // Returns an empty path when the guest path has no mounted filesystem.
  std::filesystem::path GetRealFilename(const std::string& mounted_file_name);
@@ -64,19 +80,3 @@ index fd090dc..f80e41a 100644
  // Stats a resolved host path; a directory's size is its packed dirent size.
  int StatHostPath(const std::filesystem::path& real_file_name, FileStat* sb);
  // Returns whether d is an open file, directory or device descriptor.
-diff --git a/src/emulator.cpp b/src/emulator.cpp
-index 4058b42..5c0067e 100644
---- a/src/emulator.cpp
-+++ b/src/emulator.cpp
-@@ -86,6 +86,11 @@ static void MountSandboxDirs() {
- 	MountOrCreateDir("_DownloadData/" + title_id, "/download0");
- 	MountOrCreateDir("_TempData/" + title_id, "/temp0");
- 	MountOrCreateDir("_TempData/" + title_id, "/temp");
-+	// _Override/<title>/ holds replacements for the game's own files (see SetAppOverride).
-+	if (std::error_code ec; std::filesystem::is_directory("_Override/" + title_id, ec)) {
-+		Libs::LibKernel::FileSystem::SetAppOverride(std::filesystem::absolute("_Override/" + title_id));
-+		Log::WriteToConsoleAndLog(fmt::format("Game files from _Override/{} replace the game's own.\n", title_id));
-+	}
- 
- 	// KYTY_MOUNTS adds host folders as guest paths, for example
- 	// "/data=/home/user/ps5-data;/mnt/usb0=/media/usb". A missing folder is created.

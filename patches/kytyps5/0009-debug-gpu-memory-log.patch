@@ -10,7 +10,7 @@ To find what fills the PS4 GPU's memory before "Not enough memory for command
 submission". A debug aid: not for a release.
 
 diff --git a/src/graphics/host_gpu/graphicContext.h b/src/graphics/host_gpu/graphicContext.h
-index 07aa6499..9019d962 100644
+index e7ff557f70ce0aa7f78bf0f7278d82af288aa2d4..74d7639f1e32b97ffd05f0288b16826de36af242 100644
 --- a/src/graphics/host_gpu/graphicContext.h
 +++ b/src/graphics/host_gpu/graphicContext.h
 @@ -9,6 +9,7 @@
@@ -21,7 +21,7 @@ index 07aa6499..9019d962 100644
  #include <tuple>
  #include <vector>
  #include <vk_mem_alloc.h>
-@@ -106,6 +107,9 @@ struct GraphicContext {
+@@ -108,6 +109,9 @@ struct GraphicContext {
  	[[nodiscard]] bool CreateAllocator();
  	void               DestroyAllocator();
  	void               LogMemoryBudget() const;
@@ -32,7 +32,7 @@ index 07aa6499..9019d962 100644
  	[[nodiscard]] uint64_t GetDeviceMemoryUsage() const;
  	[[nodiscard]] uint64_t GetTotalMemoryBudget() const;
 diff --git a/src/graphics/host_gpu/renderer/cache/streamBuffer.cpp b/src/graphics/host_gpu/renderer/cache/streamBuffer.cpp
-index bf5ad932..10ee8118 100644
+index faa969b2249167ec91801bce96ad196f8c6cb68d..8666436baf0d77177485cd2de6330f873827f77e 100644
 --- a/src/graphics/host_gpu/renderer/cache/streamBuffer.cpp
 +++ b/src/graphics/host_gpu/renderer/cache/streamBuffer.cpp
 @@ -7,6 +7,7 @@
@@ -55,7 +55,7 @@ index bf5ad932..10ee8118 100644
  		vk::BufferDeviceAddressInfo address_info {};
  		address_info.buffer = m_buffer;
 diff --git a/src/graphics/host_gpu/renderer/commandScheduler.cpp b/src/graphics/host_gpu/renderer/commandScheduler.cpp
-index 983049b7..b23bb980 100644
+index 930a5a83ae72aa168b1c648886dac0a389f61012..501106493a9f78771073ae041c62ec81fe13a327 100644
 --- a/src/graphics/host_gpu/renderer/commandScheduler.cpp
 +++ b/src/graphics/host_gpu/renderer/commandScheduler.cpp
 @@ -5,6 +5,11 @@
@@ -70,7 +70,7 @@ index 983049b7..b23bb980 100644
  #include <optional>
  
  namespace Libs::Graphics {
-@@ -337,7 +342,35 @@ uint64_t CommandScheduler::Submit(SubmitInfo submit) {
+@@ -335,7 +340,35 @@ uint64_t CommandScheduler::Submit(SubmitInfo submit) {
  	}
  	Common::DebugCounters::Add(Common::DebugCounters::Counter::QueueSubmits);
  
@@ -107,7 +107,7 @@ index 983049b7..b23bb980 100644
  	}
  
 diff --git a/src/graphics/host_gpu/vma.cpp b/src/graphics/host_gpu/vma.cpp
-index 1ea3fa8d..63ba8e29 100644
+index 1ea3fa8d803814304edd30ec37950fb0c98b9bf2..63ba8e296a6d7c0a574275d71e47ebb424d4ccf0 100644
 --- a/src/graphics/host_gpu/vma.cpp
 +++ b/src/graphics/host_gpu/vma.cpp
 @@ -20,7 +20,12 @@

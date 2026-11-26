@@ -15,40 +15,11 @@ full-screen pass with a small fragment shader reads its result and writes
 the matching clear color, or discards. The CPU never waits. Integer formats,
 which the shader's float output cannot write, still read back.
 
-diff --git a/src/graphics/host_gpu/shaders/gpu_predicated_clear.frag b/src/graphics/host_gpu/shaders/gpu_predicated_clear.frag
-new file mode 100644
-index 00000000..35b9b85e
---- /dev/null
-+++ b/src/graphics/host_gpu/shaders/gpu_predicated_clear.frag
-@@ -0,0 +1,23 @@
-+#version 450
-+
-+// Clears a color target to the key TileManager::CheckColorClear found for this slice, without
-+// conditional rendering (which hangs the PS4's GPUs). Every pixel takes the same branch.
-+layout(set = 0, binding = 0, std430) readonly buffer Predicates { uint data[]; } predicates;
-+
-+layout(push_constant, std430) uniform Clear {
-+	vec4 colors[8]; // TileManager::ColorClearSlots
-+	uint first;     // slice * ColorClearSlots
-+	uint keys;
-+} params;
-+
-+layout(location = 0) out vec4 color;
-+
-+void main() {
-+	for (uint key = 0u; key < 8u; key++) {
-+		if ((params.keys & (1u << key)) != 0u && predicates.data[params.first + key] != 0u) {
-+			color = params.colors[key];
-+			return;
-+		}
-+	}
-+	discard;
-+}
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index 78d4963..077407a 100644
+index 40a05c17b74a295e07a0cb19f4aec43ff4a5b415..fc9c8efeb94bcdd5d1685ba34f1ca328e47532b6 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -314,6 +314,7 @@ function(add_gpu_blit_shader shader_name shader_file)
+@@ -363,6 +363,7 @@ function(add_gpu_blit_shader shader_name shader_file)
  endfunction()
  add_gpu_blit_shader(gpu_blit_fs_triangle gpu_blit_fs_triangle.vert)
  add_gpu_blit_shader(gpu_blit_color_to_ms_depth gpu_blit_color_to_ms_depth.frag)
@@ -56,54 +27,57 @@ index 78d4963..077407a 100644
  add_gpu_blit_shader(gpu_video_out_overlay gpu_video_out_overlay.frag)
  add_gpu_blit_shader(gpu_imgui_hdr gpu_video_out_overlay.frag -DIMGUI_HDR=1)
  add_gpu_blit_shader(gpu_pssr_linear gpu_pssr_linear.comp)
-diff --git a/src/graphics/host_gpu/renderer/image/blitHelper.h b/src/graphics/host_gpu/renderer/image/blitHelper.h
-index c9476b1..e8be131 100644
---- a/src/graphics/host_gpu/renderer/image/blitHelper.h
-+++ b/src/graphics/host_gpu/renderer/image/blitHelper.h
-@@ -4,6 +4,7 @@
- #include "common/common.h"
- #include "graphics/host_gpu/vulkanCommon.h"
- 
-+#include <array>
- #include <compare>
- #include <vector>
- 
-@@ -24,6 +25,14 @@ public:
- 
- 	void ReinterpretColorAsMsDepth(Image& source, Image& destination);
- 
-+	// Inside a color rendering pass over one layer: writes colors[key] to `area` when
-+	// predicates[first + key] is set for a key in `keys`, else leaves the target unchanged.
-+	// For GPUs where conditional rendering is unusable. Float and normalized formats only.
-+	[[nodiscard]] bool CanPredicatedClear(vk::Format format) const;
-+	void PredicatedClear(vk::CommandBuffer command, vk::Format format, uint32_t samples,
-+	                     vk::Buffer predicates, uint32_t first, uint32_t keys,
-+	                     const std::array<vk::ClearColorValue, 8>& colors, vk::Rect2D area);
-+
- private:
- 	struct PipelineKey {
- 		uint32_t   samples = 1;
-@@ -38,6 +47,7 @@ private:
- 	};
- 
- 	[[nodiscard]] vk::Pipeline GetPipeline(PipelineKey key);
-+	[[nodiscard]] vk::Pipeline GetClearPipeline(PipelineKey key);
- 
- 	GraphicContext&         m_graphics;
- 	CommandScheduler&       m_scheduler;
-@@ -46,6 +56,10 @@ private:
- 	vk::ShaderModule        m_vertex_shader     = nullptr;
- 	vk::ShaderModule        m_fragment_shader   = nullptr;
- 	std::vector<Pipeline>   m_pipelines;
-+	vk::DescriptorSetLayout m_clear_descriptor_layout = nullptr;
-+	vk::PipelineLayout      m_clear_pipeline_layout   = nullptr;
-+	vk::ShaderModule        m_clear_shader            = nullptr;
-+	std::vector<Pipeline>   m_clear_pipelines;
- };
- 
- } // namespace Libs::Graphics
+diff --git a/src/graphics/host_gpu/renderer/cache/textureCache.cpp b/src/graphics/host_gpu/renderer/cache/textureCache.cpp
+index 606a2705e43176bec01be4c32927fd0b3c5c9c92..e4fac12ef430df1d411db88ab034ac2d279f926e 100644
+--- a/src/graphics/host_gpu/renderer/cache/textureCache.cpp
++++ b/src/graphics/host_gpu/renderer/cache/textureCache.cpp
+@@ -1148,6 +1148,44 @@ void TextureCache::MaterializeColorClear(ImageId id, const ImageDesc& desc,
+ 				CommitGpuWrite(image);
+ 				return;
+ 			}
++			// Without usable conditional rendering (the PS4's GPUs hang on it), a fragment
++			// shader applies the key the GPU check found, so the CPU still never waits.
++			// Reading the metadata back instead stalled the GPU each time: 29 times a frame
++			// in Invincible VS's menu, most of its frame time.
++			if (!m_graphics.conditional_rendering_enabled &&
++			    count <= m_graphics.GetPhysicalDeviceProperties().limits.maxFramebufferLayers &&
++			    m_blit_helper.CanPredicatedClear(view.format) &&
++			    (image.backing.usage & vk::ImageUsageFlagBits::eColorAttachment) &&
++			    (m_graphics.GetFormatProperties(view.format).optimalTilingFeatures &
++			     vk::FormatFeatureFlagBits::eColorAttachment) &&
++			    (desc.info.metadata.compression == VideoOutCompression::Uncompressed ||
++			     native_current)) {
++				Common::DebugCounters::Add(Common::DebugCounters::Counter::ColorMetadataChecks);
++				InitializeImage(id);
++				const bool expand = desc.type != BindingType::VideoOut;
++				const auto [buffer, offset] =
++				    m_buffer_cache.ObtainBuffer(viewed.address, viewed.size, expand);
++				const auto predicates = m_tiler.CheckColorClear(
++				    {buffer->Handle(), offset, viewed.size}, slice_size, count, keys, expand);
++				for (uint32_t slice = 0; slice < count && expand; slice++) {
++					m_buffer_cache.MarkColorMetadataChecked(run(slice), mip.size, keys);
++				}
++				std::array<vk::ClearColorValue, TileManager::ColorClearSlots> colors {};
++				for (uint32_t key = 0; key < colors.size(); key++) {
++					colors[key] = clears[key].clearValue.color;
++				}
++				const auto command = m_scheduler.Current().Handle();
++				for (uint32_t slice = 0; slice < count; slice++) {
++					const auto area = BeginColorRendering(image, view.format, view.base_level,
++					                                      image_first + slice, 1, nullptr, command);
++					m_blit_helper.PredicatedClear(command, view.format, image.info.samples,
++					                              predicates, slice * TileManager::ColorClearSlots,
++					                              keys, colors, area);
++					command.endRendering();
++				}
++				CommitGpuWrite(image);
++				return;
++			}
+ 		}
+ 		// Finish native metadata writes before reading backing bytes. This can submit the
+ 		// scheduler, so discovery runs before final draw uploads and never holds the texture
 diff --git a/src/graphics/host_gpu/renderer/image/blitHelper.cpp b/src/graphics/host_gpu/renderer/image/blitHelper.cpp
-index 4df9c72..cd53787 100644
+index 4df9c729607dbf7912b36d73bec470f87e9b4cd3..cd537878a526a7c6aa7afa44c3bacca7818ca07f 100644
 --- a/src/graphics/host_gpu/renderer/image/blitHelper.cpp
 +++ b/src/graphics/host_gpu/renderer/image/blitHelper.cpp
 @@ -3,6 +3,7 @@
@@ -278,60 +252,57 @@ index 4df9c72..cd53787 100644
 +}
 +
  } // namespace Libs::Graphics
-diff --git a/src/graphics/host_gpu/renderer/cache/textureCache.cpp b/src/graphics/host_gpu/renderer/cache/textureCache.cpp
-index 2d83130..caf0d2c 100644
---- a/src/graphics/host_gpu/renderer/cache/textureCache.cpp
-+++ b/src/graphics/host_gpu/renderer/cache/textureCache.cpp
-@@ -1111,6 +1111,44 @@ void TextureCache::MaterializeColorClear(ImageId id, const ImageDesc& desc,
- 				CommitGpuWrite(image);
- 				return;
- 			}
-+			// Without usable conditional rendering (the PS4's GPUs hang on it), a fragment
-+			// shader applies the key the GPU check found, so the CPU still never waits.
-+			// Reading the metadata back instead stalled the GPU each time: 29 times a frame
-+			// in Invincible VS's menu, most of its frame time.
-+			if (!m_graphics.conditional_rendering_enabled &&
-+			    count <= m_graphics.GetPhysicalDeviceProperties().limits.maxFramebufferLayers &&
-+			    m_blit_helper.CanPredicatedClear(view.format) &&
-+			    (image.backing.usage & vk::ImageUsageFlagBits::eColorAttachment) &&
-+			    (m_graphics.GetFormatProperties(view.format).optimalTilingFeatures &
-+			     vk::FormatFeatureFlagBits::eColorAttachment) &&
-+			    (desc.info.metadata.compression == VideoOutCompression::Uncompressed ||
-+			     native_current)) {
-+				Common::DebugCounters::Add(Common::DebugCounters::Counter::ColorMetadataChecks);
-+				InitializeImage(id);
-+				const bool expand = desc.type != BindingType::VideoOut;
-+				const auto [buffer, offset] =
-+				    m_buffer_cache.ObtainBuffer(viewed.address, viewed.size, expand);
-+				const auto predicates = m_tiler.CheckColorClear(
-+				    {buffer->Handle(), offset, viewed.size}, slice_size, count, keys, expand);
-+				for (uint32_t slice = 0; slice < count && expand; slice++) {
-+					m_buffer_cache.MarkColorMetadataChecked(run(slice), mip.size, keys);
-+				}
-+				std::array<vk::ClearColorValue, TileManager::ColorClearSlots> colors {};
-+				for (uint32_t key = 0; key < colors.size(); key++) {
-+					colors[key] = clears[key].clearValue.color;
-+				}
-+				const auto command = m_scheduler.Current().Handle();
-+				for (uint32_t slice = 0; slice < count; slice++) {
-+					const auto area = BeginColorRendering(image, view.format, view.base_level,
-+					                                      image_first + slice, 1, nullptr, command);
-+					m_blit_helper.PredicatedClear(command, view.format, image.info.samples,
-+					                              predicates, slice * TileManager::ColorClearSlots,
-+					                              keys, colors, area);
-+					command.endRendering();
-+				}
-+				CommitGpuWrite(image);
-+				return;
-+			}
- 		}
- 		// Finish native metadata writes before reading backing bytes. This can submit the
- 		// scheduler, so discovery runs before final draw uploads and never holds the texture
+diff --git a/src/graphics/host_gpu/renderer/image/blitHelper.h b/src/graphics/host_gpu/renderer/image/blitHelper.h
+index c9476b10567b6458c85f2af587ed2ae1e5ec51df..e8be131bdae9dcd4bdeb90c5c3f79f5c0c696585 100644
+--- a/src/graphics/host_gpu/renderer/image/blitHelper.h
++++ b/src/graphics/host_gpu/renderer/image/blitHelper.h
+@@ -4,6 +4,7 @@
+ #include "common/common.h"
+ #include "graphics/host_gpu/vulkanCommon.h"
+ 
++#include <array>
+ #include <compare>
+ #include <vector>
+ 
+@@ -24,6 +25,14 @@ public:
+ 
+ 	void ReinterpretColorAsMsDepth(Image& source, Image& destination);
+ 
++	// Inside a color rendering pass over one layer: writes colors[key] to `area` when
++	// predicates[first + key] is set for a key in `keys`, else leaves the target unchanged.
++	// For GPUs where conditional rendering is unusable. Float and normalized formats only.
++	[[nodiscard]] bool CanPredicatedClear(vk::Format format) const;
++	void PredicatedClear(vk::CommandBuffer command, vk::Format format, uint32_t samples,
++	                     vk::Buffer predicates, uint32_t first, uint32_t keys,
++	                     const std::array<vk::ClearColorValue, 8>& colors, vk::Rect2D area);
++
+ private:
+ 	struct PipelineKey {
+ 		uint32_t   samples = 1;
+@@ -38,6 +47,7 @@ private:
+ 	};
+ 
+ 	[[nodiscard]] vk::Pipeline GetPipeline(PipelineKey key);
++	[[nodiscard]] vk::Pipeline GetClearPipeline(PipelineKey key);
+ 
+ 	GraphicContext&         m_graphics;
+ 	CommandScheduler&       m_scheduler;
+@@ -46,6 +56,10 @@ private:
+ 	vk::ShaderModule        m_vertex_shader     = nullptr;
+ 	vk::ShaderModule        m_fragment_shader   = nullptr;
+ 	std::vector<Pipeline>   m_pipelines;
++	vk::DescriptorSetLayout m_clear_descriptor_layout = nullptr;
++	vk::PipelineLayout      m_clear_pipeline_layout   = nullptr;
++	vk::ShaderModule        m_clear_shader            = nullptr;
++	std::vector<Pipeline>   m_clear_pipelines;
+ };
+ 
+ } // namespace Libs::Graphics
 diff --git a/src/graphics/host_gpu/renderer/image/tiler.cpp b/src/graphics/host_gpu/renderer/image/tiler.cpp
-index 36dc79c..378ebc5 100644
+index a3ff101cca53a285c7012c7588251ff4ffb226b4..817d8bb1eda25e741fb25677a8a13611e2a17d22 100644
 --- a/src/graphics/host_gpu/renderer/image/tiler.cpp
 +++ b/src/graphics/host_gpu/renderer/image/tiler.cpp
-@@ -647,7 +647,9 @@ vk::Buffer TileManager::CheckColorClear(Result metadata, uint64_t stride, uint32
+@@ -634,7 +634,9 @@ vk::Buffer TileManager::CheckColorClear(Result metadata, uint64_t stride, uint32
  		m_clear_predicates = std::make_unique<Buffer>(
  		    m_graphics, m_scheduler, MemoryUsage::DeviceLocal, 0,
  		    vk::BufferUsageFlagBits::eStorageBuffer |
@@ -342,3 +313,32 @@ index 36dc79c..378ebc5 100644
  		    uint64_t {max_slices} * ColorClearSlots * sizeof(uint32_t));
  	}
  	const auto source = BindStorage(metadata, metadata.size);
+diff --git a/src/graphics/host_gpu/shaders/gpu_predicated_clear.frag b/src/graphics/host_gpu/shaders/gpu_predicated_clear.frag
+new file mode 100644
+index 0000000000000000000000000000000000000000..35b9b85e3f43de17ba0dead42d5909a89016ca7b
+--- /dev/null
++++ b/src/graphics/host_gpu/shaders/gpu_predicated_clear.frag
+@@ -0,0 +1,23 @@
++#version 450
++
++// Clears a color target to the key TileManager::CheckColorClear found for this slice, without
++// conditional rendering (which hangs the PS4's GPUs). Every pixel takes the same branch.
++layout(set = 0, binding = 0, std430) readonly buffer Predicates { uint data[]; } predicates;
++
++layout(push_constant, std430) uniform Clear {
++	vec4 colors[8]; // TileManager::ColorClearSlots
++	uint first;     // slice * ColorClearSlots
++	uint keys;
++} params;
++
++layout(location = 0) out vec4 color;
++
++void main() {
++	for (uint key = 0u; key < 8u; key++) {
++		if ((params.keys & (1u << key)) != 0u && predicates.data[params.first + key] != 0u) {
++			color = params.colors[key];
++			return;
++		}
++	}
++	discard;
++}

@@ -11,34 +11,33 @@ A flip now marks the frame boundary when no suspend point came since the
 previous flip, and the caches age once the command list holding that flip is
 done. Games with a suspend point every frame are unchanged.
 
-diff --git a/src/graphics/guest_gpu/graphicsRun.h b/src/graphics/guest_gpu/graphicsRun.h
-index 307b967..99218ac 100644
---- a/src/graphics/guest_gpu/graphicsRun.h
-+++ b/src/graphics/guest_gpu/graphicsRun.h
-@@ -90,6 +90,9 @@ private:
- 	std::array<std::unique_ptr<CommandProcessor>, ComputeQueueCount> m_compute_cp;
- 
- 	std::atomic_int m_done_num = 0;
-+	// Games that never reach a suspend point age the caches once per flip instead (GPU thread).
-+	bool            m_suspend_since_flip = false;
-+	bool            m_flip_gc_pending    = false;
- 	std::jthread    m_thread;
- 
- 	friend class CommandProcessor;
+diff --git a/src/graphics/guest_gpu/command_processor/commandProcessor.h b/src/graphics/guest_gpu/command_processor/commandProcessor.h
+index 3cc4b2dc97b6d3228c9fd8766dfa4a949556ab0a..f728d43d3dd5171f9ef08736865ad1d6218b1911 100644
+--- a/src/graphics/guest_gpu/command_processor/commandProcessor.h
++++ b/src/graphics/guest_gpu/command_processor/commandProcessor.h
+@@ -91,6 +91,8 @@ public:
+ 	void WriteBackImages();
+ 	void Flip(int handle, int index, int flip_mode, int64_t flip_arg);
+ 	void PrepareCpuFlip(uint64_t request_id);
++	// Lets the GPU thread age the caches at this flip when the game has no suspend points.
++	void NoteFlipForGc();
+ 	void DispatchDirect(uint32_t thread_group_x, uint32_t thread_group_y, uint32_t thread_group_z,
+ 	                    uint32_t mode);
+ 	void DispatchIndirect(uint64_t args_addr, uint32_t mode);
 diff --git a/src/graphics/guest_gpu/graphicsRun.cpp b/src/graphics/guest_gpu/graphicsRun.cpp
-index 950f23b..f62bc6e 100644
+index 70df7ad8f2bf62e6c3a9a0dabe8c75366be02787..adc958574684506097c7e498edc391f1230c19c4 100644
 --- a/src/graphics/guest_gpu/graphicsRun.cpp
 +++ b/src/graphics/guest_gpu/graphicsRun.cpp
-@@ -504,6 +504,8 @@ bool GuestGpu::Process(Submission& submission) {
+@@ -530,6 +530,8 @@ bool GuestGpu::Process(Submission& submission) {
  		case SubmissionType::SuspendPoint:
  			// Age caches at the frame boundary, not once per command list.
  			m_renderer.RunGarbageCollector();
 +			m_suspend_since_flip = true;
 +			m_flip_gc_pending    = false;
- 			m_renderer.GetCommandScheduler().DeferPriorityOperation(
- 			    [ready = m_suspend_point_ready] { ready->release(); });
  			cp.BufferFlush();
-@@ -511,6 +513,14 @@ bool GuestGpu::Process(Submission& submission) {
+ 			cp.Reset();
+ 			// Like completion labels, the point has executed once the CP has submitted every
+@@ -538,6 +540,14 @@ bool GuestGpu::Process(Submission& submission) {
  			break;
  	}
  
@@ -53,7 +52,7 @@ index 950f23b..f62bc6e 100644
  	return complete;
  }
  
-@@ -1030,6 +1040,7 @@ void CommandProcessor::Flip(int handle, int index, int flip_mode, int64_t flip_a
+@@ -1081,6 +1091,7 @@ void CommandProcessor::Flip(int handle, int index, int flip_mode, int64_t flip_a
  	}
  	m_renderer.GetOcclusionQueries().Publish();
  
@@ -61,7 +60,7 @@ index 950f23b..f62bc6e 100644
  	auto& command = CurrentBuffer();
  	auto  request = Sync::PrepareVideoOutFlip(command, handle, index, flip_mode, flip_arg);
  	GetScheduler().DeferPriorityOperation(
-@@ -1037,7 +1048,16 @@ void CommandProcessor::Flip(int handle, int index, int flip_mode, int64_t flip_a
+@@ -1088,7 +1099,16 @@ void CommandProcessor::Flip(int handle, int index, int flip_mode, int64_t flip_a
  	GetScheduler().Flush();
  }
  
@@ -78,16 +77,17 @@ index 950f23b..f62bc6e 100644
  	auto& command = CurrentBuffer();
  	m_renderer.GetVideoOut().PrepareFlip(request_id, command);
  	GetScheduler().DeferPriorityOperation(
-diff --git a/src/graphics/guest_gpu/command_processor/commandProcessor.h b/src/graphics/guest_gpu/command_processor/commandProcessor.h
-index 34026fb..925a1c8 100644
---- a/src/graphics/guest_gpu/command_processor/commandProcessor.h
-+++ b/src/graphics/guest_gpu/command_processor/commandProcessor.h
-@@ -90,6 +90,8 @@ public:
- 	                uint32_t interrupt_context_id);
- 	void Flip(int handle, int index, int flip_mode, int64_t flip_arg);
- 	void PrepareCpuFlip(uint64_t request_id);
-+	// Lets the GPU thread age the caches at this flip when the game has no suspend points.
-+	void NoteFlipForGc();
- 	void DispatchDirect(uint32_t thread_group_x, uint32_t thread_group_y, uint32_t thread_group_z,
- 	                    uint32_t mode);
- 	void DispatchIndirect(uint64_t args_addr, uint32_t mode);
+diff --git a/src/graphics/guest_gpu/graphicsRun.h b/src/graphics/guest_gpu/graphicsRun.h
+index 45ed587a53b448289ca09e637b09e28f90c619fb..a1f2e35fe511c4588ad5fde65b6dcc824397f2bd 100644
+--- a/src/graphics/guest_gpu/graphicsRun.h
++++ b/src/graphics/guest_gpu/graphicsRun.h
+@@ -88,6 +88,9 @@ private:
+ 	std::array<std::unique_ptr<CommandProcessor>, ComputeQueueCount> m_compute_cp;
+ 
+ 	std::atomic_int m_done_num = 0;
++	// Games that never reach a suspend point age the caches once per flip instead (GPU thread).
++	bool            m_suspend_since_flip = false;
++	bool            m_flip_gc_pending    = false;
+ 	std::jthread    m_thread;
+ 
+ 	friend class CommandProcessor;

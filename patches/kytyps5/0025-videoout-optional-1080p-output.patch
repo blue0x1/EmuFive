@@ -4,6 +4,8 @@ Subject: [PATCH] videoout: optional 1080p output
 KYTY_OUTPUT_1080P reports a 1080p output to games that do not ask for
 resolution detection, so they render for 1080p instead of 4K.
 ---
+diff --git a/src/graphics/presentation/videoOut.cpp b/src/graphics/presentation/videoOut.cpp
+index 3e098bc3d58012ebcd77987b2ab56165dbb27b6e..a2fc313f2ce0a174c43889275a6c53123ee0d98f 100644
 --- a/src/graphics/presentation/videoOut.cpp
 +++ b/src/graphics/presentation/videoOut.cpp
 @@ -28,6 +28,7 @@
@@ -14,8 +16,8 @@ resolution detection, so they render for 1080p instead of 4K.
  #include <fmt/format.h>
  #include <list>
  #include <thread>
-@@ -1699,8 +1700,11 @@
- 	                         (attribute & 0x20000000) != 0;
+@@ -1716,8 +1717,11 @@ KYTY_SYSV_ABI int VideoOutGetOutputStatus(int handle, VideoOutOutputStatus* stat
+ 	Loader::SystemContentParamSfoGetInt("ATTRIBUTE3", &attribute3);
  	ctx->mutex.Lock();
  	// Primary output reports 4K unless param.json Video-out Info enables resolution detection.
 +	// KYTY_OUTPUT_1080P makes every game see a 1080p output, so it renders fewer pixels.
@@ -24,6 +26,6 @@ resolution detection, so they render for 1080p instead of 4K.
 -	    ((attribute3 & 4) != 0 && driver.width < 3840 && driver.height < 2160 ? 1u : 2u);
 +	    ((force_1080p || (attribute3 & 4) != 0) && driver.width < 3840 && driver.height < 2160 ? 1u
 +	                                                                                          : 2u);
- 	status->dynamicRange = hdr_allowed && driver.IsHdrSupported() ? 2u : 1u;
+ 	status->dynamicRange = (attribute & 0x20000000) != 0 && driver.IsHdrSupported() ? 2u : 1u;
  	status->refreshRate =
  	    (ctx->output_mode == VIDEO_OUT_OUTPUT_MODE_119_88HZ || Config::GetVblankFrequency() >= 119

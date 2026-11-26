@@ -5,10 +5,10 @@ Separates the time a draw or dispatch waits on earlier work and barriers
 from the time it runs.
 ---
 diff --git a/src/graphics/host_gpu/renderer/renderCompute.cpp b/src/graphics/host_gpu/renderer/renderCompute.cpp
-index 879a4b9d..52048824 100644
+index f8120758b40ce48092e1334f9aa3dab7cc0a7ce0..6a9ed58c588c9373ede3500c17b8d5fbb87b878f 100644
 --- a/src/graphics/host_gpu/renderer/renderCompute.cpp
 +++ b/src/graphics/host_gpu/renderer/renderCompute.cpp
-@@ -446,6 +446,7 @@ void RenderExecutor::DispatchDirect(CommandBuffer& buffer, uint32_t thread_group
+@@ -464,6 +464,7 @@ void RenderExecutor::DispatchDirect(CommandBuffer& buffer, uint32_t thread_group
  	}
  
  	vk_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, pipeline.pipeline);
@@ -17,14 +17,14 @@ index 879a4b9d..52048824 100644
  	const uint64_t     group_threads = uint64_t {std::max(input_info.threads_num[0], 1u)} *
  	                                   std::max(input_info.threads_num[1], 1u) *
 diff --git a/src/graphics/host_gpu/renderer/renderDraw.cpp b/src/graphics/host_gpu/renderer/renderDraw.cpp
-index b1278070..7478d759 100644
+index 3cc8f08e0874ec8f03339e1e16d3c951fde2982b..f1263aceb0d53a2b22dc67ceb84c63377c2c33bd 100644
 --- a/src/graphics/host_gpu/renderer/renderDraw.cpp
 +++ b/src/graphics/host_gpu/renderer/renderDraw.cpp
-@@ -1200,6 +1200,7 @@ void RenderExecutor::ExecutePreparedDraw(CommandBuffer& buffer, const DrawCallIn
+@@ -1212,6 +1212,7 @@ void RenderExecutor::ExecutePreparedDraw(CommandBuffer& buffer, const DrawCallIn
  	vk_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline.pipeline);
  	auto&         occlusion_queries = m_context.GetOcclusionQueries();
  	const int32_t occlusion_query   = occlusion_queries.Begin(vk_buffer);
-+	GpuProfile::Stamp(vk_buffer, "before-draw", reinterpret_cast<uint64_t>(static_cast<VkPipeline>(pipeline.pipeline)), state.color_count != 0 ? state.color_info[0].Extent().width : 0, state.color_count != 0 ? state.color_info[0].Extent().height : 0);
++	GpuProfile::Stamp(vk_buffer, "before-draw", reinterpret_cast<uint64_t>(static_cast<VkPipeline>(pipeline.pipeline)), m_targets.color_count != 0 ? m_targets.colors[0].Extent().width : 0, m_targets.color_count != 0 ? m_targets.colors[0].Extent().height : 0);
  	if (mesh_task) {
  		vk_buffer.drawMeshTasksEXT(emit.indirect.count, 1, 1);
  	} else if (mesh_active) {

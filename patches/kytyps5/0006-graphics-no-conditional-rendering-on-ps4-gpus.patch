@@ -18,10 +18,10 @@ one before the first SET_PREDICATION. With this patch Silksong reaches its
 title screen there.
 ---
 diff --git a/src/graphics/presentation/window/vulkanWindow.cpp b/src/graphics/presentation/window/vulkanWindow.cpp
-index 637385e..211f628 100644
+index c3190ec12cad39c755901336e5fa28ff11865330..d3c049c6d502a54d10a87655d8f3719f33d39f0b 100644
 --- a/src/graphics/presentation/window/vulkanWindow.cpp
 +++ b/src/graphics/presentation/window/vulkanWindow.cpp
-@@ -25,6 +25,7 @@
+@@ -27,6 +27,7 @@
  #include <algorithm>
  #include <cmath>
  #include <cstdio>
@@ -29,7 +29,7 @@ index 637385e..211f628 100644
  #include <cstring>
  #include <fmt/format.h>
  #include <memory>
-@@ -507,7 +508,22 @@ static vk::Device VulkanCreateDevice(GraphicContext&          graphics,
+@@ -549,7 +550,22 @@ static vk::Device VulkanCreateDevice(GraphicContext&          graphics,
  		graphics.device_clock_period_ps = static_cast<uint32_t>(
  		    std::lround(graphics.physical_device_properties.limits.timestampPeriod * 1000.0f));
  	}

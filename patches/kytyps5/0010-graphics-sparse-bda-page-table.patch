@@ -14,10 +14,10 @@ pieces of the table that a registered buffer writes to; each covers 128 MB of
 guest addresses. KYTY_NO_SPARSE_PAGETABLE=1 keeps the old buffer.
 
 diff --git a/src/graphics/host_gpu/graphicContext.h b/src/graphics/host_gpu/graphicContext.h
-index 9019d962..25b9da07 100644
+index 74d7639f1e32b97ffd05f0288b16826de36af242..09233a7d6c9cc48ffe26a9526d814dfcf8e2dabc 100644
 --- a/src/graphics/host_gpu/graphicContext.h
 +++ b/src/graphics/host_gpu/graphicContext.h
-@@ -43,6 +43,8 @@ struct GraphicContext {
+@@ -45,6 +45,8 @@ struct GraphicContext {
  	bool                               occlusion_query_precise_enabled       = false;
  	bool                               supports_block_texel_view              = false;
  	bool                                      mesh_shader_enabled                   = false;
@@ -27,7 +27,7 @@ index 9019d962..25b9da07 100644
  	uint32_t                           subgroup_size                         = 0;
  	uint32_t                           min_subgroup_size                     = 0;
 diff --git a/src/graphics/host_gpu/renderer/cache/bufferCache.cpp b/src/graphics/host_gpu/renderer/cache/bufferCache.cpp
-index 433603f1..1e642345 100644
+index 6bd6ef222e31ea2ad83c8cf14237bf2be30982b0..dfa79b00c5cae73796f2ae3120cdf2c82a03f8d6 100644
 --- a/src/graphics/host_gpu/renderer/cache/bufferCache.cpp
 +++ b/src/graphics/host_gpu/renderer/cache/bufferCache.cpp
 @@ -125,6 +125,7 @@ void BufferCache::ChangeRegister(BufferId id) {
@@ -38,7 +38,7 @@ index 433603f1..1e642345 100644
  		WriteDataBuffer(m_bda_pagetable_buffer, table_offset,
  		                addresses.data(), addresses.size() * sizeof(vk::DeviceAddress));
  		QueueBdaSync(buffer.CpuAddress(), buffer.Size());
-@@ -237,8 +238,10 @@ BufferCache::BufferCache(GraphicContext& graphics, CommandScheduler& scheduler,
+@@ -229,8 +230,10 @@ BufferCache::BufferCache(GraphicContext& graphics, CommandScheduler& scheduler,
                           PageManager& page_manager, TextureCache& texture_cache)
      : m_graphics(graphics), m_scheduler(scheduler), m_fault_manager(graphics, scheduler, *this),
        m_gds_buffer(graphics, scheduler, MemoryUsage::Stream, 0, AllFlags, GdsBufferSize),
@@ -51,7 +51,7 @@ index 433603f1..1e642345 100644
        m_memory_tracker(page_manager),
        m_staging_buffer(graphics, scheduler, MemoryUsage::Upload, 512 * MiB),
        m_stream_buffer(graphics, scheduler, MemoryUsage::Stream, 64 * MiB),
-@@ -251,7 +254,10 @@ BufferCache::BufferCache(GraphicContext& graphics, CommandScheduler& scheduler,
+@@ -243,7 +246,10 @@ BufferCache::BufferCache(GraphicContext& graphics, CommandScheduler& scheduler,
  	                     "BDA Page Table Buffer");
  	m_scheduler.BeginCommand();
  	for (auto* buffer: {&m_bda_pagetable_buffer, m_fault_manager.GetFaultBuffer()}) {
@@ -64,7 +64,7 @@ index 433603f1..1e642345 100644
  	const auto null_id =
  	    m_slot_buffers.insert(m_graphics, m_scheduler, MemoryUsage::DeviceLocal, 0, AllFlags, 16);
 diff --git a/src/graphics/host_gpu/renderer/cache/streamBuffer.cpp b/src/graphics/host_gpu/renderer/cache/streamBuffer.cpp
-index 10ee8118..532397c4 100644
+index 8666436baf0d77177485cd2de6330f873827f77e..2d8261e469b06340914b6e5ed1aadf4fe97ad67f 100644
 --- a/src/graphics/host_gpu/renderer/cache/streamBuffer.cpp
 +++ b/src/graphics/host_gpu/renderer/cache/streamBuffer.cpp
 @@ -29,7 +29,8 @@ constexpr vk::AccessFlags MEMORY_ACCESS =
@@ -194,10 +194,10 @@ index 10ee8118..532397c4 100644
  	EXIT_IF(m_mapped.empty() || offset > Size() || size > Size() - offset);
  	if (!IsCoherent() && size != 0) {
 diff --git a/src/graphics/host_gpu/renderer/cache/streamBuffer.h b/src/graphics/host_gpu/renderer/cache/streamBuffer.h
-index f6932a03..35eee1a1 100644
+index 5b17c3b586560b3bb2b1742dfbb8959ecb86079f..3dd2d7094993bd9fb0b4197e51735ac8ebc0365b 100644
 --- a/src/graphics/host_gpu/renderer/cache/streamBuffer.h
 +++ b/src/graphics/host_gpu/renderer/cache/streamBuffer.h
-@@ -26,6 +26,9 @@ enum class MemoryUsage : uint8_t {
+@@ -27,6 +27,9 @@ enum class MemoryUsage : uint8_t {
  	Upload,
  	Download,
  	Stream,
@@ -207,7 +207,7 @@ index f6932a03..35eee1a1 100644
  };
  
  inline constexpr vk::BufferUsageFlags ReadFlags =
-@@ -67,6 +70,9 @@ public:
+@@ -68,6 +71,9 @@ public:
  	void CopyFrom(CommandBuffer& command, const Buffer& source, uint64_t source_offset,
  	              uint64_t destination_offset, uint64_t size);
  	void Fill(uint64_t offset, uint64_t size, uint32_t value);
@@ -217,7 +217,7 @@ index f6932a03..35eee1a1 100644
  
  	// BufferCache state lives directly on the resource.
  	bool   is_deleted   = false;
-@@ -92,6 +98,9 @@ private:
+@@ -93,6 +99,9 @@ private:
  	uint64_t                      m_size;
  	bool                          m_coherent = false;
  	std::span<uint8_t>            m_mapped;
@@ -228,10 +228,10 @@ index f6932a03..35eee1a1 100644
  
  class StreamBuffer final: public Buffer {
 diff --git a/src/graphics/presentation/window/vulkanWindow.cpp b/src/graphics/presentation/window/vulkanWindow.cpp
-index 211f6280..7c79a4dd 100644
+index d3c049c6d502a54d10a87655d8f3719f33d39f0b..f07d9c315d51c135bd7d54638022d7c169aaa436 100644
 --- a/src/graphics/presentation/window/vulkanWindow.cpp
 +++ b/src/graphics/presentation/window/vulkanWindow.cpp
-@@ -580,6 +580,25 @@ static vk::Device VulkanCreateDevice(GraphicContext&          graphics,
+@@ -623,6 +623,25 @@ static vk::Device VulkanCreateDevice(GraphicContext&          graphics,
  	LOGF("Vulkan occlusion queries: %s, precise: %s\n",
  	     graphics.occlusion_queries_enabled ? "true" : "false",
  	     graphics.occlusion_query_precise_enabled ? "true" : "false");

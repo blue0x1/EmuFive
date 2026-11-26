@@ -8,7 +8,7 @@ counts the guest's flips, so it costs next to nothing, unlike the full panel
 screen turns it on with "Show FPS counter" in Settings.
 ---
 diff --git a/src/graphics/presentation/performanceOverlay.cpp b/src/graphics/presentation/performanceOverlay.cpp
-index 0c94749..64b7d2a 100644
+index 0c9474930486af654b2231900eb0c3b4a5c628cd..64b7d2a8e83dcab957e179ef418eb39597f9a270 100644
 --- a/src/graphics/presentation/performanceOverlay.cpp
 +++ b/src/graphics/presentation/performanceOverlay.cpp
 @@ -13,6 +13,7 @@
@@ -92,7 +92,7 @@ index 0c94749..64b7d2a 100644
 +
  } // namespace Libs::Graphics
 diff --git a/src/graphics/presentation/performanceOverlay.h b/src/graphics/presentation/performanceOverlay.h
-index 8b7b318..852595a 100644
+index 8b7b318eba15d1d3946ae1ee6d3b7a185a016ce9..852595abc329a740272d8aeaef9a901a2e7d0235 100644
 --- a/src/graphics/presentation/performanceOverlay.h
 +++ b/src/graphics/presentation/performanceOverlay.h
 @@ -25,6 +25,12 @@ void TogglePerformanceOverlayDetails() noexcept;
@@ -109,10 +109,10 @@ index 8b7b318..852595a 100644
  
  #endif // EMULATOR_SRC_GRAPHICS_PRESENTATION_PERFORMANCEOVERLAY_H_
 diff --git a/src/graphics/presentation/systemOverlay.cpp b/src/graphics/presentation/systemOverlay.cpp
-index efee498..ad9ea2c 100644
+index 3b8007b3d2816e112f0c75209616e6477f635fd4..94db50989a79655791ad4e33c8f8a33cd59d4ba9 100644
 --- a/src/graphics/presentation/systemOverlay.cpp
 +++ b/src/graphics/presentation/systemOverlay.cpp
-@@ -1802,7 +1802,8 @@ struct SystemOverlay::Impl {
+@@ -1837,7 +1837,8 @@ struct SystemOverlay::Impl {
  		const auto now = Clock::now();
  		if (!has_overlay && !g_trophy_notification_active.load(std::memory_order_acquire) &&
  		    !g_splash_active.load(std::memory_order_acquire) &&
@@ -122,7 +122,7 @@ index efee498..ad9ea2c 100644
  			return false;
  		}
  		const auto prepared_session = snapshot.session;
-@@ -1834,6 +1835,7 @@ struct SystemOverlay::Impl {
+@@ -1869,6 +1870,7 @@ struct SystemOverlay::Impl {
  		ImGui::NewFrame();
  		DrawSplash(frame_extent);
  		const float performance_bottom = DrawPerformanceOverlay(graphics, frame_extent);
@@ -131,10 +131,10 @@ index efee498..ad9ea2c 100644
  		if (has_overlay && snapshot.session == prepared_session) {
  			if (snapshot.session.kind == OverlayKind::Dialog) {
 diff --git a/src/graphics/presentation/window/swapchain.cpp b/src/graphics/presentation/window/swapchain.cpp
-index bed2fbc..cd185b7 100644
+index 9ce571c5df24ebb205e45b3f07c0ff2ef72c70e8..4270bbb38fb22fc4a18e9f104edcb2c307b6833d 100644
 --- a/src/graphics/presentation/window/swapchain.cpp
 +++ b/src/graphics/presentation/window/swapchain.cpp
-@@ -1065,7 +1065,7 @@ void Presenter::Impl::Present() {
+@@ -1071,7 +1071,7 @@ void Presenter::Impl::Present() {
  		auto&      command = present_scheduler.BeginCommand();
  		const bool draw_system_overlay = [&] {
  			ScopedTimer overlay_time(Counter::OverlayNs);

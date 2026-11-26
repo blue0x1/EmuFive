@@ -29,6 +29,8 @@ PC_SETTINGS = os.path.join(store.CONFIG_DIR, "pc-share.json")
 PC_MOUNT = os.path.expanduser("~/.pc-share")   # smbnetfs: PC_MOUNT/<address>/<share>
 DATA_DIR = os.path.expanduser("~/data")         # The games' /data (saves).
 GAME_LOG = os.path.expanduser("~/kytyps5.log")
+# Mesa saves a shader it cannot read here (MESA_SPIRV_FAIL_DUMP_PATH), for bug reports.
+FAILED_SHADERS = os.path.expanduser("~/kytyps5-failed-shaders")
 ADMIN = "/opt/ps5-on-ps4/bin/ps5-admin"
 RUNTIME = os.environ.get("XDG_RUNTIME_DIR") or f"/run/user/{os.getuid()}"
 
@@ -892,6 +894,10 @@ def copy_logs_to_usb():
         for path in (GAME_LOG, GAME_LOG + ".1", os.path.expanduser("~/.ps5-session.log")):
             if os.path.isfile(path):
                 shutil.copy(path, target)
+                copied += 1
+        if os.path.isdir(FAILED_SHADERS):
+            for name in os.listdir(FAILED_SHADERS):
+                shutil.copy(os.path.join(FAILED_SHADERS, name), target)
                 copied += 1
     except OSError as error:
         return False, f"Copy failed: {error}"

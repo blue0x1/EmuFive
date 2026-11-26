@@ -10,7 +10,7 @@ such a stand-in module, so a real libc.prx keeps its own functions.
 GuestVFormat lets the stdio functions format with the guest printf engine.
 ---
 diff --git a/src/libs/guestPrintf.cpp b/src/libs/guestPrintf.cpp
-index afc6162..5ed76b2 100644
+index afc61624f385f2e223625db1ff5777c2367c8197..5ed76b2c0a96c3265fba388d037cf55e8338a259 100644
 --- a/src/libs/guestPrintf.cpp
 +++ b/src/libs/guestPrintf.cpp
 @@ -16,6 +16,7 @@
@@ -51,7 +51,7 @@ index afc6162..5ed76b2 100644
 +
  } // namespace Libs
 diff --git a/src/libs/guestPrintf.h b/src/libs/guestPrintf.h
-index 0e71438..e83d1ae 100644
+index 0e71438e6d32cf6d14a6fa4ce68dc1eeab1b7184..e83d1aee433fac16b210e6c5b675e74ec6d54224 100644
 --- a/src/libs/guestPrintf.h
 +++ b/src/libs/guestPrintf.h
 @@ -4,6 +4,8 @@
@@ -75,7 +75,7 @@ index 0e71438..e83d1ae 100644
  #endif /* EMULATOR_INCLUDE_EMULATOR_LIBS_GUEST_PRINTF_H_ */
 diff --git a/src/libs/libcCompat.cpp b/src/libs/libcCompat.cpp
 new file mode 100644
-index 0000000..7bfc151
+index 0000000000000000000000000000000000000000..1d6666e1d19436a67a029328687fa1817eeb2188
 --- /dev/null
 +++ b/src/libs/libcCompat.cpp
 @@ -0,0 +1,1001 @@
@@ -115,7 +115,7 @@ index 0000000..7bfc151
 +
 +namespace Libs::LibcCompat {
 +
-+LIB_VERSION("LibcCompat", 1, "LibcCompat", 1, 1);
++LIB_NAME("LibcCompat", "LibcCompat");
 +
 +using guest_wchar_t = uint16_t;
 +using guest_cmp_t   = KYTY_SYSV_ABI int (*)(const void*, const void*);
@@ -1081,7 +1081,7 @@ index 0000000..7bfc151
 +
 +} // namespace Libs::LibcCompat
 diff --git a/src/libs/libs.cpp b/src/libs/libs.cpp
-index 236f9ff..eab897f 100644
+index 96b4147847ea07797cd566ce404811658090b858..b96147857b92966a4b8a2e1540fce29bba0a6775 100644
 --- a/src/libs/libs.cpp
 +++ b/src/libs/libs.cpp
 @@ -6,6 +6,10 @@
@@ -1105,17 +1105,13 @@ index 236f9ff..eab897f 100644
  
  namespace LibContentExport {
 diff --git a/src/loader/runtimeLinker.cpp b/src/loader/runtimeLinker.cpp
-index c683424..4ac7a58 100644
+index 990a01d741e8da084fdf245502d02cbfb70a868d..d9db23f76fc611e36a4f407e4e0ea9d4d0abf1e5 100644
 --- a/src/loader/runtimeLinker.cpp
 +++ b/src/loader/runtimeLinker.cpp
-@@ -1326,6 +1326,21 @@ void RuntimeLinker::Clear() {
+@@ -1352,6 +1352,17 @@ void RuntimeLinker::Clear() {
  	m_symbols.reset();
  }
  
-+static bool IsLibcCompatRecord(const SymbolRecord& rec) {
-+	return rec.name.find("[LibcCompat_v1]") != std::string::npos;
-+}
-+
 +// Homebrew built with the ps5-native-app-boilerplate ships a sce_module/libc.prx that only
 +// satisfies the loader: every function it exports, malloc included, is
 +// "pxor xmm0, xmm0; xor eax, eax; ret". The console binds those imports to its own libc.
@@ -1130,48 +1126,33 @@ index c683424..4ac7a58 100644
  void RuntimeLinker::Resolve(const std::string& name, SymbolType type, Program* program,
                              SymbolRecord* out_info, bool* bind_self) {
  	KYTY_PROFILER_FUNCTION();
-@@ -1347,22 +1362,42 @@ void RuntimeLinker::Resolve(const std::string& name, SymbolType type, Program* p
- 		auto resolve_by_nid = [this, type](const std::string& nid, SymbolRecord* out) -> bool {
- 			EXIT_IF(out == nullptr);
- 
-+			// The LibcCompat functions (libs/libcCompat.cpp) are registered last, so a match from
-+			// them means no other built-in library has this NID. They fill in for a homebrew
-+			// sce_module/libc.prx whose exports are all a return-zero stub, and must not replace a
-+			// real libc.prx, whose heap the rest of the program shares.
-+			const SymbolRecord* compat = nullptr;
- 			if (m_symbols != nullptr) {
- 				if (const auto* rec = m_symbols->FindByNid(nid, type); rec != nullptr) {
--					*out = *rec;
--					return true;
-+					if (!IsLibcCompatRecord(*rec)) {
-+						*out = *rec;
-+						return true;
+@@ -1381,8 +1392,15 @@ void RuntimeLinker::Resolve(const std::string& name, SymbolType type, Program* p
+ 			*out_info = *rec;
+ 			return true;
+ 		}
++		const SymbolRecord* stub_export = nullptr;
+ 		for (auto* p: m_programs) {
+ 			if (const auto* rec = p->export_symbols->Find(key); rec != nullptr) {
++				if (IsStubLibcProgram(p)) {
++					if (stub_export == nullptr) {
++						stub_export = rec;
 +					}
-+					compat = rec;
- 				}
++					continue;
++				}
+ 				*out_info = *rec;
+ 				if (bind_self != nullptr) {
+ 					*bind_self = (p == program);
+@@ -1390,6 +1408,13 @@ void RuntimeLinker::Resolve(const std::string& name, SymbolType type, Program* p
+ 				return true;
  			}
- 
-+			const SymbolRecord* stub_export = nullptr;
- 			for (auto* p: m_programs) {
- 				if (p != nullptr && p->export_symbols != nullptr) {
- 					if (const auto* rec = p->export_symbols->FindByNid(nid, type); rec != nullptr) {
-+						if (IsStubLibcProgram(p)) {
-+							if (stub_export == nullptr) {
-+								stub_export = rec;
-+							}
-+							continue;
-+						}
- 						*out = *rec;
- 						return true;
- 					}
- 				}
- 			}
- 
-+			if (compat != nullptr || stub_export != nullptr) {
-+				*out = (compat != nullptr ? *compat : *stub_export);
-+				return true;
-+			}
-+
- 			return false;
- 		};
+ 		}
++		// The LibcCompat functions (libs/libcCompat.cpp) stand in for a stand-in libc.prx; they
++		// must not replace a real libc.prx, whose heap the rest of the program shares.
++		if (stub_export != nullptr) {
++			const auto* compat = m_symbols->Find({key.name, "LibcCompat", "LibcCompat", key.type});
++			*out_info          = (compat != nullptr ? *compat : *stub_export);
++			return true;
++		}
+ 		return false;
+ 	};
  

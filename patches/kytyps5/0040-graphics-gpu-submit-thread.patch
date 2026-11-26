@@ -13,9 +13,11 @@ vkQueueSubmit in the same order; the GPU thread goes on recording at once.
   first drains the queued submits, so the queue keeps the order of the work:
   presenting reads frames the GPU thread copied.
 ---
+diff --git a/src/graphics/host_gpu/graphicContext.h b/src/graphics/host_gpu/graphicContext.h
+index bbb3552d823dee0c544eb9bcd89a7ac59f725a25..62103827bfdf5b169286bf7ea71da87f0af3f281 100644
 --- a/src/graphics/host_gpu/graphicContext.h
 +++ b/src/graphics/host_gpu/graphicContext.h
-@@ -57,6 +57,16 @@
+@@ -59,6 +59,16 @@ struct GraphicContext {
  	Common::Mutex                      queue_mutex;
  	uint32_t                           queue_family = static_cast<uint32_t>(-1);
  	vk::Queue                          queue        = nullptr;
@@ -32,6 +34,8 @@ vkQueueSubmit in the same order; the GPU thread goes on recording at once.
  
  	[[nodiscard]] const vk::PhysicalDeviceProperties& GetPhysicalDeviceProperties() const {
  		return physical_device_properties;
+diff --git a/src/graphics/host_gpu/renderer/commandScheduler.cpp b/src/graphics/host_gpu/renderer/commandScheduler.cpp
+index 9b9929be13b88b7c5e6a37f68f784143420ca26a..a36a2c94083507b25a800429a24ee198f4297fbb 100644
 --- a/src/graphics/host_gpu/renderer/commandScheduler.cpp
 +++ b/src/graphics/host_gpu/renderer/commandScheduler.cpp
 @@ -11,6 +11,7 @@
@@ -42,7 +46,7 @@ vkQueueSubmit in the same order; the GPU thread goes on recording at once.
  
  namespace Libs::Graphics {
  
-@@ -114,6 +115,14 @@
+@@ -114,6 +115,14 @@ void CommandScheduler::Shutdown() {
  	m_master.Wait(CurrentTick() - 1);
  	PopPendingOperations();
  	DrainPriorityOperations();
@@ -57,7 +61,7 @@ vkQueueSubmit in the same order; the GPU thread goes on recording at once.
  	m_priority_thread.request_stop();
  	m_operation_available.notify_all();
  	if (m_priority_thread.joinable()) {
-@@ -323,15 +332,91 @@
+@@ -309,15 +318,91 @@ uint64_t CommandScheduler::Submit(SubmitInfo submit) {
  	EXIT_IF(m_command.IsInvalid());
  
  	m_command.End();
@@ -155,7 +159,7 @@ vkQueueSubmit in the same order; the GPU thread goes on recording at once.
  		submit.AddSignal(m_master.Handle(), tick);
  
  		vk::TimelineSemaphoreSubmitInfo timeline_info {};
-@@ -389,8 +474,6 @@
+@@ -375,8 +460,6 @@ uint64_t CommandScheduler::Submit(SubmitInfo submit) {
  		EXIT("vkQueueSubmit failed: %s, tick=%" PRIu64 "\n", vk::to_string(result).c_str(), tick);
  	}
  
@@ -164,6 +168,8 @@ vkQueueSubmit in the same order; the GPU thread goes on recording at once.
  }
  
  void CommandScheduler::BeginNext() {
+diff --git a/src/graphics/host_gpu/renderer/commandScheduler.h b/src/graphics/host_gpu/renderer/commandScheduler.h
+index ab0b80585fa165f0c94ace150ce62308912bffbc..c07a0ade12ad74f9009be1f91fd8de8396ed431f 100644
 --- a/src/graphics/host_gpu/renderer/commandScheduler.h
 +++ b/src/graphics/host_gpu/renderer/commandScheduler.h
 @@ -9,6 +9,7 @@
@@ -174,7 +180,7 @@ vkQueueSubmit in the same order; the GPU thread goes on recording at once.
  #include <queue>
  #include <thread>
  #include <vector>
-@@ -21,6 +22,11 @@
+@@ -21,6 +22,11 @@ public:
  	~CommandScheduler();
  	KYTY_CLASS_NO_COPY(CommandScheduler);
  
@@ -186,7 +192,7 @@ vkQueueSubmit in the same order; the GPU thread goes on recording at once.
  	void           Begin(HW::Context& registers, HW::UserConfig& user_config, HW::Shader& shaders);
  	void           EndRendering() { m_command.EndRendering(); }
  	void           Flush();
-@@ -81,6 +87,9 @@
+@@ -81,6 +87,9 @@ private:
  	};
  
  	void BeginNext();
@@ -196,7 +202,7 @@ vkQueueSubmit in the same order; the GPU thread goes on recording at once.
  	void PriorityOperationsThread(std::stop_token stop);
  	void QueueOperation(Common::UniqueFunction<void>&& operation, bool priority);
  	void RunOperation(Common::UniqueFunction<void>&& operation);
-@@ -98,6 +107,20 @@
+@@ -98,6 +107,20 @@ private:
  	std::jthread                 m_priority_thread;
  	uint64_t                     m_priority_active_tick = 0; // 0 while none runs
  	OperationState               m_operation_state      = OperationState::Open;
@@ -217,9 +223,11 @@ vkQueueSubmit in the same order; the GPU thread goes on recording at once.
  };
  
  } // namespace Libs::Graphics
+diff --git a/src/graphics/host_gpu/renderer/masterSemaphore.cpp b/src/graphics/host_gpu/renderer/masterSemaphore.cpp
+index fc7e87836368db5b77939e88fafc98dc75078e95..f1d5c8cfec159c00a47d57b2e8a2dfba0bfcca20 100644
 --- a/src/graphics/host_gpu/renderer/masterSemaphore.cpp
 +++ b/src/graphics/host_gpu/renderer/masterSemaphore.cpp
-@@ -38,6 +38,9 @@
+@@ -38,6 +38,9 @@ void MasterSemaphore::Wait(uint64_t tick) {
  	if (IsFree(tick)) {
  		return;
  	}
@@ -229,9 +237,11 @@ vkQueueSubmit in the same order; the GPU thread goes on recording at once.
  	Refresh();
  	if (IsFree(tick)) {
  		return;
+diff --git a/src/graphics/host_gpu/renderer/masterSemaphore.h b/src/graphics/host_gpu/renderer/masterSemaphore.h
+index fc209a4d7938402b0052886cc1070d3b27b5b010..aa1b861e7bee5b4cff6cdf10a3f87541bb3fef4e 100644
 --- a/src/graphics/host_gpu/renderer/masterSemaphore.h
 +++ b/src/graphics/host_gpu/renderer/masterSemaphore.h
-@@ -30,12 +30,20 @@
+@@ -30,12 +30,20 @@ public:
  
  	void Refresh();
  	void Wait(uint64_t tick);
@@ -252,9 +262,11 @@ vkQueueSubmit in the same order; the GPU thread goes on recording at once.
  };
  
  } // namespace Libs::Graphics
+diff --git a/src/graphics/host_gpu/renderer/renderContext.cpp b/src/graphics/host_gpu/renderer/renderContext.cpp
+index 6ccebe95a213722fc15a6c5b758cfbc0c4bdf28f..b6830fe43303cd2105eb6e75b140f427922cea04 100644
 --- a/src/graphics/host_gpu/renderer/renderContext.cpp
 +++ b/src/graphics/host_gpu/renderer/renderContext.cpp
-@@ -6,6 +6,8 @@
+@@ -7,6 +7,8 @@
  #include "libs/errno.h"
  
  #include <algorithm>
@@ -263,10 +275,10 @@ vkQueueSubmit in the same order; the GPU thread goes on recording at once.
  
  namespace Libs::Graphics {
  
-@@ -17,6 +19,10 @@
-       m_texture_cache(graphics, m_command_scheduler, m_page_manager, m_buffer_cache),
-       m_image_heap(*this, m_page_manager), m_occlusion_queries(graphics, m_command_scheduler) {
- 	EXIT_NOT_IMPLEMENTED(!Common::Thread::IsMainThread());
+@@ -22,6 +24,10 @@ RenderContext::RenderContext(GraphicContext& graphics, const std::filesystem::pa
+ 	if (graphics.ray_query_enabled) {
+ 		m_ray_tracing = std::make_unique<RayTracing>(*this);
+ 	}
 +	if (const char* value = std::getenv("KYTY_GPU_SUBMIT_THREAD");
 +	    value != nullptr && *value != '\0' && std::string(value) != "0") {
 +		m_command_scheduler.EnableSubmitThread();
@@ -274,9 +286,11 @@ vkQueueSubmit in the same order; the GPU thread goes on recording at once.
  }
  
  RenderContext::~RenderContext() {
+diff --git a/src/graphics/presentation/openxrHeadset.cpp b/src/graphics/presentation/openxrHeadset.cpp
+index faa00bae0456756379bb16a8b97cc1258f458da5..b43ef0dec7d73f0ae2ab02bd080fcfee1bc5afb4 100644
 --- a/src/graphics/presentation/openxrHeadset.cpp
 +++ b/src/graphics/presentation/openxrHeadset.cpp
-@@ -427,6 +427,7 @@
+@@ -430,6 +430,7 @@ bool CopyToSwapchain(const VulkanImage& staging) {
  		(void)g.graphics->device.resetFences(1, &g.fence);
  		vk::Result result {};
  		{
@@ -284,7 +298,7 @@ vkQueueSubmit in the same order; the GPU thread goes on recording at once.
  			Common::LockGuard queue_lock(g.graphics->queue_mutex);
  			result = g.graphics->queue.submit(1, &submit, g.fence);
  		}
-@@ -695,6 +696,7 @@
+@@ -696,6 +697,7 @@ void OpenXrShutdown() {
  		return;
  	}
  	{
@@ -292,9 +306,11 @@ vkQueueSubmit in the same order; the GPU thread goes on recording at once.
  		Common::LockGuard queue_lock(g.graphics->queue_mutex);
  		(void)g.graphics->device.waitIdle();
  	}
+diff --git a/src/graphics/presentation/renderDoc.cpp b/src/graphics/presentation/renderDoc.cpp
+index 814033b7cceac877d74ee3764ea1f6196dc7bf87..c1a60042ca7d6cfab821e8766e7fa37d95a88f39 100644
 --- a/src/graphics/presentation/renderDoc.cpp
 +++ b/src/graphics/presentation/renderDoc.cpp
-@@ -166,6 +166,7 @@
+@@ -166,6 +166,7 @@ void RenderDocOnGuestFlip(RenderContext& renderer) {
  
  	// Capture boundaries follow presentation and exclude concurrent queue access.
  	Common::LockGuard render_lock(renderer.GetMutex());
@@ -302,9 +318,11 @@ vkQueueSubmit in the same order; the GPU thread goes on recording at once.
  	Common::LockGuard queue_lock(renderer.GetGraphics().queue_mutex);
  	if (state == RenderDocState::Requested) {
  		StartCapture();
+diff --git a/src/graphics/presentation/systemOverlay.cpp b/src/graphics/presentation/systemOverlay.cpp
+index 94db50989a79655791ad4e33c8f8a33cd59d4ba9..b5359e4726f2725becad0b5fa235f5be38dc165c 100644
 --- a/src/graphics/presentation/systemOverlay.cpp
 +++ b/src/graphics/presentation/systemOverlay.cpp
-@@ -1040,6 +1040,7 @@
+@@ -1041,6 +1041,7 @@ struct SystemOverlay::Impl {
  	void FinishSplash() {
  		g_splash_active.store(false, std::memory_order_release);
  		if (splash_dds[0] || splash_dds[1]) {
@@ -312,9 +330,11 @@ vkQueueSubmit in the same order; the GPU thread goes on recording at once.
  			Common::LockGuard lock(graphics.queue_mutex);
  			RequireVulkanSuccess(graphics.queue.waitIdle(), "retire splash images");
  			splash_dds = {};
+diff --git a/src/graphics/presentation/window/swapchain.cpp b/src/graphics/presentation/window/swapchain.cpp
+index c8fde7edb186b1e2bda35389381d819a841e095a..2e1d7e84bd773d5722b7b18ca946e3582aec51d0 100644
 --- a/src/graphics/presentation/window/swapchain.cpp
 +++ b/src/graphics/presentation/window/swapchain.cpp
-@@ -505,6 +505,7 @@
+@@ -509,6 +509,7 @@ void Swapchain::Destroy() {
  	auto& graphics = m_window.graphic_ctx;
  
  	{

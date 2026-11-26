@@ -13,6 +13,8 @@ The priority thread now tries the write with process_vm_writev, which fails
 instead of faulting on a protected page. Then the GPU thread writes the label,
 the same way labels were written without GPU-shared memory. While any such
 label is pending, later ones go the same way, so they stay in order.
+diff --git a/src/graphics/guest_gpu/graphicsRun.cpp b/src/graphics/guest_gpu/graphicsRun.cpp
+index 1bcfd80682eb35946d01c6213ea3de76eea1d74f..a02dede3c88590378aa6ce8bdc0c69fac5eb46dd 100644
 --- a/src/graphics/guest_gpu/graphicsRun.cpp
 +++ b/src/graphics/guest_gpu/graphicsRun.cpp
 @@ -38,6 +38,11 @@
@@ -27,7 +29,7 @@ label is pending, later ones go the same way, so they stay in order.
  #include <fmt/format.h>
  
  namespace Libs::Graphics {
-@@ -90,6 +95,22 @@
+@@ -90,6 +95,22 @@ void GuestGpu::SendCommand(Common::UniqueFunction<void>&& command) {
  	m_work_available.Signal();
  }
  
@@ -50,7 +52,7 @@ label is pending, later ones go the same way, so they stay in order.
  void GuestGpu::ProcessCommands() {
  	while (m_pending_commands.load(std::memory_order_acquire) != 0) {
  		Common::UniqueFunction<void> command;
-@@ -257,15 +278,62 @@
+@@ -274,15 +295,62 @@ static void NoteEarlyLabel(void* address, uint64_t value) {
  	g_early_labels[reinterpret_cast<uint64_t>(address)] = value;
  }
  
@@ -116,7 +118,7 @@ label is pending, later ones go the same way, so they stay in order.
  template <typename T>
  static T ReadLabel(const T* addr) {
  	std::lock_guard lock(g_early_labels_mutex);
-@@ -990,25 +1058,30 @@
+@@ -1032,25 +1100,30 @@ void CommandProcessor::ReleaseMem(uint32_t data_sel, uint32_t interrupt_selector
  	// A label beside GPU-written bytes goes to the backing store, so they are not downloaded.
  	// Other labels go through the guest mapping: its fault keeps a clean cached copy current and
  	// downloads GPU-written bytes under the label before the store.
@@ -158,9 +160,11 @@ label is pending, later ones go the same way, so they stay in order.
  	};
  	// EndOfPipeData: kNone, kImmediate32b, kImmediate64b, kRefClk; 5 reads GDS.
  	switch (data_sel) {
+diff --git a/src/graphics/guest_gpu/graphicsRun.h b/src/graphics/guest_gpu/graphicsRun.h
+index a1f2e35fe511c4588ad5fde65b6dcc824397f2bd..fb04fdf8e039769739b9bb061335584763fcbf62 100644
 --- a/src/graphics/guest_gpu/graphicsRun.h
 +++ b/src/graphics/guest_gpu/graphicsRun.h
-@@ -31,6 +31,8 @@
+@@ -31,6 +31,8 @@ public:
  	[[nodiscard]] bool IsStopping();
  	void               SendCommand(Common::UniqueFunction<void>&& command);
  	void               SendCommandSync(Common::UniqueFunction<void>&& command);

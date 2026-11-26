@@ -13,7 +13,7 @@ about 3 GB for the GPU in all. Two buffers KytyPS5 keeps for itself took
   64 MB; a larger conversion gets a buffer freed once its submit completes.
 
 diff --git a/src/graphics/host_gpu/renderer/cache/bufferCache.cpp b/src/graphics/host_gpu/renderer/cache/bufferCache.cpp
-index 1e64234..e4ca0d8 100644
+index dfa79b00c5cae73796f2ae3120cdf2c82a03f8d6..43649849ce4e8718b4419cf2c27aa96d3babc057 100644
 --- a/src/graphics/host_gpu/renderer/cache/bufferCache.cpp
 +++ b/src/graphics/host_gpu/renderer/cache/bufferCache.cpp
 @@ -30,6 +30,20 @@ constexpr uint64_t GdsBufferSize = 64 * 1024;
@@ -37,7 +37,7 @@ index 1e64234..e4ca0d8 100644
  std::pair<Buffer*, uint64_t> UploadMemory(GraphicContext& graphics, CommandScheduler& scheduler,
                                          StreamBuffer& staging, uint64_t size, uint64_t alignment,
                                          vk::BufferUsageFlags usage, const auto& write) {
-@@ -243,7 +257,7 @@ BufferCache::BufferCache(GraphicContext& graphics, CommandScheduler& scheduler,
+@@ -235,7 +249,7 @@ BufferCache::BufferCache(GraphicContext& graphics, CommandScheduler& scheduler,
                                                              : MemoryUsage::DeviceLocal,
                               0, AllFlags, BDA_PAGETABLE_SIZE),
        m_memory_tracker(page_manager),
@@ -47,10 +47,10 @@ index 1e64234..e4ca0d8 100644
        m_download_buffer(graphics, scheduler, MemoryUsage::Download, 64 * MiB),
        m_device_buffer(graphics, scheduler, MemoryUsage::DeviceLocal, 128 * MiB),
 diff --git a/src/graphics/host_gpu/renderer/image/tiler.cpp b/src/graphics/host_gpu/renderer/image/tiler.cpp
-index 25edb7d..598bc87 100644
+index aee6c8bdb7fbdb2d7ade14291cc191afdcc8db31..f85a1639d945546f17228fd45aae824defa08378 100644
 --- a/src/graphics/host_gpu/renderer/image/tiler.cpp
 +++ b/src/graphics/host_gpu/renderer/image/tiler.cpp
-@@ -365,6 +365,17 @@ void TileManager::TileImage(Image& image, std::span<const vk::BufferImageCopy> r
+@@ -352,6 +352,17 @@ void TileManager::TileImage(Image& image, std::span<const vk::BufferImageCopy> r
  TileManager::Result TileManager::GetScratchBuffer(uint64_t size, vk::Buffer input) {
  	EXIT_IF(size == 0);
  	size = Common::AlignUp(size, 4);

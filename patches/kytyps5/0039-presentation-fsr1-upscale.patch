@@ -6,133 +6,21 @@ the TV is 1080p, on a 4K TV) is drawn with FSR 1 EASU, the edge-adaptive
 upscaler, instead of a linear blit. SDR frames only; HDR frames and frames that
 are not upscaled keep the blit.
 ---
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index fc9c8efeb94bcdd5d1685ba34f1ca328e47532b6..1eee7f0f442cfd5833c0fc9a7a0993595969d021 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -316,6 +316,7 @@
+@@ -365,6 +365,7 @@ add_gpu_blit_shader(gpu_blit_fs_triangle gpu_blit_fs_triangle.vert)
  add_gpu_blit_shader(gpu_blit_color_to_ms_depth gpu_blit_color_to_ms_depth.frag)
  add_gpu_blit_shader(gpu_predicated_clear gpu_predicated_clear.frag)
  add_gpu_blit_shader(gpu_video_out_overlay gpu_video_out_overlay.frag)
 +add_gpu_blit_shader(gpu_video_out_fsr gpu_video_out_fsr.frag)
  add_gpu_blit_shader(gpu_imgui_hdr gpu_video_out_overlay.frag -DIMGUI_HDR=1)
  add_gpu_blit_shader(gpu_pssr_linear gpu_pssr_linear.comp)
- # At SPIR-V 1.6 glslang declares a task shader's workgroup size with LocalSizeId, which needs maintenance4.
---- a/src/graphics/presentation/window/swapchain.cpp
-+++ b/src/graphics/presentation/window/swapchain.cpp
-@@ -6,6 +6,7 @@
- #include "common/profiler.h"
- #include "common/threads.h"
- #include "gpu_blit_shaders/gpu_blit_fs_triangle_spv.h"
-+#include "gpu_blit_shaders/gpu_video_out_fsr_spv.h"
- #include "gpu_blit_shaders/gpu_video_out_overlay_spv.h"
- #include "graphics/host_gpu/graphicContext.h"
- #include "graphics/host_gpu/renderer/render.h"
-@@ -21,8 +22,10 @@
- #include <algorithm>
- #include <array>
- #include <atomic>
-+#include <cstdlib>
- #include <limits>
- #include <memory>
-+#include <string>
- #include <vector>
- #include <vulkan/vk_platform.h>
- 
-@@ -262,7 +265,7 @@
- 	vk::SurfaceFormatKHR SelectFormat();
- 	void Destroy();
- 	void DrawLayer(vk::CommandBuffer command, const Presenter::Layer& layer,
--	               const vk::Rect2D& rect);
-+	               const vk::Rect2D& rect, bool fsr = false);
- 
- 	WindowContext&   m_window;
- 	vk::SwapchainKHR m_handle = nullptr;
-@@ -282,6 +285,7 @@
- 	vk::DescriptorSetLayout        m_overlay_descriptors = nullptr;
- 	vk::PipelineLayout             m_overlay_layout      = nullptr;
- 	vk::Pipeline                   m_overlay_pipeline    = nullptr;
-+	vk::Pipeline                   m_fsr_pipeline        = nullptr; // KYTY_FSR: FSR 1 EASU upscale.
- 	vk::Sampler                    m_overlay_sampler     = nullptr;
- 	uint32_t                       m_image_index         = 0;
- 	uint32_t                       m_frame_index         = 0;
-@@ -508,6 +512,8 @@
- 		m_system_overlay->ReleaseVulkan();
- 	}
- 	graphics.device.destroyPipeline(m_overlay_pipeline, nullptr);
-+	graphics.device.destroyPipeline(m_fsr_pipeline, nullptr);
-+	m_fsr_pipeline = nullptr;
- 	graphics.device.destroyPipelineLayout(m_overlay_layout, nullptr);
- 	graphics.device.destroyDescriptorSetLayout(m_overlay_descriptors, nullptr);
- 	graphics.device.destroySampler(m_overlay_sampler, nullptr);
-@@ -617,8 +623,18 @@
- 	        {w, h}};
- }
- 
-+// KYTY_FSR: a game frame smaller than the screen is upscaled with AMD FSR 1 (EASU) instead of a
-+// linear blit (with KYTY_OUTPUT_1080P on a 4K TV). SDR frames only.
-+static bool FsrEnabled() {
-+	static const bool enabled = [] {
-+		const char* value = std::getenv("KYTY_FSR");
-+		return value != nullptr && *value != '\0' && std::string(value) != "0";
-+	}();
-+	return enabled;
-+}
-+
- void Swapchain::DrawLayer(vk::CommandBuffer command, const Presenter::Layer& layer,
--                          const vk::Rect2D& rect) {
-+                          const vk::Rect2D& rect, bool fsr) {
- 	auto device = m_window.graphic_ctx.device;
- 	if (m_overlay_pipeline == nullptr) {
- 		vk::SamplerCreateInfo sampler {};
-@@ -699,6 +715,14 @@
- 		RequireVulkanSuccess(
- 		    device.createGraphicsPipelines(nullptr, 1, &create, nullptr, &m_overlay_pipeline),
- 		    "create video-out overlay pipeline");
-+		if (FsrEnabled()) {
-+			const auto fsr = CompileSPV(GPU_VIDEO_OUT_FSR_SPV, device);
-+			stages[1].module = fsr;
-+			RequireVulkanSuccess(
-+			    device.createGraphicsPipelines(nullptr, 1, &create, nullptr, &m_fsr_pipeline),
-+			    "create video-out FSR pipeline");
-+			device.destroyShaderModule(fsr, nullptr);
-+		}
- 		device.destroyShaderModule(fragment, nullptr);
- 		device.destroyShaderModule(vertex, nullptr);
- 	}
-@@ -727,7 +751,8 @@
- 	                       (layer.bus == 0 ? 16u : 0u);
- 	command.pushConstants(m_overlay_layout, vk::ShaderStageFlagBits::eFragment, 0,
- 	                      sizeof(flags), &flags);
--	command.bindPipeline(vk::PipelineBindPoint::eGraphics, m_overlay_pipeline);
-+	command.bindPipeline(vk::PipelineBindPoint::eGraphics,
-+	                     fsr && m_fsr_pipeline != nullptr ? m_fsr_pipeline : m_overlay_pipeline);
- 	vk::RenderingAttachmentInfo attachment {};
- 	attachment.imageView   = m_image_views[m_image_index];
- 	attachment.imageLayout = vk::ImageLayout::eColorAttachmentOptimal;
-@@ -754,7 +779,14 @@
- void Swapchain::RecordPresentCommands(CommandBuffer& command, Presenter::Frame* source,
-                                       const Presenter::Layer& overlay, bool draw_system_overlay) {
- 	auto       vk_command      = command.Handle();
--	const bool convert_source  = source != nullptr && source->hdr && !m_hdr_active;
-+	const auto* fit_source     = source != nullptr ? source : overlay.frame;
-+	const auto  fit_rect       = !Config::StretchEnabled() && fit_source != nullptr
-+	                                 ? FitAspect(fit_source->image.extent, m_extent)
-+	                                 : vk::Rect2D {{0, 0}, m_extent};
-+	// FSR 1 only when the frame is upscaled by more than a few percent, and for SDR frames.
-+	const bool fsr_source = FsrEnabled() && source != nullptr && !source->hdr && !m_hdr_active &&
-+	                        source->image.extent.width * 21u < fit_rect.extent.width * 20u;
-+	const bool convert_source  = source != nullptr && ((source->hdr && !m_hdr_active) || fsr_source);
- 	const bool blit_source     = source != nullptr && !convert_source;
- 	const bool draw_overlay    = overlay.frame != nullptr;
- 	const bool draw_attachment = convert_source || draw_overlay || draw_system_overlay;
-@@ -863,7 +895,7 @@
- 			                           &to_present);
- 		};
- 		if (convert_source) {
--			DrawLayer(vk_command, {source, 0, false}, game_rect);
-+			DrawLayer(vk_command, {source, 0, false}, game_rect, fsr_source);
- 			if (draw_overlay || draw_system_overlay) {
- 				attachment_barrier();
- 			}
+ add_gpu_blit_shader(gpu_bvh_mirror gpu_bvh_mirror.comp)
+diff --git a/src/graphics/host_gpu/shaders/gpu_video_out_fsr.frag b/src/graphics/host_gpu/shaders/gpu_video_out_fsr.frag
+new file mode 100644
+index 0000000000000000000000000000000000000000..57d958fdb4cdebf4037a8150ac13674898a21903
 --- /dev/null
 +++ b/src/graphics/host_gpu/shaders/gpu_video_out_fsr.frag
 @@ -0,0 +1,116 @@
@@ -252,3 +140,124 @@ are not upscaled keep the blit.
 +	vec3 rgb = min(max4, max(min4, aC / aW));
 +	color = vec4(rgb, 1.0);
 +}
+diff --git a/src/graphics/presentation/window/swapchain.cpp b/src/graphics/presentation/window/swapchain.cpp
+index 4270bbb38fb22fc4a18e9f104edcb2c307b6833d..c8fde7edb186b1e2bda35389381d819a841e095a 100644
+--- a/src/graphics/presentation/window/swapchain.cpp
++++ b/src/graphics/presentation/window/swapchain.cpp
+@@ -6,6 +6,7 @@
+ #include "common/profiler.h"
+ #include "common/threads.h"
+ #include "gpu_blit_shaders/gpu_blit_fs_triangle_spv.h"
++#include "gpu_blit_shaders/gpu_video_out_fsr_spv.h"
+ #include "gpu_blit_shaders/gpu_video_out_overlay_spv.h"
+ #include "graphics/host_gpu/graphicContext.h"
+ #include "graphics/host_gpu/renderer/render.h"
+@@ -21,8 +22,10 @@
+ #include <algorithm>
+ #include <array>
+ #include <atomic>
++#include <cstdlib>
+ #include <limits>
+ #include <memory>
++#include <string>
+ #include <vector>
+ #include <vulkan/vk_platform.h>
+ 
+@@ -262,7 +265,7 @@ private:
+ 	vk::SurfaceFormatKHR SelectFormat();
+ 	void Destroy();
+ 	void DrawLayer(vk::CommandBuffer command, const Presenter::Layer& layer,
+-	               const vk::Rect2D& rect);
++	               const vk::Rect2D& rect, bool fsr = false);
+ 
+ 	WindowContext&   m_window;
+ 	vk::SwapchainKHR m_handle = nullptr;
+@@ -282,6 +285,7 @@ private:
+ 	vk::DescriptorSetLayout        m_overlay_descriptors = nullptr;
+ 	vk::PipelineLayout             m_overlay_layout      = nullptr;
+ 	vk::Pipeline                   m_overlay_pipeline    = nullptr;
++	vk::Pipeline                   m_fsr_pipeline        = nullptr; // KYTY_FSR: FSR 1 EASU upscale.
+ 	vk::Sampler                    m_overlay_sampler     = nullptr;
+ 	uint32_t                       m_image_index         = 0;
+ 	uint32_t                       m_frame_index         = 0;
+@@ -512,6 +516,8 @@ void Swapchain::Destroy() {
+ 		m_system_overlay->ReleaseVulkan();
+ 	}
+ 	graphics.device.destroyPipeline(m_overlay_pipeline, nullptr);
++	graphics.device.destroyPipeline(m_fsr_pipeline, nullptr);
++	m_fsr_pipeline = nullptr;
+ 	graphics.device.destroyPipelineLayout(m_overlay_layout, nullptr);
+ 	graphics.device.destroyDescriptorSetLayout(m_overlay_descriptors, nullptr);
+ 	graphics.device.destroySampler(m_overlay_sampler, nullptr);
+@@ -621,8 +627,18 @@ static vk::Rect2D FitAspect(const vk::Extent3D& source, const vk::Extent2D& targ
+ 	        {w, h}};
+ }
+ 
++// KYTY_FSR: a game frame smaller than the screen is upscaled with AMD FSR 1 (EASU) instead of a
++// linear blit (with KYTY_OUTPUT_1080P on a 4K TV). SDR frames only.
++static bool FsrEnabled() {
++	static const bool enabled = [] {
++		const char* value = std::getenv("KYTY_FSR");
++		return value != nullptr && *value != '\0' && std::string(value) != "0";
++	}();
++	return enabled;
++}
++
+ void Swapchain::DrawLayer(vk::CommandBuffer command, const Presenter::Layer& layer,
+-                          const vk::Rect2D& rect) {
++                          const vk::Rect2D& rect, bool fsr) {
+ 	auto device = m_window.graphic_ctx.device;
+ 	if (m_overlay_pipeline == nullptr) {
+ 		vk::SamplerCreateInfo sampler {};
+@@ -703,6 +719,14 @@ void Swapchain::DrawLayer(vk::CommandBuffer command, const Presenter::Layer& lay
+ 		RequireVulkanSuccess(
+ 		    device.createGraphicsPipelines(nullptr, 1, &create, nullptr, &m_overlay_pipeline),
+ 		    "create video-out overlay pipeline");
++		if (FsrEnabled()) {
++			const auto fsr = CompileSPV(GPU_VIDEO_OUT_FSR_SPV, device);
++			stages[1].module = fsr;
++			RequireVulkanSuccess(
++			    device.createGraphicsPipelines(nullptr, 1, &create, nullptr, &m_fsr_pipeline),
++			    "create video-out FSR pipeline");
++			device.destroyShaderModule(fsr, nullptr);
++		}
+ 		device.destroyShaderModule(fragment, nullptr);
+ 		device.destroyShaderModule(vertex, nullptr);
+ 	}
+@@ -729,7 +753,8 @@ void Swapchain::DrawLayer(vk::CommandBuffer command, const Presenter::Layer& lay
+ 	                       frame.source_flags | (layer.bus == 0 ? 16u : 0u);
+ 	command.pushConstants(m_overlay_layout, vk::ShaderStageFlagBits::eFragment, 0,
+ 	                      sizeof(flags), &flags);
+-	command.bindPipeline(vk::PipelineBindPoint::eGraphics, m_overlay_pipeline);
++	command.bindPipeline(vk::PipelineBindPoint::eGraphics,
++	                     fsr && m_fsr_pipeline != nullptr ? m_fsr_pipeline : m_overlay_pipeline);
+ 	vk::RenderingAttachmentInfo attachment {};
+ 	attachment.imageView   = m_image_views[m_image_index];
+ 	attachment.imageLayout = vk::ImageLayout::eColorAttachmentOptimal;
+@@ -756,8 +781,16 @@ void Swapchain::DrawLayer(vk::CommandBuffer command, const Presenter::Layer& lay
+ void Swapchain::RecordPresentCommands(CommandBuffer& command, Presenter::Frame* source,
+                                       const Presenter::Layer& overlay, bool draw_system_overlay) {
+ 	auto       vk_command      = command.Handle();
+-	const bool convert_source =
++	const auto* fit_source     = source != nullptr ? source : overlay.frame;
++	const auto  fit_rect       = !Config::StretchEnabled() && fit_source != nullptr
++	                                 ? FitAspect(fit_source->image.extent, m_extent)
++	                                 : vk::Rect2D {{0, 0}, m_extent};
++	const bool  source_draw =
+ 	    source != nullptr && VideoOutSourceNeedsDraw(source->source_flags, m_hdr_active);
++	// FSR 1 only when the frame is upscaled by more than a few percent, and for SDR frames.
++	const bool fsr_source = FsrEnabled() && source != nullptr && !source_draw && !m_hdr_active &&
++	                        source->image.extent.width * 21u < fit_rect.extent.width * 20u;
++	const bool convert_source  = source_draw || fsr_source;
+ 	const bool blit_source     = source != nullptr && !convert_source;
+ 	const bool draw_overlay    = overlay.frame != nullptr;
+ 	const bool draw_attachment = convert_source || draw_overlay || draw_system_overlay;
+@@ -866,7 +899,7 @@ void Swapchain::RecordPresentCommands(CommandBuffer& command, Presenter::Frame*
+ 			                           &to_present);
+ 		};
+ 		if (convert_source) {
+-			DrawLayer(vk_command, {source, 0, false}, game_rect);
++			DrawLayer(vk_command, {source, 0, false}, game_rect, fsr_source);
+ 			if (draw_overlay || draw_system_overlay) {
+ 				attachment_barrier();
+ 			}

@@ -26,6 +26,7 @@ A site that still cannot get a jump is reported once it has faulted 100000
 times.
 ---
 diff --git a/src/loader/guestInstructionPatcher.cpp b/src/loader/guestInstructionPatcher.cpp
+index 35a736e43f607fc7f29bfe84dcad6ffc8e9f34cd..e1fbc7e02ef0eb5db58afe17d968e29f2ea1a252 100644
 --- a/src/loader/guestInstructionPatcher.cpp
 +++ b/src/loader/guestInstructionPatcher.cpp
 @@ -6,6 +6,7 @@
@@ -48,7 +49,7 @@ diff --git a/src/loader/guestInstructionPatcher.cpp b/src/loader/guestInstructio
  
  using namespace Xbyak::util;
  
-@@ -69,6 +75,8 @@
+@@ -69,6 +75,8 @@ struct PatchModule {
  	u64                  fallback_size = 0;
  	Xbyak::CodeGenerator fallback_gen;
  	std::unordered_map<u64, const u8*> fallback_sites;
@@ -57,7 +58,7 @@ diff --git a/src/loader/guestInstructionPatcher.cpp b/src/loader/guestInstructio
  	// KYTY_JAGUAR_COMPAT=trap: the original bytes of instructions overwritten with UD2.
  	std::unordered_map<u64, std::array<u8, ZYDIS_MAX_INSTRUCTION_LENGTH>> trap_originals;
  
-@@ -1746,33 +1754,129 @@
+@@ -1746,33 +1754,129 @@ static u64& GuestRip(void* native_context) {
  #endif
  }
  
@@ -205,7 +206,7 @@ diff --git a/src/loader/guestInstructionPatcher.cpp b/src/loader/guestInstructio
  	    original != module->trap_originals.end()) {
  		bytes     = original->second.data();
  		available = original->second.size();
-@@ -1780,63 +1884,105 @@
+@@ -1780,63 +1884,105 @@ bool RedirectJaguarInstruction(void* native_context) {
  	if (!ZYAN_SUCCESS(ZydisDecoderDecodeFull(&GetDecoder(), bytes, available, &instruction,
  	                                         operands.data())) ||
  	    !JaguarCompat::IsMissing(instruction)) {
@@ -236,8 +237,7 @@ diff --git a/src/loader/guestInstructionPatcher.cpp b/src/loader/guestInstructio
  	Common::VirtualMemory::FlushInstructionCache(reinterpret_cast<u64>(code),
  	                                             generator.getSize() - begin);
 -	module->fallback_sites.emplace(rip, code);
-+	module->fallback_sites.emplace(site, code);
- 
+-
 -	// A site of 5 bytes or more gets a jump to its replacement, written with one atomic store
 -	// (other threads may be running this code), so it stops faulting.
 -	bool       jumps = false;
@@ -266,6 +266,8 @@ diff --git a/src/loader/guestInstructionPatcher.cpp b/src/loader/guestInstructio
 -		}
 -		if (jumps) {
 -			Common::VirtualMemory::FlushInstructionCache(rip, NearJumpSize);
++	module->fallback_sites.emplace(site, code);
++
 +	// The site gets a jump to its replacement, written while other threads may be running this
 +	// code, so it stops faulting.
 +	bool                         jumps = false;

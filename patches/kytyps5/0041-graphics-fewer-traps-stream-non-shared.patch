@@ -10,6 +10,8 @@ game threads took about 300 write faults a frame. With KYTY_FEWER_TRAPS set,
 small read-only buffers in such memory stream again (copied at each use, not
 protected); shared memory is unchanged.
 ---
+diff --git a/src/graphics/host_gpu/renderer/cache/bufferCache.cpp b/src/graphics/host_gpu/renderer/cache/bufferCache.cpp
+index 0e39d5d1e7ca980441243621ad00b31a0a9bd758..bfec2348bf2f37ba4689991d0c6d44c8b233b08d 100644
 --- a/src/graphics/host_gpu/renderer/cache/bufferCache.cpp
 +++ b/src/graphics/host_gpu/renderer/cache/bufferCache.cpp
 @@ -21,6 +21,7 @@
@@ -20,7 +22,7 @@ protected); shared memory is unchanged.
  #include <cstring>
  #include <memory>
  #include <utility>
-@@ -590,9 +591,23 @@
+@@ -585,9 +586,23 @@ std::pair<Buffer*, uint64_t> BufferCache::ObtainBuffer(uint64_t vaddr, uint64_t
  	EXIT_IF(!(GuestRange {vaddr, size}.Valid()));
  
  	static const uint64_t stream_max = EnvSize("KYTY_STREAM_MAX_KB", 1024, 256 * 1024);
@@ -43,6 +45,6 @@ protected); shared memory is unchanged.
 -	    m_memory_tracker.IsRegionCpuModified(vaddr, size)) {
 +	    m_memory_tracker.IsRegionCpuModified(vaddr, size) &&
 +	    (m_direct_page == 0 || !can_be_direct())) {
- 		const auto alignment = std::max<uint64_t>(
- 		    m_graphics.physical_device_properties.limits.minUniformBufferOffsetAlignment, 1);
- 		const auto tick = m_scheduler.CurrentTick();
+ 		// Within one draw window the guest has no signal to rewrite the range. A copy made in this
+ 		// tick at most an eighth of a lap ago is nearly a lap ahead of the ring's writes, like a
+ 		// fresh copy, even if the draw's preparation submits the tick.

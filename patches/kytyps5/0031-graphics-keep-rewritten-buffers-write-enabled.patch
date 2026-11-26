@@ -13,28 +13,32 @@ ones still rewritten turn hot again after two frames. The perf log counts
 hot-buffer syncs as "hot-buffer".
 
 ---
+diff --git a/src/common/perfTrace.h b/src/common/perfTrace.h
+index 6e1e1b6705d05951836dfab2f961aa4d4f0ff7ff..73e8e5f831e09a3efcd8d0a4ff1ded2145d4b1ba 100644
 --- a/src/common/perfTrace.h
 +++ b/src/common/perfTrace.h
-@@ -34,6 +34,7 @@ enum Site : int {
+@@ -33,6 +33,7 @@ enum Site : int {
+ 	WatchImageOff,
  	StreamUpload,
  	BufferSyncBatch,
- 	StreamReuse,
 +	HotBuffer,
  	Count
  };
  
-@@ -43,7 +44,7 @@ inline constexpr std::array<const char*, Count> Names {
+@@ -42,7 +43,7 @@ inline constexpr std::array<const char*, Count> Names {
      "image-via-buffer-down", "image-via-buffer-up", "image-copy-other", "draw-feedback-copy",
      "buffer-staging-copy", "buffer-download", "buffer-copy", "clear-color",
      "protect-buffer", "unprotect-buffer", "protect-image", "unprotect-image",
--    "stream-upload", "buffer-sync-batch", "stream-reuse"};
-+    "stream-upload", "buffer-sync-batch", "stream-reuse", "hot-buffer"};
+-    "stream-upload", "buffer-sync-batch"};
++    "stream-upload", "buffer-sync-batch", "hot-buffer"};
  
  inline std::array<std::atomic<uint64_t>, Count> g_count {};
  inline std::array<std::atomic<uint64_t>, Count> g_work {};
+diff --git a/src/graphics/host_gpu/memoryTracker.h b/src/graphics/host_gpu/memoryTracker.h
+index 1470bc5816658170da247af42bd2b49a4f6348b6..3d42190904c6ca64242fab3ca013312ab61eb60e 100644
 --- a/src/graphics/host_gpu/memoryTracker.h
 +++ b/src/graphics/host_gpu/memoryTracker.h
-@@ -69,14 +69,14 @@ public:
+@@ -69,7 +69,7 @@ public:
  		});
  	}
  
@@ -43,17 +47,20 @@ hot-buffer syncs as "hot-buffer".
  	void ForEachUploadRange(uint64_t vaddr, uint64_t size, bool is_written, RangeFunc&& range_func,
  	                        UploadFunc&& upload_func) {
  		static_assert(std::is_nothrow_invocable_v<RangeFunc&, uint64_t, uint64_t>);
- 		static_assert(std::is_nothrow_invocable_v<UploadFunc&>);
- 		Iterate<true>(vaddr, size, [&](RegionManager* manager, uint64_t offset, uint64_t bytes) {
+@@ -79,7 +79,7 @@ public:
+ 				return;
+ 			}
  			manager->lock.lock();
 -			manager->ForEachModifiedRange<DirtySource::Cpu, true>(offset, bytes, range_func);
 +			manager->ForEachModifiedRange<DirtySource::Cpu, clear>(offset, bytes, range_func);
  			if (!is_written) {
  				manager->lock.unlock();
  			}
+diff --git a/src/graphics/host_gpu/renderer/cache/bufferCache.cpp b/src/graphics/host_gpu/renderer/cache/bufferCache.cpp
+index 9308631d2b39504866b640d873af6d0455d0d3f0..a2e5f9e5b48aea87ef9f6c72bdcabc7e931ac4fb 100644
 --- a/src/graphics/host_gpu/renderer/cache/bufferCache.cpp
 +++ b/src/graphics/host_gpu/renderer/cache/bufferCache.cpp
-@@ -709,6 +709,16 @@ bool BufferCache::IsRegionCpuModified(uint64_t vaddr, uint64_t size) {
+@@ -711,6 +711,16 @@ bool BufferCache::IsRegionCpuModified(uint64_t vaddr, uint64_t size) {
  
  void BufferCache::RunGarbageCollector() {
  	const auto tick = m_gc_tick++;
@@ -70,69 +77,79 @@ hot-buffer syncs as "hot-buffer".
  	if (m_graphics.CanReportMemoryUsage()) {
  		m_total_used_memory = m_graphics.GetDeviceMemoryUsage();
  	}
-@@ -785,8 +795,13 @@ void BufferCache::QueueBdaSync(uint64_t vaddr, uint64_t size) {
+@@ -787,10 +797,11 @@ void BufferCache::QueueBdaSync(uint64_t vaddr, uint64_t size) {
  }
  
- RangeSet BufferCache::TakeBdaSync() {
--	std::lock_guard lock(m_bda_sync_mutex);
--	return std::exchange(m_bda_sync, {});
-+	RangeSet result;
-+	{
-+		std::lock_guard lock(m_bda_sync_mutex);
-+		result = std::exchange(m_bda_sync, {});
-+	}
-+	m_hot_ranges.ForEach([&](uint64_t begin, uint64_t end) { result.Add(begin, end - begin); });
-+	return result;
- }
- 
- void BufferCache::SynchronizeBuffersInRange(uint64_t vaddr, uint64_t size) {
-@@ -803,15 +818,25 @@ void BufferCache::SynchronizeBuffersInRange(uint64_t vaddr, uint64_t size) {
- 			continue;
- 		}
- 		const auto first = m_batch_copies.size();
--		m_memory_tracker.ForEachUploadRange(
--		    start, finish - start, false,
--		    [&](uint64_t address, uint64_t bytes) noexcept {
--			    m_batch_copies.emplace_back(m_batch_size, buffer.Offset(address), bytes);
--			    m_batch_size += bytes;
--		    },
--		    []() noexcept {});
-+		const auto add   = [&](uint64_t address, uint64_t bytes) noexcept {
-+            m_batch_copies.emplace_back(m_batch_size, buffer.Offset(address), bytes);
-+            m_batch_size += bytes;
-+		};
-+		const bool hot = m_synced_last_frame.contains(buffer.CpuAddress());
-+		if (hot) {
-+			m_memory_tracker.ForEachUploadRange<false>(start, finish - start, false, add,
-+			                                           []() noexcept {});
-+		} else {
-+			m_memory_tracker.ForEachUploadRange(start, finish - start, false, add,
-+			                                    []() noexcept {});
-+		}
- 		if (m_batch_copies.size() > first) {
- 			m_batch_buffers.push_back({&buffer, first, m_batch_copies.size() - first});
-+			m_synced_this_frame.insert(buffer.CpuAddress());
-+			if (hot) {
-+				m_hot_ranges.Add(start, finish - start);
-+				Common::PerfTrace::Add(Common::PerfTrace::HotBuffer);
-+			}
- 		}
- 	}
- }
+ void BufferCache::SynchronizeBda(const RangeSet& mapped) {
+-	const auto queued = [this] {
++	auto queued = [this] {
+ 		std::lock_guard lock(m_bda_sync_mutex);
+ 		return std::exchange(m_bda_sync, {});
+ 	}();
++	m_hot_ranges.ForEach([&](uint64_t begin, uint64_t end) { queued.Add(begin, end - begin); });
+ 	std::vector<vk::BufferCopy> copies;
+ 	std::vector<BufferUpload>   uploads;
+ 	uint64_t                    total_size = 0;
+@@ -805,18 +816,32 @@ void BufferCache::SynchronizeBda(const RangeSet& mapped) {
+ 				const auto first  = std::max(buffer.CpuAddress(), start);
+ 				const auto last   = std::min(buffer.CpuAddress() + buffer.Size(), finish);
+ 				if (first < last) {
++					const auto copies_before = copies.size();
++					const auto add = [&](uint64_t address, uint64_t bytes) noexcept {
++						if (uploads.empty() || uploads.back().buffer != &buffer) {
++							uploads.push_back({&buffer, 0});
++						}
++						copies.emplace_back(total_size, buffer.Offset(address), bytes);
++						uploads.back().end = copies.size();
++						total_size += bytes;
++					};
+ 					// Reads follow every range's protection; a write in between re-queues its page.
+-					m_memory_tracker.ForEachUploadRange(
+-					    first, last - first, false,
+-					    [&](uint64_t address, uint64_t bytes) noexcept {
+-						    if (uploads.empty() || uploads.back().buffer != &buffer) {
+-							    uploads.push_back({&buffer, 0});
+-						    }
+-						    copies.emplace_back(total_size, buffer.Offset(address), bytes);
+-						    uploads.back().end = copies.size();
+-						    total_size += bytes;
+-					    },
+-					    []() noexcept {});
++					// A buffer synced in the last frame too stays CPU-dirty and write-enabled.
++					const bool hot = m_synced_last_frame.contains(buffer.CpuAddress());
++					if (hot) {
++						m_memory_tracker.ForEachUploadRange<false>(first, last - first, false, add,
++						                                           []() noexcept {});
++					} else {
++						m_memory_tracker.ForEachUploadRange(first, last - first, false, add,
++						                                    []() noexcept {});
++					}
++					if (copies.size() > copies_before) {
++						m_synced_this_frame.insert(buffer.CpuAddress());
++						if (hot) {
++							m_hot_ranges.Add(first, last - first);
++							Common::PerfTrace::Add(Common::PerfTrace::HotBuffer);
++						}
++					}
+ 				}
+ 			}
+ 		});
+diff --git a/src/graphics/host_gpu/renderer/cache/bufferCache.h b/src/graphics/host_gpu/renderer/cache/bufferCache.h
+index f0888aacd5928ef31663d148576a71fe4b5da4a9..909a20f5065bbc10082d56459a764539cdadbf7b 100644
 --- a/src/graphics/host_gpu/renderer/cache/bufferCache.h
 +++ b/src/graphics/host_gpu/renderer/cache/bufferCache.h
-@@ -16,6 +16,7 @@
+@@ -15,6 +15,7 @@
+ #include <map>
  #include <mutex>
  #include <span>
- #include <unordered_map>
 +#include <unordered_set>
  #include <utility>
  #include <vector>
  
-@@ -173,6 +174,11 @@ private:
- 	};
- 	std::unordered_map<uint64_t, StreamCopy> m_stream_copies;
- 	uint64_t                                 m_stream_copies_tick = 0;
+@@ -175,6 +176,11 @@ private:
+ 	uint64_t m_trigger_gc_memory  = 1ull * 1024 * 1024 * 1024;
+ 	uint64_t m_critical_gc_memory = 2ull * 1024 * 1024 * 1024;
+ 	uint64_t m_gc_tick            = 0;
 +	// Buffers the CPU rewrites every frame stay write-enabled and CPU-dirty; each address-read
 +	// sync uploads them again instead of re-protecting them and taking ~4 faults per buffer.
 +	std::unordered_set<uint64_t> m_synced_this_frame;

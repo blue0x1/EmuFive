@@ -20,7 +20,7 @@ has 5 bytes or more).
   such instruction take the run-time path (both for testing).
 ---
 diff --git a/src/loader/guestInstructionPatcher.cpp b/src/loader/guestInstructionPatcher.cpp
-index dba6337..35a736e 100644
+index dba6337bcb086aa2c76db95b3aa8504a3b2391cf..35a736e43f607fc7f29bfe84dcad6ffc8e9f34cd 100644
 --- a/src/loader/guestInstructionPatcher.cpp
 +++ b/src/loader/guestInstructionPatcher.cpp
 @@ -6,11 +6,13 @@
@@ -378,7 +378,7 @@ index dba6337..35a736e 100644
  
  constexpr uint8_t DW_EH_PE_FORMAT_MASK      = 0x0f;
 diff --git a/src/loader/guestInstructionPatcher.h b/src/loader/guestInstructionPatcher.h
-index 6655d56..27f5d8f 100644
+index 6655d56c6ed2b66ad84d7749238102750b5847fe..27f5d8f9710d366884208b2d3502248ae525cf76 100644
 --- a/src/loader/guestInstructionPatcher.h
 +++ b/src/loader/guestInstructionPatcher.h
 @@ -12,9 +12,10 @@
@@ -416,7 +416,7 @@ index 6655d56..27f5d8f 100644
  
 diff --git a/src/loader/jaguarCompat.cpp b/src/loader/jaguarCompat.cpp
 new file mode 100644
-index 0000000..c05ddd3
+index 0000000000000000000000000000000000000000..c05ddd335e9851d775bd34df992e8e41945d41dd
 --- /dev/null
 +++ b/src/loader/jaguarCompat.cpp
 @@ -0,0 +1,1334 @@
@@ -1756,7 +1756,7 @@ index 0000000..c05ddd3
 +} // namespace Loader::JaguarCompat
 diff --git a/src/loader/jaguarCompat.h b/src/loader/jaguarCompat.h
 new file mode 100644
-index 0000000..9f16f0d
+index 0000000000000000000000000000000000000000..9f16f0d5aecdb9aeb82fe48c1e32f56ca57cf3f3
 --- /dev/null
 +++ b/src/loader/jaguarCompat.h
 @@ -0,0 +1,38 @@
@@ -1799,11 +1799,11 @@ index 0000000..9f16f0d
 +
 +#endif /* KYTY_LOADER_JAGUAR_COMPAT_H_ */
 diff --git a/src/loader/runtimeLinker.cpp b/src/loader/runtimeLinker.cpp
-index 4ac7a58..74230b6 100644
+index d9db23f76fc611e36a4f407e4e0ea9d4d0abf1e5..e27bf46f786c86d8bf6af8e5bfb7bbb83695e06d 100644
 --- a/src/loader/runtimeLinker.cpp
 +++ b/src/loader/runtimeLinker.cpp
-@@ -650,6 +650,10 @@ static bool IsReadableRange(uint64_t addr, uint64_t size) {
- static bool KytyExceptionHandler(const Common::HostException::ExceptionInfo& exception_info) {
+@@ -625,6 +625,10 @@ static bool IsReadableRange(uint64_t addr, uint64_t size) {
+ bool KytyExceptionHandler(const Common::HostException::ExceptionInfo& exception_info) {
  	const auto* info = &exception_info;
  
 +	if (info->type == Common::HostException::ExceptionType::IllegalInstruction &&
@@ -1813,7 +1813,7 @@ index 4ac7a58..74230b6 100644
  	if (info->type == Common::HostException::ExceptionType::IllegalInstruction &&
  	    Loader::X64InstructionEmulator::TryEmulate(info->native_context)) {
  		Common::DebugCounters::Add(Common::DebugCounters::Counter::EmulatedInstructions);
-@@ -1730,10 +1734,17 @@ void RuntimeLinker::LoadProgramToMemory(Program* program) {
+@@ -1642,10 +1646,17 @@ void RuntimeLinker::LoadProgramToMemory(Program* program) {
  #endif
  	const uint64_t tsc_multiplier =
  	    Config::GuestTscEnabled() ? Libs::LibKernel::KernelGuestTscMultiplier() : 0;
@@ -1834,7 +1834,7 @@ index 4ac7a58..74230b6 100644
  	if (patch_guest_instructions) {
  		EXIT_IF(INSTRUCTION_TRAMPOLINE_SIZE > UINT64_MAX - program->mapped_size);
  		program->mapped_size += INSTRUCTION_TRAMPOLINE_SIZE;
-@@ -1864,6 +1875,7 @@ void RuntimeLinker::LoadProgramToMemory(Program* program) {
+@@ -1767,6 +1778,7 @@ void RuntimeLinker::LoadProgramToMemory(Program* program) {
  			totals.rdpid += result.rdpid;
  			totals.clwb += result.clwb;
  			totals.rdtsc += result.rdtsc;
@@ -1842,7 +1842,7 @@ index 4ac7a58..74230b6 100644
  			if (protect_memory_faults) {
  				LOGF("Windows guest red-zone patching: %s, functions=%" PRIu64 ", red_zone=%" PRIu64
  				     ", memory=%" PRIu64 ", patched=%" PRIu64 ", short=%" PRIu64 ", stack=%" PRIu64
-@@ -1882,6 +1894,13 @@ void RuntimeLinker::LoadProgramToMemory(Program* program) {
+@@ -1785,6 +1797,13 @@ void RuntimeLinker::LoadProgramToMemory(Program* program) {
  			    fmt::format("Guest TSC: {} (RDTSC/RDTSCP: native={}, skipped={})\n", module_name,
  			                totals.rdtsc.native, totals.rdtsc.Skipped()));
  		}

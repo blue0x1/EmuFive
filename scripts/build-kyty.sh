@@ -15,7 +15,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="$ROOT/out"
 KYTY_URL=https://github.com/KytyPS5/KytyPS5.git
-KYTY_COMMIT=589bd14a9b8934a85e951d1aaa8112a05d62354c
+KYTY_COMMIT=93cce66564bdced2fc7054ca9794451dfeef4d9d
 SRC="$ROOT/build/kytyps5"
 PATCHES="$ROOT/patches/kytyps5"
 IMAGE=ps5-on-ps4-kyty-builder

@@ -6,10 +6,10 @@ as SPIR-V (and the guest's original code) to the shader log folder, including
 modules loaded from the shader store. Not for a release.
 
 diff --git a/src/graphics/host_gpu/renderer/pipeline/pipelineCache.cpp b/src/graphics/host_gpu/renderer/pipeline/pipelineCache.cpp
-index 5009d0b..e519858 100644
+index 13d751818197aed1d134f761c547d3ccfc2032f3..f7a60f3b0981b915f2574884d2c3d388f0715b01 100644
 --- a/src/graphics/host_gpu/renderer/pipeline/pipelineCache.cpp
 +++ b/src/graphics/host_gpu/renderer/pipeline/pipelineCache.cpp
-@@ -117,8 +117,21 @@ bool ReadShaderGuestMemory(void*, uint64_t address, std::span<uint32_t> values)
+@@ -116,8 +116,21 @@ bool ReadShaderGuestMemory(void*, uint64_t address, std::span<uint32_t> values)
  	       Libs::LibKernel::Memory::TryReadBufferBacking(address, values.data(), values.size_bytes());
  }
  
@@ -33,7 +33,7 @@ index 5009d0b..e519858 100644
  	}
  	const auto path = Config::GetShaderLogFolder() / name;
 diff --git a/src/graphics/host_gpu/renderer/pipeline/pipelineSerialization.cpp b/src/graphics/host_gpu/renderer/pipeline/pipelineSerialization.cpp
-index 0fccf60..ab73414 100644
+index d3478c47abc09620b7143f36f1ef41bda7126398..eb689160333b16d6b6963e8150bec7cf5e542802 100644
 --- a/src/graphics/host_gpu/renderer/pipeline/pipelineSerialization.cpp
 +++ b/src/graphics/host_gpu/renderer/pipeline/pipelineSerialization.cpp
 @@ -1,5 +1,6 @@
@@ -54,7 +54,7 @@ index 0fccf60..ab73414 100644
  #include <fmt/format.h>
  #include <ranges>
  #include <xxhash.h>
-@@ -244,6 +248,20 @@ bool PipelineCache::LoadRecord(std::span<const uint8_t>& records) {
+@@ -243,6 +247,20 @@ bool PipelineCache::LoadRecord(std::span<const uint8_t>& records) {
  				return false;
  			}
  			module.module = CompileSPV(spirv, m_graphics.device);

@@ -5,7 +5,7 @@ With the GPU memory log on, every 16th flip is logged with the seconds since
 the first one, to see how many frames a game presents. Not for a release.
 
 diff --git a/src/graphics/guest_gpu/graphicsRun.cpp b/src/graphics/guest_gpu/graphicsRun.cpp
-index f62bc6e..4925f8a 100644
+index adc958574684506097c7e498edc391f1230c19c4..96e3fb25943ced0e387af0c0477802a484ad1337 100644
 --- a/src/graphics/guest_gpu/graphicsRun.cpp
 +++ b/src/graphics/guest_gpu/graphicsRun.cpp
 @@ -9,6 +9,7 @@
@@ -33,7 +33,7 @@ index f62bc6e..4925f8a 100644
  namespace Libs::Graphics {
  
  static thread_local Pm4Execution* g_current_execution = nullptr;
-@@ -1050,6 +1054,18 @@ void CommandProcessor::Flip(int handle, int index, int flip_mode, int64_t flip_a
+@@ -1101,6 +1105,18 @@ void CommandProcessor::Flip(int handle, int index, int flip_mode, int64_t flip_a
  
  void CommandProcessor::NoteFlipForGc() {
  	auto& gpu = m_renderer.GetGpu();

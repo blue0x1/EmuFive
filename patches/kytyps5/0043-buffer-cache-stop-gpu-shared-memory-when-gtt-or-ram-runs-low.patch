@@ -1,0 +1,86 @@
+
+diff --git a/src/graphics/host_gpu/renderer/cache/bufferCache.cpp b/src/graphics/host_gpu/renderer/cache/bufferCache.cpp
+index bfec2348bf2f37ba4689991d0c6d44c8b233b08d..fb529e961cae797b26343261aa7c866b7fe81e4b 100644
+--- a/src/graphics/host_gpu/renderer/cache/bufferCache.cpp
++++ b/src/graphics/host_gpu/renderer/cache/bufferCache.cpp
+@@ -20,6 +20,7 @@
+ 
+ #include <algorithm>
+ #include <cinttypes>
++#include <cstdio>
+ #include <cstdlib>
+ #include <string>
+ #include <cstring>
+@@ -1004,6 +1005,58 @@ void BufferCache::InitDirectMemory() {
+ 	                                      m_direct_type, m_direct_page >> 10u));
+ }
+ 
++// EmuFive: a new GPU-shared chunk moves 32 MB of guest memory into GTT, where it stays pinned for
++// the rest of the game. Games that keep streaming (Invincible VS: 3 GB at load, 4 GB after 6
++// minutes) then fill the GTT and RAM, and the next submit fails ("Not enough memory for command
++// submission"). No new chunk is made once the GTT or the free RAM gets low; later buffers use the
++// normal path. KYTY_GPU_SHARED_RESERVE_MB sets the GTT room kept free (default 1536 MB).
++static uint64_t ReadSysValue(const char* path) {
++	unsigned long long value = 0;
++	if (std::FILE* f = std::fopen(path, "r"); f != nullptr) {
++		if (std::fscanf(f, "%llu", &value) != 1) {
++			value = 0;
++		}
++		std::fclose(f);
++	}
++	return value;
++}
++
++static uint64_t MemAvailableBytes() {
++	uint64_t value = 0;
++	if (std::FILE* f = std::fopen("/proc/meminfo", "r"); f != nullptr) {
++		char               name[64] {};
++		unsigned long long kb = 0;
++		while (std::fscanf(f, "%63s %llu kB\n", name, &kb) == 2) {
++			if (std::strcmp(name, "MemAvailable:") == 0) {
++				value = kb * 1024;
++				break;
++			}
++		}
++		std::fclose(f);
++	}
++	return value;
++}
++
++static bool GpuSharedRoomLeft(uint64_t chunk_size, std::string* why) {
++	static const uint64_t reserve = [] {
++		const char* value = std::getenv("KYTY_GPU_SHARED_RESERVE_MB");
++		const auto  mb    = value != nullptr ? std::strtoull(value, nullptr, 10) : 1536ull;
++		return static_cast<uint64_t>(mb) * MiB;
++	}();
++	const auto gtt_total = ReadSysValue("/sys/class/drm/card0/device/mem_info_gtt_total");
++	const auto gtt_used  = ReadSysValue("/sys/class/drm/card0/device/mem_info_gtt_used");
++	if (gtt_total != 0 && gtt_used + chunk_size + reserve > gtt_total) {
++		*why = fmt::format("GTT {} of {} MB used", gtt_used >> 20u, gtt_total >> 20u);
++		return false;
++	}
++	const auto available = MemAvailableBytes();
++	if (available != 0 && available < chunk_size + 1024 * MiB) {
++		*why = fmt::format("{} MB of RAM free", available >> 20u);
++		return false;
++	}
++	return true;
++}
++
+ vk::DeviceMemory BufferCache::DirectChunk(uint64_t chunk) {
+ 	if (const auto it = m_direct_chunks.find(chunk); it != m_direct_chunks.end()) {
+ 		return it->second;
+@@ -1013,6 +1066,13 @@ vk::DeviceMemory BufferCache::DirectChunk(uint64_t chunk) {
+ 	}
+ 	const auto&                    dispatcher = VULKAN_HPP_DEFAULT_DISPATCHER;
+ 	const auto                     chunk_size = LibKernel::Memory::GpuSharedChunkSize();
++	if (std::string why; !GpuSharedRoomLeft(chunk_size, &why)) {
++		Log::WriteToConsoleAndLog(fmt::format(
++		    "GPU-shared memory: stopped at {} chunks ({} MB), {}; later buffers are normal ones\n",
++		    m_direct_chunks.size(), (m_direct_chunks.size() * chunk_size) >> 20u, why));
++		m_direct_failed = true;
++		return nullptr;
++	}
+ 	VkExportMemoryAllocateInfo     export_info {VK_STRUCTURE_TYPE_EXPORT_MEMORY_ALLOCATE_INFO, nullptr,
+                                             VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT};
+ 	VkMemoryAllocateInfo allocate {VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO, &export_info, chunk_size,

@@ -7,10 +7,10 @@ the live total for images and for buffers and the 25 largest groups (images
 by size and format, buffers by usage). Not for a release.
 
 diff --git a/src/graphics/host_gpu/graphicContext.h b/src/graphics/host_gpu/graphicContext.h
-index 25b9da0..c30e3ee 100644
+index 09233a7d6c9cc48ffe26a9526d814dfcf8e2dabc..5022db76253c511238417a2a55d9ee5d34fb8453 100644
 --- a/src/graphics/host_gpu/graphicContext.h
 +++ b/src/graphics/host_gpu/graphicContext.h
-@@ -112,6 +112,9 @@ struct GraphicContext {
+@@ -114,6 +114,9 @@ struct GraphicContext {
  	// KYTY_GPU_MEM_LOG (or a gpu-mem-log file in the working folder): log GPU memory use.
  	[[nodiscard]] static bool GpuMemoryLogEnabled();
  	void NoteAllocation(const char* kind, VmaAllocation allocation, const std::string& what) const;
@@ -20,8 +20,34 @@ index 25b9da0..c30e3ee 100644
  	[[nodiscard]] bool CanReportMemoryUsage() const noexcept { return memory_budget_ext_enabled; }
  	[[nodiscard]] uint64_t GetDeviceMemoryUsage() const;
  	[[nodiscard]] uint64_t GetTotalMemoryBudget() const;
+diff --git a/src/graphics/host_gpu/renderer/cache/streamBuffer.cpp b/src/graphics/host_gpu/renderer/cache/streamBuffer.cpp
+index 2d8261e469b06340914b6e5ed1aadf4fe97ad67f..d2da9fa5c461b0cac5fcbd82183eaf158e82fc12 100644
+--- a/src/graphics/host_gpu/renderer/cache/streamBuffer.cpp
++++ b/src/graphics/host_gpu/renderer/cache/streamBuffer.cpp
+@@ -145,6 +145,7 @@ Buffer::~Buffer() {
+ 		return;
+ 	}
+ 	if (m_buffer != nullptr) {
++		GraphicContext::NoteFree(m_allocation);
+ 		vmaDestroyBuffer(m_graphics->allocator, m_buffer, m_allocation);
+ 	}
+ }
+diff --git a/src/graphics/host_gpu/renderer/commandScheduler.cpp b/src/graphics/host_gpu/renderer/commandScheduler.cpp
+index 501106493a9f78771073ae041c62ec81fe13a327..9b9929be13b88b7c5e6a37f68f784143420ca26a 100644
+--- a/src/graphics/host_gpu/renderer/commandScheduler.cpp
++++ b/src/graphics/host_gpu/renderer/commandScheduler.cpp
+@@ -363,6 +363,9 @@ uint64_t CommandScheduler::Submit(SubmitInfo submit) {
+ 			}
+ 		}
+ 		Log::WriteToConsoleAndLog(text + "\n");
++		if ((tick % 256u) == 0 || std::string_view(when).starts_with("when")) {
++			Log::WriteToConsoleAndLog(GraphicContext::LiveMemorySummary());
++		}
+ 	};
+ 	if (mem_log && (tick % 32u) == 0) {
+ 		log_memory("at");
 diff --git a/src/graphics/host_gpu/vma.cpp b/src/graphics/host_gpu/vma.cpp
-index 63ba8e2..53cbe98 100644
+index 63ba8e296a6d7c0a574275d71e47ebb424d4ccf0..53cbe98b80f1678a87517a0f1e3f1d02c088a7dd 100644
 --- a/src/graphics/host_gpu/vma.cpp
 +++ b/src/graphics/host_gpu/vma.cpp
 @@ -25,7 +25,11 @@
@@ -118,29 +144,3 @@ index 63ba8e2..53cbe98 100644
  	vmaDestroyImage(allocator, image.image, image.allocation);
  	image.image      = nullptr;
  	image.allocation = nullptr;
-diff --git a/src/graphics/host_gpu/renderer/cache/streamBuffer.cpp b/src/graphics/host_gpu/renderer/cache/streamBuffer.cpp
-index 532397c..f3831c6 100644
---- a/src/graphics/host_gpu/renderer/cache/streamBuffer.cpp
-+++ b/src/graphics/host_gpu/renderer/cache/streamBuffer.cpp
-@@ -145,6 +145,7 @@ Buffer::~Buffer() {
- 		return;
- 	}
- 	if (m_buffer != nullptr) {
-+		GraphicContext::NoteFree(m_allocation);
- 		vmaDestroyBuffer(m_graphics->allocator, m_buffer, m_allocation);
- 	}
- }
-diff --git a/src/graphics/host_gpu/renderer/commandScheduler.cpp b/src/graphics/host_gpu/renderer/commandScheduler.cpp
-index b23bb98..7368985 100644
---- a/src/graphics/host_gpu/renderer/commandScheduler.cpp
-+++ b/src/graphics/host_gpu/renderer/commandScheduler.cpp
-@@ -365,6 +365,9 @@ uint64_t CommandScheduler::Submit(SubmitInfo submit) {
- 			}
- 		}
- 		Log::WriteToConsoleAndLog(text + "\n");
-+		if ((tick % 256u) == 0 || std::string_view(when).starts_with("when")) {
-+			Log::WriteToConsoleAndLog(GraphicContext::LiveMemorySummary());
-+		}
- 	};
- 	if (mem_log && (tick % 32u) == 0) {
- 		log_memory("at");

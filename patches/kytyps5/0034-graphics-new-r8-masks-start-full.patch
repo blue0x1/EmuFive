@@ -8,10 +8,10 @@ screen turned to noise near objects; starting the mask at 0 drew white outlines 
 New full-screen R8 color targets with no CPU or buffer writes now start at 1.0.
 ---
 diff --git a/src/graphics/host_gpu/renderer/cache/textureCache.cpp b/src/graphics/host_gpu/renderer/cache/textureCache.cpp
-index 20121558..3a91b50a 100644
+index 9f292d57f203a56ff3fe64eed4073b5f44e20c31..db558a5236a4ab66b790b42f85a96fc77f68c643 100644
 --- a/src/graphics/host_gpu/renderer/cache/textureCache.cpp
 +++ b/src/graphics/host_gpu/renderer/cache/textureCache.cpp
-@@ -988,6 +988,23 @@ void TextureCache::InitializeImage(ImageId id) {
+@@ -1025,6 +1025,23 @@ void TextureCache::InitializeImage(ImageId id) {
  		return;
  	}
  	const bool upload = image.IsBufferModified() || image.IsCpuDirty();

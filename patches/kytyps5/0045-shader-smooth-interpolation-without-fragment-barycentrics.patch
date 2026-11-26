@@ -1,0 +1,126 @@
+From: EmuFive <blue0x1>
+Date: 2026-11-25
+Subject: [PATCH 0045] shader: smooth interpolation when the GPU has no fragment barycentrics
+
+The PS4 GPU (GCN2) has no VK_KHR_fragment_shader_barycentric. Pixel inputs that
+KytyPS5 reads per vertex (FP16 interpolation, interpolation parameters, mixed
+flat/smooth inputs) then fall back to the hardware's smooth interpolation: the
+interpolated value stands for P0 and the P10/P20 deltas are zero.
+
+---
+diff --git a/src/graphics/host_gpu/renderer/pipeline/shaderResourceBarrier.cpp b/src/graphics/host_gpu/renderer/pipeline/shaderResourceBarrier.cpp
+index 7c14dacbb7d94eea8e23e613897df01ee1e4a584..5533e595417a9a64998b0737fcbba5c72c22a20b 100644
+--- a/src/graphics/host_gpu/renderer/pipeline/shaderResourceBarrier.cpp
++++ b/src/graphics/host_gpu/renderer/pipeline/shaderResourceBarrier.cpp
+@@ -11,6 +11,7 @@ namespace Libs::Graphics {
+ 
+ namespace {
+ bool g_mesh_programs_run_as_compute = false;
++bool g_fragment_shader_barycentric  = false;
+ } // namespace
+ 
+ void SetMeshProgramsRunAsCompute(bool value) {
+@@ -21,6 +22,14 @@ bool MeshProgramsRunAsCompute() {
+ 	return g_mesh_programs_run_as_compute;
+ }
+ 
++void SetFragmentShaderBarycentric(bool value) {
++	g_fragment_shader_barycentric = value;
++}
++
++bool FragmentShaderBarycentric() {
++	return g_fragment_shader_barycentric;
++}
++
+ vk::ShaderStageFlagBits NativeShaderStage(ShaderType stage) {
+ 	switch (stage) {
+ 		case ShaderType::Local:
+diff --git a/src/graphics/host_gpu/renderer/pipeline/shaderResourceBarrier.h b/src/graphics/host_gpu/renderer/pipeline/shaderResourceBarrier.h
+index 0f1a890b686ed6900736dd1d5d3c98be5d661d6d..f2e5a824af510179205ebcd9a9895d767f0b70a1 100644
+--- a/src/graphics/host_gpu/renderer/pipeline/shaderResourceBarrier.h
++++ b/src/graphics/host_gpu/renderer/pipeline/shaderResourceBarrier.h
+@@ -12,6 +12,10 @@ struct ShaderStageRuntime;
+ // their resources belong to the compute stage.
+ void SetMeshProgramsRunAsCompute(bool value);
+ bool MeshProgramsRunAsCompute();
++// EmuFive: on GPUs without VK_KHR_fragment_shader_barycentric (the PS4's GCN2), per-vertex pixel
++// inputs fall back to smooth interpolation so shaders compile without the missing extension.
++void SetFragmentShaderBarycentric(bool value);
++bool FragmentShaderBarycentric();
+ vk::ShaderStageFlagBits NativeShaderStage(ShaderType stage);
+ vk::PipelineStageFlags  ShaderPipelineStages(vk::ShaderStageFlags stages);
+ vk::MemoryBarrier       MakeShaderWriteDependency();
+diff --git a/src/graphics/presentation/window/vulkanWindow.cpp b/src/graphics/presentation/window/vulkanWindow.cpp
+index bcbc0b4957a1c273c9be2a0eb5da2f60e18f8528..0f360d0441b860ca5ebb1bc35c5c6a750962d58f 100644
+--- a/src/graphics/presentation/window/vulkanWindow.cpp
++++ b/src/graphics/presentation/window/vulkanWindow.cpp
+@@ -505,6 +505,8 @@ static vk::Device VulkanCreateDevice(GraphicContext&          graphics,
+ 	graphics.mesh_shader_enabled = mesh.meshShader && mesh.taskShader;
+ 	// EmuFive: without them (the PS4's GCN GPUs), mesh programs run as compute shaders.
+ 	SetMeshProgramsRunAsCompute(!graphics.mesh_shader_enabled);
++	// EmuFive: GCN2 lacks this; pixel shaders fall back to smooth interpolation.
++	SetFragmentShaderBarycentric(barycentric_supported);
+ 
+ 	vk::StructureChain<
+ 	    vk::PhysicalDeviceProperties2, vk::PhysicalDeviceFloatControlsProperties,
+diff --git a/src/graphics/shader/recompiler/backend/spirv/spirvEmitterFlow.cpp b/src/graphics/shader/recompiler/backend/spirv/spirvEmitterFlow.cpp
+index 7229c8acc14ba9f503e20e4b9307126b74266e5b..10bfc7ec9b3b993de225f7f3ec12fbd54fca7e46 100644
+--- a/src/graphics/shader/recompiler/backend/spirv/spirvEmitterFlow.cpp
++++ b/src/graphics/shader/recompiler/backend/spirv/spirvEmitterFlow.cpp
+@@ -257,7 +257,11 @@ uint32_t EmitInterpolationParameter(ValueEmitContext& ctx, uint32_t attr, uint32
+ 	auto&       state = ctx.state;
+ 	const auto* input = InputBindingForParameter(state, attr);
+ 	if (!input->per_vertex) {
+-		return EmitAttribute(ctx.state, attr, chan);
++		// Without per-vertex data the smooth value stands for P0 and the deltas are zero.
++		if (mode == 0u) {
++			return EmitAttribute(ctx.state, attr, chan);
++		}
++		return ConstantU32(state, 0);
+ 	}
+ 	uint32_t selected_vertex = (mode + 1u) % 3u;
+ 	if (mode == 2u && PixelParameterIsFlat(state, attr)) {
+diff --git a/src/graphics/shader/recompiler/ir/passes/ShaderInfoCollection.cpp b/src/graphics/shader/recompiler/ir/passes/ShaderInfoCollection.cpp
+index 380e2dff50887ff5e25f214f4ed78e51966b1e0f..4243229f1ae438e12e69de9bfba32a89dc0f6ebf 100644
+--- a/src/graphics/shader/recompiler/ir/passes/ShaderInfoCollection.cpp
++++ b/src/graphics/shader/recompiler/ir/passes/ShaderInfoCollection.cpp
+@@ -1,6 +1,7 @@
+ #include "graphics/shader/recompiler/ir/passes/ShaderInfoCollection.h"
+ 
+ #include "common/assert.h"
++#include "graphics/host_gpu/renderer/pipeline/shaderResourceBarrier.h"
+ #include "graphics/shader/recompiler/ir/ShaderIR.h"
+ 
+ #include <algorithm>
+@@ -98,7 +99,8 @@ void CollectPixelInputs(const ShaderPixelInputInfo* pixel, ShaderInfo& info,
+ 			if (ShaderPixelParameterMappedLocation(*pixel, input) ==
+ 			        ShaderPixelParameterMappedLocation(*pixel, alias) &&
+ 			    (pixel->parameter_mode != ShaderPixelParameterMode::Rectangle || same_mode)) {
+-				per_vertex[input] = per_vertex[input] || per_vertex[alias] || !same_mode;
++				per_vertex[input] = FragmentShaderBarycentric() &&
++				                    (per_vertex[input] || per_vertex[alias] || !same_mode);
+ 			}
+ 		}
+ 	}
+@@ -407,7 +409,8 @@ void Visit(Program& program, ShaderStageInputInfo input_info, InputUsage& inputs
+ 				// FP16_INTERP_MODE packs two halves per dword, so smooth inputs blend unpacked
+ 				// vertices; flat inputs unpack the provoking vertex.
+ 				const auto input = inst.Arg(0).U32();
+-				inputs.per_vertex[input] |= !ShaderPixelParameterIsFlat(*input_info.pixel, input);
++				inputs.per_vertex[input] |= FragmentShaderBarycentric() &&
++				                            !ShaderPixelParameterIsFlat(*input_info.pixel, input);
+ 			}
+ 			break;
+ 		}
+@@ -423,8 +426,9 @@ void Visit(Program& program, ShaderStageInputInfo input_info, InputUsage& inputs
+ 				return Fail("interpolation parameter reference is out of range");
+ 			}
+ 			const auto input = inst.Arg(0).U32();
+-			inputs.per_vertex[input] |= inst.Arg(2).U32() < 2u ||
+-			                            !ShaderPixelParameterIsFlat(*input_info.pixel, input);
++			inputs.per_vertex[input] |= FragmentShaderBarycentric() &&
++			                            (inst.Arg(2).U32() < 2u ||
++			                             !ShaderPixelParameterIsFlat(*input_info.pixel, input));
+ 			break;
+ 		}
+ 		case ValueOpcode::GetBuiltin: {

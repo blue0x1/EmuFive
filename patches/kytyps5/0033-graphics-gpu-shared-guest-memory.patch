@@ -27,6 +27,8 @@ Also, seen once Teardown ran long enough:
 - the texture cache grows an image requested again at the same address with
   the same mips and layers but a larger size, instead of exiting;
 - an image download larger than the download ring uses a one-off buffer.
+diff --git a/src/graphics/guest_gpu/graphicsRun.cpp b/src/graphics/guest_gpu/graphicsRun.cpp
+index 1d29c1099740de1c2e55a395ada0939c5cfbb623..1bcfd80682eb35946d01c6213ea3de76eea1d74f 100644
 --- a/src/graphics/guest_gpu/graphicsRun.cpp
 +++ b/src/graphics/guest_gpu/graphicsRun.cpp
 @@ -12,6 +12,7 @@
@@ -45,7 +47,7 @@ Also, seen once Teardown ran long enough:
  #include <deque>
  #include <memory>
  #include <mutex>
-@@ -245,6 +247,32 @@ bool TestWaitRegMemValue(uint64_t value, uint64_t ref, uint64_t mask, uint32_t f
+@@ -262,6 +264,32 @@ bool TestWaitRegMemValue(uint64_t value, uint64_t ref, uint64_t mask, uint32_t f
  	return false;
  }
  
@@ -78,7 +80,7 @@ Also, seen once Teardown ran long enough:
  template <typename T>
  void CommandProcessor::WaitRegMem(uint32_t func, const T* addr, T ref, T mask, uint32_t wait_op) {
  	EXIT_IF(addr == nullptr);
-@@ -252,7 +280,7 @@ void CommandProcessor::WaitRegMem(uint32_t func, const T* addr, T ref, T mask, u
+@@ -269,7 +297,7 @@ void CommandProcessor::WaitRegMem(uint32_t func, const T* addr, T ref, T mask, u
  		EXIT("unsupported wait_reg_mem operation: 0x%08" PRIx32 "\n", wait_op);
  	}
  
@@ -87,7 +89,7 @@ Also, seen once Teardown ran long enough:
  		SuspendPm4();
  	}
  }
-@@ -608,6 +636,11 @@ void CommandProcessor::ProcessPm4(Pm4Execution& execution) {
+@@ -634,6 +662,11 @@ void CommandProcessor::ProcessPm4(Pm4Execution& execution) {
  			continue;
  		}
  
@@ -99,7 +101,7 @@ Also, seen once Teardown ran long enough:
  		const auto* const packet        = cursor.commands.data() + cursor.offset_dw;
  		const auto        total_dw      = static_cast<uint32_t>(cursor.commands.size());
  		const auto        remaining_dw  = total_dw - cursor.offset_dw;
-@@ -960,6 +993,17 @@ void CommandProcessor::ReleaseMem(uint32_t data_sel, uint32_t interrupt_selector
+@@ -1002,6 +1035,17 @@ void CommandProcessor::ReleaseMem(uint32_t data_sel, uint32_t interrupt_selector
  	const auto write_label = [this, address](const void* value, uint64_t size) {
  		const auto vaddr   = reinterpret_cast<uint64_t>(address);
  		auto&      buffers = m_renderer.GetBufferCache();
@@ -117,9 +119,11 @@ Also, seen once Teardown ran long enough:
  		if (!GuestRange {vaddr, size}.Valid() || !buffers.IsRegionGpuModified(vaddr, size) ||
  		    buffers.HasGpuDirtyBytes(vaddr, size) ||
  		    !LibKernel::Memory::TryWriteBacking(vaddr, value, size)) {
+diff --git a/src/graphics/host_gpu/graphicContext.h b/src/graphics/host_gpu/graphicContext.h
+index 5022db76253c511238417a2a55d9ee5d34fb8453..bbb3552d823dee0c544eb9bcd89a7ac59f725a25 100644
 --- a/src/graphics/host_gpu/graphicContext.h
 +++ b/src/graphics/host_gpu/graphicContext.h
-@@ -45,6 +45,8 @@ struct GraphicContext {
+@@ -47,6 +47,8 @@ struct GraphicContext {
  	bool                                      mesh_shader_enabled                   = false;
  	// Sparse residency buffers (sparseBinding and sparseResidencyBuffer on the queue).
  	bool                                      sparse_buffer_enabled                 = false;
@@ -128,6 +132,8 @@ Also, seen once Teardown ran long enough:
  	vk::PhysicalDeviceMeshShaderPropertiesEXT mesh_shader_properties                = {};
  	uint32_t                           subgroup_size                         = 0;
  	uint32_t                           min_subgroup_size                     = 0;
+diff --git a/src/graphics/host_gpu/pageManager.cpp b/src/graphics/host_gpu/pageManager.cpp
+index 155239bb8a495c3863a2a5be63e9038ae5579bed..ba60bab44058086b11e0e72e94f2fdb435b90ded 100644
 --- a/src/graphics/host_gpu/pageManager.cpp
 +++ b/src/graphics/host_gpu/pageManager.cpp
 @@ -279,6 +279,41 @@ struct PageManager::Impl {
@@ -173,16 +179,18 @@ Also, seen once Teardown ran long enough:
  	std::vector<std::unique_ptr<Region>>    region_storage;
  	std::mutex                              region_mutex;
 @@ -295,6 +330,10 @@ void PageManager::UpdatePageWatchers(uint64_t vaddr, uint64_t size) {
- 	m_impl->UpdatePageWatchers<track, false>(vaddr, size);
+ 	m_impl->UpdatePageWatchers<track, is_read>(vaddr, size);
  }
  
 +void PageManager::RestoreWriteAccess(uint64_t vaddr, uint64_t size) {
 +	m_impl->RestoreWriteAccess(vaddr, size);
 +}
 +
- template void PageManager::UpdatePageWatchers<true>(uint64_t, uint64_t);
- template void PageManager::UpdatePageWatchers<false>(uint64_t, uint64_t);
- 
+ template void PageManager::UpdatePageWatchers<true, true>(uint64_t, uint64_t);
+ template void PageManager::UpdatePageWatchers<true, false>(uint64_t, uint64_t);
+ template void PageManager::UpdatePageWatchers<false, true>(uint64_t, uint64_t);
+diff --git a/src/graphics/host_gpu/pageManager.h b/src/graphics/host_gpu/pageManager.h
+index e71f0711db59d7384a9c5159a4d81fb1760ce70a..98d5c4c930066ced2b3ed8a7a5dd356d1bbd9e09 100644
 --- a/src/graphics/host_gpu/pageManager.h
 +++ b/src/graphics/host_gpu/pageManager.h
 @@ -22,6 +22,8 @@ public:
@@ -194,6 +202,8 @@ Also, seen once Teardown ran long enough:
  
  private:
  	struct Impl;
+diff --git a/src/graphics/host_gpu/renderer/cache/bufferCache.cpp b/src/graphics/host_gpu/renderer/cache/bufferCache.cpp
+index 2ffa0ded3b91805bac87bb552542bcea6974de68..0e39d5d1e7ca980441243621ad00b31a0a9bd758 100644
 --- a/src/graphics/host_gpu/renderer/cache/bufferCache.cpp
 +++ b/src/graphics/host_gpu/renderer/cache/bufferCache.cpp
 @@ -26,9 +26,13 @@
@@ -210,7 +220,7 @@ Also, seen once Teardown ran long enough:
  
  constexpr uint64_t MiB           = 1024 * 1024;
  constexpr uint64_t GdsBufferSize = 64 * 1024;
-@@ -282,7 +286,8 @@ BufferCache::BufferCache(GraphicContext& graphics, CommandScheduler& scheduler,
+@@ -274,7 +278,8 @@ BufferCache::BufferCache(GraphicContext& graphics, CommandScheduler& scheduler,
                        EnvSize("KYTY_STREAM_BUFFER_MB", MiB, 256 * MiB)),
        m_download_buffer(graphics, scheduler, MemoryUsage::Download, 64 * MiB),
        m_device_buffer(graphics, scheduler, MemoryUsage::DeviceLocal, 128 * MiB),
@@ -220,7 +230,7 @@ Also, seen once Teardown ran long enough:
  	std::memset(m_gds_buffer.Mapped().data(), 0, static_cast<size_t>(m_gds_buffer.Size()));
  	m_gds_buffer.Flush(0, m_gds_buffer.Size());
  	SetVulkanObjectNameF(m_graphics.device, m_bda_pagetable_buffer.Handle(),
-@@ -313,6 +318,9 @@ BufferCache::BufferCache(GraphicContext& graphics, CommandScheduler& scheduler,
+@@ -305,6 +310,9 @@ BufferCache::BufferCache(GraphicContext& graphics, CommandScheduler& scheduler,
  }
  
  BufferCache::~BufferCache() {
@@ -230,7 +240,7 @@ Also, seen once Teardown ran long enough:
  	if (!m_gpu_modified_ranges.Empty()) {
  		EXIT("BufferCache: destroyed with pending GPU-modified ranges\n");
  	}
-@@ -434,6 +442,31 @@ void BufferCache::JoinOverlap(BufferId new_id, BufferId overlap_id, bool accumul
+@@ -426,6 +434,31 @@ void BufferCache::JoinOverlap(BufferId new_id, BufferId overlap_id, bool accumul
  	if (accumulate_stream_score) {
  		new_buffer.IncreaseStreamScore(overlap.StreamScore() + 1);
  	}
@@ -262,13 +272,16 @@ Also, seen once Teardown ran long enough:
  	new_buffer.CopyFrom(m_scheduler.Current(), overlap, 0,
  	                    overlap.CpuAddress() - new_buffer.CpuAddress(), overlap.Size());
  	DeleteBuffer(overlap_id);
-@@ -443,11 +476,33 @@ BufferId BufferCache::CreateBuffer(uint64_t vaddr, uint64_t size) {
+@@ -435,11 +468,33 @@ BufferId BufferCache::CreateBuffer(uint64_t vaddr, uint64_t size) {
  	const auto end = Common::AlignUp(vaddr + size, CACHING_PAGESIZE);
  	vaddr = Common::AlignDown(vaddr, CACHING_PAGESIZE);
  	size               = end - vaddr;
 -	const auto overlap = ResolveOverlaps(vaddr, size);
 +	auto overlap = ResolveOverlaps(vaddr, size);
-+
+ 
+-	const auto id = m_slot_buffers.insert(
+-	    m_graphics, m_scheduler, MemoryUsage::DeviceLocal, overlap.begin,
+-	    AllFlags | vk::BufferUsageFlagBits::eShaderDeviceAddress, overlap.end - overlap.begin);
 +	std::vector<DirectBind> binds;
 +	if (m_direct_page != 0) {
 +		// Direct buffers cover whole sparse pages; grow until no new overlap appears.
@@ -284,10 +297,7 @@ Also, seen once Teardown ran long enough:
 +			(void)PrepareDirect(overlap.begin, overlap.end - overlap.begin, &binds);
 +		}
 +	}
- 
--	const auto id = m_slot_buffers.insert(
--	    m_graphics, m_scheduler, MemoryUsage::DeviceLocal, overlap.begin,
--	    AllFlags | vk::BufferUsageFlagBits::eShaderDeviceAddress, overlap.end - overlap.begin);
++
 +	const auto id =
 +	    binds.empty()
 +	        ? m_slot_buffers.insert(m_graphics, m_scheduler, MemoryUsage::DeviceLocal,
@@ -300,7 +310,7 @@ Also, seen once Teardown ran long enough:
  	const auto& buffer = m_slot_buffers[id];
  	SetVulkanObjectNameF(m_graphics.device, buffer.Handle(),
  	                     "Kyty.GameBuffer[guest=0x{:016x} size=0x{:x}]", overlap.begin,
-@@ -462,6 +517,9 @@ BufferId BufferCache::CreateBuffer(uint64_t vaddr, uint64_t size) {
+@@ -454,6 +509,9 @@ BufferId BufferCache::CreateBuffer(uint64_t vaddr, uint64_t size) {
  
  bool BufferCache::SynchronizeBuffer(Buffer& buffer, uint64_t vaddr, uint64_t size, bool is_written,
                                      bool is_texel_buffer) {
@@ -309,8 +319,8 @@ Also, seen once Teardown ran long enough:
 +	}
  	std::vector<vk::BufferCopy> copies;
  	uint64_t                    total_size = 0;
- 	vk::Buffer                  source;
-@@ -532,7 +590,7 @@ std::pair<Buffer*, uint64_t> BufferCache::ObtainBuffer(uint64_t vaddr, uint64_t
+ 	m_memory_tracker.ForEachUploadRange(
+@@ -527,7 +585,7 @@ std::pair<Buffer*, uint64_t> BufferCache::ObtainBuffer(uint64_t vaddr, uint64_t
  	EXIT_IF(!(GuestRange {vaddr, size}.Valid()));
  
  	static const uint64_t stream_max = EnvSize("KYTY_STREAM_MAX_KB", 1024, 256 * 1024);
@@ -318,8 +328,8 @@ Also, seen once Teardown ran long enough:
 +	if (m_direct_page == 0 && !is_written && size <= stream_max &&
  	    !m_memory_tracker.IsRegionGpuModified(vaddr, size) &&
  	    m_memory_tracker.IsRegionCpuModified(vaddr, size)) {
- 		const auto alignment = std::max<uint64_t>(
-@@ -567,7 +625,11 @@ std::pair<Buffer*, uint64_t> BufferCache::ObtainBuffer(uint64_t vaddr, uint64_t
+ 		// Within one draw window the guest has no signal to rewrite the range. A copy made in this
+@@ -561,7 +619,11 @@ std::pair<Buffer*, uint64_t> BufferCache::ObtainBuffer(uint64_t vaddr, uint64_t
  	TouchBuffer(buffer);
  	(void)SynchronizeBuffer(buffer, vaddr, size, is_written, is_texel_buffer);
  	if (is_written) {
@@ -332,7 +342,7 @@ Also, seen once Teardown ran long enough:
  		ForgetColorMetadataChecks(vaddr, size);
  	}
  	return {&buffer, buffer.Offset(vaddr)};
-@@ -696,7 +758,7 @@ void BufferCache::ForgetColorMetadataChecks(uint64_t vaddr, uint64_t size) {
+@@ -694,7 +756,7 @@ void BufferCache::ForgetColorMetadataChecks(uint64_t vaddr, uint64_t size) {
  }
  
  bool BufferCache::IsRegionGpuModified(uint64_t vaddr, uint64_t size) {
@@ -341,20 +351,22 @@ Also, seen once Teardown ran long enough:
  }
  
  bool BufferCache::HasGpuDirtyBytes(uint64_t vaddr, uint64_t size) {
-@@ -811,7 +873,10 @@ void BufferCache::SynchronizeBuffersInRange(uint64_t vaddr, uint64_t size) {
- 		--it;
- 	}
- 	for (; it != m_buffers.end() && it->first < end; ++it) {
--		auto&      buffer = m_slot_buffers[it->second];
-+		auto& buffer = m_slot_buffers[it->second];
-+		if (buffer.IsDirect()) {
-+			continue;
-+		}
- 		const auto start  = std::max(buffer.CpuAddress(), vaddr);
- 		const auto finish = std::min(buffer.CpuAddress() + buffer.Size(), end);
- 		if (start >= finish) {
-@@ -894,4 +959,174 @@ void BufferCache::FlushBufferSyncs() {
- 	m_batch_size = 0;
+@@ -812,8 +874,11 @@ void BufferCache::SynchronizeBda(const RangeSet& mapped) {
+ 				--it;
+ 			}
+ 			for (; it != m_buffers.end() && it->first < finish; ++it) {
+-				auto&      buffer = m_slot_buffers[it->second];
+-				const auto first  = std::max(buffer.CpuAddress(), start);
++				auto& buffer = m_slot_buffers[it->second];
++				if (buffer.IsDirect()) {
++					continue;
++				}
++				const auto first = std::max(buffer.CpuAddress(), start);
+ 				const auto last   = std::min(buffer.CpuAddress() + buffer.Size(), finish);
+ 				if (first < last) {
+ 					const auto copies_before = copies.size();
+@@ -853,4 +918,174 @@ void BufferCache::SynchronizeBda(const RangeSet& mapped) {
+ 	UploadCopies(uploads, copies, total_size);
  }
  
 +void WaitGpuWritesTo(uint64_t vaddr, uint64_t size) {
@@ -528,9 +540,11 @@ Also, seen once Teardown ran long enough:
 +}
 +
  } // namespace Libs::Graphics
+diff --git a/src/graphics/host_gpu/renderer/cache/bufferCache.h b/src/graphics/host_gpu/renderer/cache/bufferCache.h
+index 909a20f5065bbc10082d56459a764539cdadbf7b..86bf6ce3233564813cf8869e22fa66836c4523bb 100644
 --- a/src/graphics/host_gpu/renderer/cache/bufferCache.h
 +++ b/src/graphics/host_gpu/renderer/cache/bufferCache.h
-@@ -29,6 +29,10 @@ class TextureCache;
+@@ -28,6 +28,10 @@ class TextureCache;
  using BufferId = Common::SlotId;
  inline constexpr BufferId NULL_BUFFER_ID {0};
  
@@ -541,7 +555,7 @@ Also, seen once Teardown ran long enough:
  class BufferCache {
  public:
  	static constexpr uint32_t CACHING_PAGEBITS  = 14;
-@@ -133,6 +137,19 @@ private:
+@@ -149,6 +153,19 @@ private:
  	template <bool async>
  	[[nodiscard]] bool DownloadBufferMemory(Buffer& buffer, uint64_t vaddr, uint64_t size);
  	void               ForgetColorMetadataChecks(uint64_t vaddr, uint64_t size);
@@ -561,9 +575,9 @@ Also, seen once Teardown ran long enough:
  
  	GraphicContext&                                   m_graphics;
  	CommandScheduler&                                 m_scheduler;
-@@ -154,6 +171,14 @@ private:
- 	StreamBuffer                                      m_download_buffer;
- 	StreamBuffer                                      m_device_buffer;
+@@ -172,6 +189,14 @@ private:
+ 	std::array<StreamCopy, 1u << STREAM_COPY_BITS>    m_stream_copies {};
+ 	uint64_t                                          m_draw_window = 0;
  	TextureCache&                                     m_texture_cache;
 +	PageManager&                                      m_page_manager;
 +	uint64_t                                          m_direct_page = 0; // 0: direct buffers off.
@@ -576,6 +590,8 @@ Also, seen once Teardown ran long enough:
  	uint64_t                                          m_total_used_memory  = 0;
  	uint64_t m_trigger_gc_memory  = 1ull * 1024 * 1024 * 1024;
  	uint64_t m_critical_gc_memory = 2ull * 1024 * 1024 * 1024;
+diff --git a/src/graphics/host_gpu/renderer/cache/streamBuffer.cpp b/src/graphics/host_gpu/renderer/cache/streamBuffer.cpp
+index d2da9fa5c461b0cac5fcbd82183eaf158e82fc12..2f0ecd86c3f511d48a66d82d6d3607cd693710d0 100644
 --- a/src/graphics/host_gpu/renderer/cache/streamBuffer.cpp
 +++ b/src/graphics/host_gpu/renderer/cache/streamBuffer.cpp
 @@ -134,7 +134,60 @@ Buffer::Buffer(GraphicContext& graphics, CommandScheduler& scheduler, MemoryUsag
@@ -663,9 +679,11 @@ Also, seen once Teardown ran long enough:
  }
  
  void Buffer::Flush(uint64_t offset, uint64_t size) {
+diff --git a/src/graphics/host_gpu/renderer/cache/streamBuffer.h b/src/graphics/host_gpu/renderer/cache/streamBuffer.h
+index 3dd2d7094993bd9fb0b4197e51735ac8ebc0365b..028af75405a068d083339ae8f1bee7b1703f483b 100644
 --- a/src/graphics/host_gpu/renderer/cache/streamBuffer.h
 +++ b/src/graphics/host_gpu/renderer/cache/streamBuffer.h
-@@ -39,10 +39,21 @@ inline constexpr vk::BufferUsageFlags ReadFlags =
+@@ -40,10 +40,21 @@ inline constexpr vk::BufferUsageFlags ReadFlags =
  inline constexpr vk::BufferUsageFlags AllFlags =
      ReadFlags | vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eStorageBuffer;
  
@@ -687,7 +705,7 @@ Also, seen once Teardown ran long enough:
  	~Buffer();
  	KYTY_CLASS_NO_COPY(Buffer);
  
-@@ -73,6 +84,7 @@ public:
+@@ -74,6 +85,7 @@ public:
  	// Sparse buffers: binds zeroed memory to every page of the range that has none yet.
  	void MakeResident(uint64_t offset, uint64_t size);
  	[[nodiscard]] bool IsSparse() const noexcept { return m_sparse_page != 0; }
@@ -695,7 +713,7 @@ Also, seen once Teardown ran long enough:
  
  	// BufferCache state lives directly on the resource.
  	bool   is_deleted   = false;
-@@ -101,6 +113,7 @@ private:
+@@ -102,6 +114,7 @@ private:
  	uint64_t                      m_sparse_page       = 0; // Page size of a sparse buffer, else 0.
  	uint32_t                      m_sparse_type_bits  = 0;
  	std::vector<VmaAllocation>    m_sparse_pages;          // One per page; null where unbound.
@@ -703,9 +721,11 @@ Also, seen once Teardown ran long enough:
  };
  
  class StreamBuffer final: public Buffer {
+diff --git a/src/graphics/host_gpu/renderer/cache/textureCache.cpp b/src/graphics/host_gpu/renderer/cache/textureCache.cpp
+index e4fac12ef430df1d411db88ab034ac2d279f926e..9f292d57f203a56ff3fe64eed4073b5f44e20c31 100644
 --- a/src/graphics/host_gpu/renderer/cache/textureCache.cpp
 +++ b/src/graphics/host_gpu/renderer/cache/textureCache.cpp
-@@ -840,6 +840,10 @@ TextureCache::OverlapResult TextureCache::ResolveOverlap(const ImageInfo& reques
+@@ -883,6 +883,10 @@ TextureCache::OverlapResult TextureCache::ResolveOverlap(const ImageInfo& reques
  			            ? result_id
  			            : ImageId {}};
  		}
@@ -716,48 +736,11 @@ Also, seen once Teardown ran long enough:
  		EXIT("TextureCache: unresolvable equal-address image overlap, address=0x%016" PRIx64
  		     " requested=%ux%u "
  		     "cached=%ux%u requested_size=0x%016" PRIx64 " cached_size=0x%016" PRIx64
-@@ -1838,13 +1842,24 @@ bool TextureCache::DownloadImageMemory(ImageId id) {
- 		return false;
- 	}
- 	const auto range    = image.info.data;
--	auto&      download = m_buffer_cache.GetUtilityBuffer(MemoryUsage::Download);
--	auto [mapped, offset] =
--	    download.Map(range.size, std::max<uint64_t>(image.info.bytes_per_block, 4));
-+	auto& ring = m_buffer_cache.GetUtilityBuffer(MemoryUsage::Download);
-+	auto [mapped, offset] = ring.Map(range.size, std::max<uint64_t>(image.info.bytes_per_block, 4));
-+	// Larger than the ring: a one-off buffer, freed once the data is published.
-+	std::shared_ptr<Buffer> temporary;
- 	if (mapped == nullptr) {
--		EXIT("TextureCache: failed to map reusable download buffer\n");
-+		temporary = std::make_shared<Buffer>(m_graphics, m_scheduler, MemoryUsage::Download, 0,
-+		                                     vk::BufferUsageFlagBits::eTransferDst |
-+		                                         vk::BufferUsageFlagBits::eTransferSrc,
-+		                                     range.size);
-+		mapped = temporary->Mapped().data();
-+		offset = 0;
-+		if (mapped == nullptr) {
-+			EXIT("TextureCache: failed to map download buffer\n");
-+		}
-+	} else {
-+		ring.Commit();
- 	}
--	download.Commit();
-+	Buffer& download = temporary ? *temporary : ring;
- 	if (!LibKernel::Memory::TryReadBacking(range.address, mapped, range.size)) {
- 		return false;
- 	}
-@@ -1865,7 +1880,7 @@ bool TextureCache::DownloadImageMemory(ImageId id) {
- 	m_scheduler.Current().Handle().pipelineBarrier(vk::PipelineStageFlagBits::eAllCommands,
- 	                                               vk::PipelineStageFlagBits::eHost, {}, 0, nullptr,
- 	                                               1, &barrier, 0, nullptr);
--	m_scheduler.DeferPriorityOperation([&download, range, mapped, offset] {
-+	m_scheduler.DeferPriorityOperation([&download, temporary, range, mapped, offset] {
- 		download.Invalidate(offset, range.size);
- 		LibKernel::Memory::WriteBacking(range.address, mapped, range.size);
- 	});
+diff --git a/src/graphics/presentation/window/vulkanWindow.cpp b/src/graphics/presentation/window/vulkanWindow.cpp
+index f07d9c315d51c135bd7d54638022d7c169aaa436..5500ee3cd539b77ac75f1f8e4eb89dc5616207ac 100644
 --- a/src/graphics/presentation/window/vulkanWindow.cpp
 +++ b/src/graphics/presentation/window/vulkanWindow.cpp
-@@ -30,6 +30,7 @@
+@@ -32,6 +32,7 @@
  #include <fmt/format.h>
  #include <memory>
  #include <string>
@@ -765,9 +748,9 @@ Also, seen once Teardown ran long enough:
  #include <vector>
  #include <vulkan/vk_platform.h>
  
-@@ -403,6 +404,11 @@ static vk::Device VulkanCreateDevice(GraphicContext&          graphics,
- 	       feedback_layout, feedback_dynamic, provoking_vertex, maintenance8, shader_clock,
- 	       image_atomic_int64, conditional_rendering, barycentric] = supported;
+@@ -411,6 +412,11 @@ static vk::Device VulkanCreateDevice(GraphicContext&          graphics,
+ 	       image_atomic_int64, conditional_rendering, barycentric, compute_derivatives,
+ 	       acceleration_structure, ray_query, cooperative_matrix, float8] = supported;
  	graphics.memory_budget_ext_enabled = add(VK_EXT_MEMORY_BUDGET_EXTENSION_NAME);
 +	// EmuFive GPU-shared memory: guest memory chunks move into dma-buf GPU memory.
 +	graphics.gpu_shared_memory_enabled = std::getenv("KYTY_GPU_SHARED_MEMORY") != nullptr &&
@@ -777,7 +760,7 @@ Also, seen once Teardown ran long enough:
  	add(VK_EXT_DEPTH_RANGE_UNRESTRICTED_EXTENSION_NAME);
  	const bool extended_dynamic_state = add(VK_EXT_EXTENDED_DYNAMIC_STATE_EXTENSION_NAME);
  	if (!add(VK_KHR_WORKGROUP_MEMORY_EXPLICIT_LAYOUT_EXTENSION_NAME)) {
-@@ -597,6 +603,12 @@ static vk::Device VulkanCreateDevice(GraphicContext&          graphics,
+@@ -640,6 +646,12 @@ static vk::Device VulkanCreateDevice(GraphicContext&          graphics,
  		    std::getenv("KYTY_NO_SPARSE_PAGETABLE") == nullptr;
  		device_features.sparseBinding         = graphics.sparse_buffer_enabled;
  		device_features.sparseResidencyBuffer = graphics.sparse_buffer_enabled;
@@ -790,9 +773,11 @@ Also, seen once Teardown ran long enough:
  		LOGF("Vulkan sparse residency buffers: %s\n", graphics.sparse_buffer_enabled ? "true" : "false");
  	}
  	device_features.shaderInt64 = VK_TRUE;
+diff --git a/src/kernel/memory.cpp b/src/kernel/memory.cpp
+index 31b145c044b7e7e8a9b2cf3c49f4f32b6d51c00a..16ca9bf3ec3f890d09ca68a25d424159b1192ba6 100644
 --- a/src/kernel/memory.cpp
 +++ b/src/kernel/memory.cpp
-@@ -875,10 +875,57 @@ void InstallGpuResources(Graphics::RenderContext* resources) noexcept {
+@@ -873,10 +873,57 @@ void InstallGpuResources(Graphics::RenderContext* resources) noexcept {
  	g_gpu_resources = resources;
  }
  
@@ -850,6 +835,8 @@ Also, seen once Teardown ran long enough:
  struct PrtAperture {
  	uint64_t address = 0;
  	uint64_t size    = 0;
+diff --git a/src/kernel/memory.h b/src/kernel/memory.h
+index 9e9b8d85b5062b3c1d207784e165f43d1f73de2f..21d77075f53cd14c76689acf6a48c83545c9905b 100644
 --- a/src/kernel/memory.h
 +++ b/src/kernel/memory.h
 @@ -5,6 +5,10 @@
@@ -863,7 +850,7 @@ Also, seen once Teardown ran long enough:
  namespace Libs::Graphics {
  class RenderContext;
  enum class PageFaultAccess;
-@@ -140,6 +144,21 @@ void                   WriteBacking(uint64_t vaddr, const void* data, uint64_t s
+@@ -147,6 +151,21 @@ void                   WriteBacking(uint64_t vaddr, const void* data, uint64_t s
  void                   InvalidateMemory(uint64_t vaddr, uint64_t size);
  void                   InstallGpuResources(Graphics::RenderContext* renderer) noexcept;
  [[nodiscard]] bool HandleGpuFault(Graphics::PageFaultAccess access, uint64_t fault_vaddr) noexcept;
@@ -885,6 +872,8 @@ Also, seen once Teardown ran long enough:
  
  int KYTY_SYSV_ABI KernelMapNamedFlexibleMemory(void** addr_in_out, size_t len, int prot, int flags,
                                                 const char* name);
+diff --git a/src/kernel/memoryAddressSpace.inc b/src/kernel/memoryAddressSpace.inc
+index fb6b64a54a283a324e14a2e8bd747a80e88ec8da..e7bdddfd564820b9cb3b1385d5bfa1509cd9e88b 100644
 --- a/src/kernel/memoryAddressSpace.inc
 +++ b/src/kernel/memoryAddressSpace.inc
 @@ -11,6 +11,8 @@ static constexpr uint64_t HOST_SYSTEM_RESERVED_MAX = 0x0fffffffffull;
@@ -896,10 +885,27 @@ Also, seen once Teardown ran long enough:
  
  static bool GuestFreeRangeContains(uint64_t base, uint64_t range_size, uint64_t candidate,
                                     uint64_t size) {
-@@ -456,14 +458,111 @@ private:
- 			callback(vaddr, size);
+@@ -188,6 +190,8 @@ public:
+ 		if (!MapView(vaddr, size, backing_offset, mode, failure_reason)) {
+ 			return false;
  		}
++		EraseViews(vaddr, size);
++		m_views.emplace(vaddr, BackingView {size, backing_offset, mode});
  #endif
+ 		StorePages(vaddr, size, backing_offset);
+ 		return true;
+@@ -212,6 +216,7 @@ public:
+ 		// Replace only the requested range so concurrent accesses and GPU watch
+ 		// protections on the surviving mappings remain intact.
+ 		EXIT_IF(!UnmapViewPreservePlaceholder(reinterpret_cast<void*>(vaddr), size));
++		EraseViews(vaddr, size);
+ 		ClearPages(vaddr, size);
+ #endif
+ 	}
+@@ -420,14 +425,155 @@ private:
+ 
+ 	bool MapView(uint64_t vaddr, uint64_t size, uint64_t backing_offset, VirtualMemory::Mode mode,
+ 	             FailureReason* failure_reason) {
 -		if (mmap(reinterpret_cast<void*>(vaddr), size, GetProtect(mode), MAP_SHARED | MAP_FIXED,
 -		         m_fd, static_cast<off_t>(backing_offset)) == MAP_FAILED) {
 -			SetFailure(failure_reason, FailureReason::FixedMapViewFailed);
@@ -935,8 +941,8 @@ Also, seen once Teardown ran long enough:
 +	// writes in place). Every guest view of the chunk and the writable alias are remapped to
 +	// it; the views are read-only while the data is copied so no guest write is lost.
 +	// Reports the writable guest ranges, left read-only; the caller gives write access back.
++	// The caller holds the memory operation lock and the state lock exclusively.
 +	bool PromoteChunk(uint64_t chunk, int fd, std::vector<RemappedRange>* remapped) {
-+		std::lock_guard lock(m_mutex);
 +		if (m_chunk_fds.contains(chunk)) {
 +			return true;
 +		}
@@ -952,13 +958,13 @@ Also, seen once Teardown ran long enough:
 +			VirtualMemory::Mode mode;
 +		};
 +		std::vector<View> views;
-+		for (const auto& [_, entry]: m_maps) {
++		for (const auto& [entry_vaddr, entry]: m_views) {
 +			const auto entry_begin = entry.backing_offset;
 +			const auto entry_end   = entry.backing_offset + entry.size;
 +			const auto lo = std::max(begin, entry_begin);
 +			const auto hi = std::min(end, entry_end);
 +			if (lo < hi) {
-+				views.push_back({entry.vaddr + (lo - entry_begin), hi - lo, lo - begin, entry.mode});
++				views.push_back({entry_vaddr + (lo - entry_begin), hi - lo, lo - begin, entry.mode});
 +			}
 +		}
 +		for (const auto& view: views) {
@@ -972,8 +978,8 @@ Also, seen once Teardown ran long enough:
 +			for (const auto& view: views) {
 +				mprotect(reinterpret_cast<void*>(view.vaddr), view.size, GetProtect(view.mode));
 +			}
-+			return false;
-+		}
+ 			return false;
+ 		}
 +		std::memcpy(temporary, m_backing_base + begin, kGpuSharedChunk);
 +		munmap(temporary, kGpuSharedChunk);
 +		for (const auto& view: views) {
@@ -991,33 +997,77 @@ Also, seen once Teardown ran long enough:
 +		fallocate(m_fd, FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE, static_cast<off_t>(begin),
 +		          static_cast<off_t>(kGpuSharedChunk));
 +		m_chunk_fds.emplace(chunk, fd);
-+		return true;
-+	}
-+
-+	// EmuFive: the backing offset of a guest range that one view maps linearly, if any.
-+	bool LinearBacking(uint64_t vaddr, uint64_t size, uint64_t* backing_offset) {
-+		std::shared_lock lock(m_mutex);
-+		const auto* entry = FindContainingUnlocked(vaddr);
-+		if (entry == nullptr || size > entry->vaddr + entry->size - vaddr) {
- 			return false;
- 		}
-+		*backing_offset = entry->backing_offset + (vaddr - entry->vaddr);
  		return true;
  	}
  
++	// EmuFive: the backing offset of a guest range whose pages map contiguous backing, if any.
++	// Needs no lock, like IsBacked.
++	bool LinearBacking(uint64_t vaddr, uint64_t size, uint64_t* backing_offset) const {
++		if (size == 0 || UINT64_MAX - vaddr < size) {
++			return false;
++		}
++		const auto first = LoadPage(vaddr >> PageBits);
++		if (first == 0) {
++			return false;
++		}
++		auto expected = first;
++		for (auto page = vaddr >> PageBits; page <= (vaddr + size - 1u) >> PageBits;
++		     ++page, ++expected) {
++			if (LoadPage(page) != expected) {
++				return false;
++			}
++		}
++		*backing_offset = (uint64_t {first - 1u} << PageBits) + (vaddr & PageMask);
++		return true;
++	}
++
 +private:
 +	std::map<uint64_t, int> m_chunk_fds;
++	// EmuFive: the guest views of the backing by guest address, for PromoteChunk.
++	struct BackingView {
++		uint64_t            size;
++		uint64_t            backing_offset;
++		VirtualMemory::Mode mode;
++	};
++	std::map<uint64_t, BackingView> m_views;
++
++	void EraseViews(uint64_t vaddr, uint64_t size) {
++		const auto end = vaddr + size;
++		auto       it  = m_views.upper_bound(vaddr);
++		if (it != m_views.begin()) {
++			--it;
++		}
++		while (it != m_views.end() && it->first < end) {
++			const auto view_begin = it->first;
++			const auto view       = it->second;
++			const auto view_end   = view_begin + view.size;
++			if (view_end <= vaddr) {
++				++it;
++				continue;
++			}
++			it = m_views.erase(it);
++			if (view_begin < vaddr) {
++				m_views.emplace(view_begin,
++				                BackingView {vaddr - view_begin, view.backing_offset, view.mode});
++			}
++			if (view_end > end) {
++				m_views.emplace(end, BackingView {view_end - end,
++				                                  view.backing_offset + (end - view_begin),
++				                                  view.mode});
++			}
++		}
++	}
 +
  	// Replace the file view atomically instead of exposing an unmapped hole in the
  	// process-lifetime guest reservation.
  	static bool UnmapViewPreservePlaceholder(void* vaddr, uint64_t size) {
-@@ -605,6 +704,17 @@ public:
+@@ -578,6 +724,17 @@ public:
  		return ProtectMappedUnlocked(vaddr, size, mode);
  	}
  
 +#if KYTY_PLATFORM == KYTY_PLATFORM_LINUX
 +	bool PromoteBackingChunk(uint64_t chunk, int fd, std::vector<RemappedRange>* remapped) {
-+		std::lock_guard lock(m_mutex);
++		std::lock_guard state(g_memory_state_mutex);
 +		return m_backing->PromoteChunk(chunk, fd, remapped);
 +	}
 +
@@ -1028,4 +1078,4 @@ Also, seen once Teardown ran long enough:
 +
  	// Tracker protections only read m_mapped; the page tracker orders them per page.
  	bool ProtectTransient(uint64_t vaddr, uint64_t size, VirtualMemory::Mode mode) {
- 		std::shared_lock lock(m_mutex);
+ 		std::shared_lock state(g_memory_state_mutex);
