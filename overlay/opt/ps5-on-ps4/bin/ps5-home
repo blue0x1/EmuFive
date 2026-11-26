@@ -6352,7 +6352,11 @@ class Home:
             x += width + 30
         right = ui.W - 56
         clock = clock_text(s["clock_24h"], s["clock_seconds"])
-        clock_w = c.text(clock, 21, right, 30, ART_TEXT, True, "topright", shadow=True)
+        clock_w = c.text(clock, 21, right, 30 if not s["clock_date"] else 21, ART_TEXT, True, "topright",
+                         shadow=True)
+        if s["clock_date"]:
+            date = time.strftime("%a %d %b")
+            clock_w = max(clock_w, c.text(date, 13, right, 49, ART_SOFT, False, "topright", shadow=True))
         focus_home = not self.modals
         spots = [("profile", right - clock_w - 40), ("settings", right - clock_w - 92),
                  ("search", right - clock_w - 144)]
