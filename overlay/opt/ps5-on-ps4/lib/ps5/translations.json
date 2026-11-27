@@ -6110,15 +6110,6 @@
 "it": "Creato da {a}.",
 "pt": "Criado por {a}."
 },
-"Cheats are used the next time the game starts. If the game stops working, turn its cheats off.": {
-"ar": "يُستخدم الغش عند تشغيل اللعبة في المرة القادمة. إذا توقفت اللعبة عن العمل، أوقف الغش فيها.",
-"fr": "Les triches servent au prochain lancement du jeu. Si le jeu ne marche plus, désactivez ses triches.",
-"tr": "Hileler oyun bir sonraki başladığında kullanılır. Oyun çalışmazsa hilelerini kapatın.",
-"es": "Los trucos se usan la próxima vez que se inicie el juego. Si el juego deja de funcionar, desactiva sus trucos.",
-"de": "Cheats werden beim nächsten Start des Spiels verwendet. Wenn das Spiel nicht mehr läuft, schalte seine Cheats aus.",
-"it": "I trucchi valgono dal prossimo avvio del gioco. Se il gioco smette di funzionare, disattiva i suoi trucchi.",
-"pt": "As trapaças são usadas na próxima vez que o jogo iniciar. Se o jogo parar de funcionar, desative as trapaças dele."
-},
 "The cheat manager is off in Settings > Games, so no cheats are used.": {
 "ar": "مدير الغش متوقف في الإعدادات > الألعاب، لذا لا يُستخدم أي غش.",
 "fr": "Le gestionnaire de triches est désactivé dans Paramètres > Jeux : aucune triche n'est utilisée.",
@@ -7567,5 +7558,50 @@
 "de": "Menü",
 "it": "Menu",
 "pt": "Menu"
+},
+"Cheats are used the next time the game starts, and can be turned on and off during the game (PS button). If the game stops working, turn its cheats off.": {
+"ar": "تُستخدم الغشات عند تشغيل اللعبة في المرة القادمة، ويمكن تشغيلها وإيقافها أثناء اللعب (زر PS). إذا توقفت اللعبة عن العمل، أوقف غشاتها.",
+"fr": "Les triches s'appliquent au prochain lancement du jeu, et peuvent être activées ou désactivées en jeu (bouton PS). Si le jeu ne fonctionne plus, désactivez ses triches.",
+"tr": "Hileler oyun bir sonraki açılışta kullanılır ve oyun sırasında açılıp kapatılabilir (PS düğmesi). Oyun çalışmazsa hilelerini kapatın.",
+"es": "Los trucos se usan la próxima vez que se inicie el juego, y se pueden activar y desactivar durante la partida (botón PS). Si el juego deja de funcionar, desactiva sus trucos.",
+"de": "Cheats wirken beim nächsten Spielstart und lassen sich während des Spiels ein- und ausschalten (PS-Taste). Funktioniert das Spiel nicht mehr, schalte seine Cheats aus.",
+"it": "I trucchi si usano al prossimo avvio del gioco e si possono attivare e disattivare durante la partita (tasto PS). Se il gioco smette di funzionare, disattiva i suoi trucchi.",
+"pt": "Os cheats são usados na próxima vez que o jogo iniciar e podem ser ligados e desligados durante o jogo (botão PS). Se o jogo parar de funcionar, desligue os cheats."
+},
+"The game is running: cheats turn on and off at once. If the game stops working, turn its cheats off.": {
+"ar": "اللعبة قيد التشغيل: تعمل الغشات وتتوقف فورًا. إذا توقفت اللعبة عن العمل، أوقف غشاتها.",
+"fr": "Le jeu est en cours : les triches s'activent et se désactivent aussitôt. Si le jeu ne fonctionne plus, désactivez ses triches.",
+"tr": "Oyun çalışıyor: hileler anında açılır ve kapanır. Oyun çalışmazsa hilelerini kapatın.",
+"es": "El juego está en marcha: los trucos se activan y desactivan al instante. Si el juego deja de funcionar, desactiva sus trucos.",
+"de": "Das Spiel läuft: Cheats wirken sofort. Funktioniert das Spiel nicht mehr, schalte seine Cheats aus.",
+"it": "Il gioco è in corso: i trucchi si attivano e disattivano subito. Se il gioco smette di funzionare, disattiva i suoi trucchi.",
+"pt": "O jogo está rodando: os cheats ligam e desligam na hora. Se o jogo parar de funcionar, desligue os cheats."
+},
+"Cheats changed.": {
+"ar": "تم تغيير الغشات.",
+"fr": "Triches modifiées.",
+"tr": "Hileler değiştirildi.",
+"es": "Trucos cambiados.",
+"de": "Cheats geändert.",
+"it": "Trucchi cambiati.",
+"pt": "Cheats alterados."
+},
+"The cheats were not found in the game's memory (another version of it?).": {
+"ar": "لم يُعثر على الغشات في ذاكرة اللعبة (إصدار آخر منها؟).",
+"fr": "Les triches sont introuvables dans la mémoire du jeu (une autre version ?).",
+"tr": "Hileler oyunun belleğinde bulunamadı (başka bir sürümü mü?).",
+"es": "No se encontraron los trucos en la memoria del juego (¿otra versión?).",
+"de": "Die Cheats wurden im Speicher des Spiels nicht gefunden (eine andere Version?).",
+"it": "Trucchi non trovati nella memoria del gioco (un'altra versione?).",
+"pt": "Os cheats não foram encontrados na memória do jogo (outra versão?)."
+},
+"The game's memory could not be changed.": {
+"ar": "تعذّر تغيير ذاكرة اللعبة.",
+"fr": "La mémoire du jeu n'a pas pu être modifiée.",
+"tr": "Oyunun belleği değiştirilemedi.",
+"es": "No se pudo cambiar la memoria del juego.",
+"de": "Der Speicher des Spiels konnte nicht geändert werden.",
+"it": "Impossibile modificare la memoria del gioco.",
+"pt": "Não foi possível alterar a memória do jogo."
 }
 }

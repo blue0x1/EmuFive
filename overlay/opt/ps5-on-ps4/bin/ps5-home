@@ -3560,9 +3560,24 @@ class CheatGame(RowList):
 
         threading.Thread(target=work, daemon=True).start()
 
-    def save(self):
+    def save(self, live=True):
         g = self.game
         cheats.set_choice(g.title_id, g.version, self.file if self.on else None, sorted(self.on))
+        pid = cheats.running_pid(g.path) if live and self.home.settings["cheats"] else None
+        if pid is None:
+            return
+        # The game is running (paused under this menu): change its cheats now.
+        h, file, on = self.home, self.file, set(self.on)
+
+        def work():
+            ok, message = cheats.apply_live(pid, file, on)
+            if message:
+                h.toast(i18n.translate(message))
+
+        threading.Thread(target=work, daemon=True).start()
+
+    def live(self):
+        return cheats.running_pid(self.game.path) is not None
 
     def flip(self, name):
         self.on.symmetric_difference_update({name})
@@ -3577,8 +3592,11 @@ class CheatGame(RowList):
 
         def picked(name):
             if name and name != self.file:
-                self.file, self.on = name, set()
-                self.save()
+                if self.on:
+                    self.on = set()
+                    self.save()           # The old file's cheats off in a running game.
+                self.file = name
+                self.save(live=False)
                 self.load_file()
 
         items = [(f"{f['format']}  ·  {f['file'].rsplit('_', 1)[-1].split('.')[0]}", f["file"]) for f in self.files]
@@ -3622,8 +3640,13 @@ class CheatGame(RowList):
         made = cheats.credits(self.plan)
         if made:
             rows.append(Row("info", f"Made by {made}."))
-        rows.append(Row("info", "Cheats are used the next time the game starts. If the game stops working, "
-                                "turn its cheats off."))
+        if self.live():
+            rows.append(Row("info", "The game is running: cheats turn on and off at once. If the game "
+                                    "stops working, turn its cheats off."))
+        else:
+            rows.append(Row("info", "Cheats are used the next time the game starts, and can be turned on "
+                                    "and off during the game (PS button). If the game stops working, "
+                                    "turn its cheats off."))
         if not h.settings["cheats"]:
             rows.append(Row("info", "The cheat manager is off in Settings > Games, so no cheats are used."))
         return rows
@@ -3672,6 +3695,8 @@ class QuickMenu(RowList):
         if self.in_game:
             rows.append(Row("action", "Resume the game", ok=lambda: h.finish("RESUME")))
             rows.append(Row("action", "Home", ok=lambda: h.finish("HOME")))
+            if h.game_cheats_page() is not None:
+                rows.append(Row("action", "Cheats", ok=lambda: h.push(h.game_cheats_page()())))
             rows.append(Row("action", "Close the game", ok=lambda: h.push(Dialog(
                 h, f"Close {self.title or 'the game'}? What the game has not saved is lost.",
                 [("Close", lambda: h.finish("CLOSE")), ("Cancel", None)]))))
@@ -3808,11 +3833,14 @@ class ControlCenter(Modal):
     def cards(self):
         h = self.home
         if self.in_game:
-            return [("Resume the game", "play", lambda: h.finish("RESUME")),
-                    ("Home", "home", lambda: h.finish("HOME")),
-                    ("Close the game", "close", lambda: h.push(Dialog(
-                        h, f"Close {self.title or 'the game'}? What the game has not saved is lost.",
-                        [("Close", lambda: h.finish("CLOSE")), ("Cancel", None)])))]
+            cards = [("Resume the game", "play", lambda: h.finish("RESUME")),
+                     ("Home", "home", lambda: h.finish("HOME")),
+                     ("Close the game", "close", lambda: h.push(Dialog(
+                         h, f"Close {self.title or 'the game'}? What the game has not saved is lost.",
+                         [("Close", lambda: h.finish("CLOSE")), ("Cancel", None)])))]
+            if h.game_cheats_page() is not None:
+                cards.insert(2, ("Cheats", "wand", lambda: h.push(h.game_cheats_page()())))
+            return cards
         cards = [("Profile", "Profile", lambda: (self.close(), h.push(ProfileView(h)))),
                  ("Settings", "gear", lambda: (self.close(), h.push(SettingsScreen(h))))]
         if len(h.profiles.all()) > 1:
@@ -3908,6 +3936,8 @@ class ControlCenter(Modal):
                 c.line(fg, ix - 9, iy + 9, ix + 9, iy - 9, 3)
             elif icon == "gear":
                 ui.draw_gear(c, ix, iy, fg)
+            elif icon == "wand":
+                ui.draw_wand(c, ix, iy, 22, fg, 3)
             else:
                 category_icon(c, icon, ix, iy, fg, 13)
             c.text(c.t.fit(label, 18, cw - 90, True), 18, cx + 74, iy, fg, True, "midleft")
@@ -5732,6 +5762,16 @@ class Home:
 
     def push(self, modal):
         self.modals.append(modal)
+
+    def game_cheats_page(self):
+        """The cheats page of the paused game (to turn cheats on and off in it), or None when the
+        cheat manager is off or the game has no cheats."""
+        game = self.quick_game if self.quick else None
+        if game is None or not self.settings["cheats"] or not game.title_id or not game.version:
+            return None
+        if "game_has_cheats" not in self.__dict__:
+            self.game_has_cheats = bool(cheats.entries(cheats.read_index(), game.title_id, game.version))
+        return (lambda: CheatGame(self, game)) if self.game_has_cheats else None
 
     def toast(self, text, seconds=4.0, keep=True):
         """keep: also listed in Notifications (the quick menu)."""

@@ -12,7 +12,12 @@ cheat's original bytes ("off") and writes the cheat's bytes ("on") before the ga
     ~/.config/ps5-on-ps4/cheats/files/NAME.json each file, downloaded when its game is opened
     ~/.config/ps5-on-ps4/cheats/selection.json  the cheats turned on, per title ID and version
 
-ps5-launch writes the chosen cheats of the game that starts to $XDG_RUNTIME_DIR/ps5-cheats.json."""
+ps5-launch writes the chosen cheats of the game that starts to $XDG_RUNTIME_DIR/ps5-cheats.json.
+
+During a game (paused by the PS button) cheats are turned on and off at once: the home screen
+writes each cheat's bytes into the game's memory (/proc/PID/mem of KytyPS5, the same user). For that
+the launch file also has the other cheats' code caves, as zeros, so KytyPS5 sets their memory aside
+(when at least one cheat is on at the start; otherwise cheats with code caves need a restart)."""
 
 import base64
 import json
@@ -24,7 +29,7 @@ import time
 import urllib.request
 import xml.etree.ElementTree as ET
 
-from . import store
+from . import store, system
 
 REPO = "https://raw.githubusercontent.com/TeeKay87/HEN-Cheats-Collection/master/cheats/"
 SOURCE = "HEN Cheats Collection (TeeKay87)"
@@ -270,6 +275,155 @@ def launch_plan(title_id, version, path):
     mods = [dict(m, enabled=True) for m in plan["mods"] if str(m.get("name", "")).strip() in names]
     if not mods:
         return []
-    out = dict(plan, mods=mods)
+    reserve = _reserve(plan, names)
+    out = dict(plan, mods=mods + ([reserve] if reserve else []))
     _write(path, json.dumps(out) + "\n")
     return [m["name"] for m in mods]
+
+
+def _reserve(plan, names):
+    """A cheat that changes nothing: the code caves of the cheats not turned on (their writes over
+    zeros), written with zeros. KytyPS5 then sets their memory aside, so those cheats can be turned
+    on during the game. None when there are none."""
+    def span(w):
+        start = int(str(w["offset"]), 16)
+        return start, start + len(str(w["off"])) // 2
+
+    used = [span(w) for m in plan["mods"] if str(m.get("name", "")).strip() in names for w in m.get("memory", [])]
+    memory = [dict(w, on=w["off"]) for m in plan["mods"] if str(m.get("name", "")).strip() not in names
+              for w in m.get("memory", []) if not any(bytes.fromhex(str(w.get("off", ""))))
+              and not any(a < span(w)[1] and span(w)[0] < b for a, b in used)]   # Not over a cheat that is on.
+    return {"name": "EmuFive: cheats during the game", "memory": memory, "enabled": True} if memory else None
+
+
+# During the game -------------------------------------------------------------------------------
+
+GAME_STATE = os.path.join(system.RUNTIME, "ps5-game.json")
+LIVE_FILE = os.path.join(system.RUNTIME, "ps5-cheats-live.json")
+
+
+def running_pid(game_path):
+    """KytyPS5's process while it runs `game_path`, else None."""
+    try:
+        with open(GAME_STATE) as f:
+            state = json.load(f)
+        pid = int(state["pid"])
+        with open(f"/proc/{pid}/cmdline", "rb") as f:
+            if b"kyty_emulator" not in f.read():
+                return None
+        return pid if os.path.realpath(state["path"]) == os.path.realpath(game_path) else None
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+
+
+def _writes(plan):
+    """[(cheat name, offset, off bytes, on bytes)] of every write in the file."""
+    found = []
+    for mod in plan["mods"]:
+        for w in mod.get("memory", []):
+            found.append((str(mod.get("name", "")).strip(), int(str(w["offset"]), 16),
+                          bytes.fromhex(str(w["off"])), bytes.fromhex(str(w["on"]))))
+    return found
+
+
+def _regions(pid):
+    """The game's code: the executable memory of KytyPS5 that is not a file on disk (anonymous or
+    shared memory)."""
+    with open(f"/proc/{pid}/maps") as f:
+        for line in f:
+            parts = line.split(maxsplit=5)
+            if len(parts) < 2 or "x" not in parts[1]:
+                continue
+            name = parts[5].strip() if len(parts) > 5 else ""
+            if name.startswith("[") or (name.startswith("/") and not name.endswith("(deleted)")):
+                continue
+            start, end = (int(v, 16) for v in parts[0].split("-"))
+            yield start, end
+
+
+def _read(mem, address, size):
+    try:
+        mem.seek(address)
+        return mem.read(size)
+    except (OSError, ValueError, OverflowError):
+        return None
+
+
+def _fits(mem, writes, anchor_offset, anchor_address):
+    """True when every write with original bytes finds them (or the cheat's) where it should be."""
+    for _, offset, off, on in writes:
+        if not any(off):
+            continue
+        now = _read(mem, anchor_address + offset - anchor_offset, len(off))
+        if now not in (off, on):
+            return False
+    return True
+
+
+def _locate(pid, mem, plan, writes):
+    """The address of the first write with original bytes, found as KytyPS5 does at the start
+    (kept in LIVE_FILE for this game run)."""
+    file_key = f"{plan.get('id')}_{plan.get('version')}_{len(writes)}"
+    known = store.read_json(LIVE_FILE)
+    anchor = next(w for w in writes if any(w[2]))
+    if known.get("pid") == pid and known.get("file") == file_key:
+        address = int(known.get("address", 0))
+        if _fits(mem, writes, anchor[1], address):
+            return address
+    chunk, overlap = 32 * 1024 * 1024, len(anchor[2])
+    for start, end in _regions(pid):
+        for base in range(start, end, chunk):
+            data = _read(mem, base, min(chunk + overlap, end - base))
+            if not data:
+                continue
+            for pattern in {anchor[2], anchor[3]}:
+                at = data.find(pattern)
+                while at >= 0:
+                    if _fits(mem, writes, anchor[1], base + at):
+                        _write(LIVE_FILE, json.dumps({"pid": pid, "file": file_key, "address": base + at}) + "\n")
+                        return base + at
+                    at = data.find(pattern, at + 1)
+    return None
+
+
+def apply_live(pid, file, names):
+    """Turns the cheats of `file` on (those in `names`) and off (the others) in the running
+    (paused) game. Returns (ok, message)."""
+    if not file:
+        return True, ""
+    plan, error = load(file)
+    if plan is None:
+        return False, error
+    if problem(plan):
+        return False, problem(plan)
+    names = set(names)
+    writes = _writes(plan)
+    try:
+        with open(f"/proc/{pid}/mem", "r+b", buffering=0) as mem:
+            address = _locate(pid, mem, plan, writes)
+            if address is None:
+                return False, "The cheats were not found in the game's memory (another version of it?)."
+            anchor = next(w for w in writes if any(w[2]))
+            missing = []
+            # Code caves first (zeros outside the game until a cheat uses them), then the jumps into them.
+            for cave in (True, False):
+                for name, offset, off, on in writes:
+                    if (not any(off)) != cave:
+                        continue
+                    at = address + offset - anchor[1]
+                    want = on if name in names else off
+                    if cave and name not in names:
+                        continue        # A cave that is not used is left as it is.
+                    if _read(mem, at, len(want)) is None:
+                        missing.append(name)
+                        continue
+                    mem.seek(at)
+                    mem.write(want)
+    except PermissionError:
+        return False, "The game's memory could not be changed."
+    except OSError as error:
+        return False, f"The cheats could not be changed: {error}"
+    if missing:
+        names_text = ", ".join(sorted(set(missing)))
+        return False, f"Restart the game to use: {names_text}."
+    return True, "Cheats changed."
