@@ -175,15 +175,13 @@ Tested a game? Open an [issue](https://github.com/blue0x1/EmuFive/issues) with t
 
 ## Changelog
 
-### 1.0.16 (2026-11-26)
+### 1.0.17 (2026-11-27)
 
-- A new home screen look, now the default: the game tiles at the top and the chosen game's art below, in your Appearance accent color. The old layout stays as Aurora (legacy) in Settings, Appearance.
-- A profile page (select your picture at the top) with your trophy level, notifications, games and trophies; a Control Center on the PS button; a Game Library with tabs for All games, PS4 drive, USB drive and PC; a page for cheats.
-- YouTube in Media, with its TV interface for the controller.
-- Saves can be backed up to the USB drive by themselves when a game closes (Settings, Saves), and backups now include KytyPS5's saves and trophies of all profiles.
-- Compiled shaders can be exported to and imported from a USB drive, so games load faster the first time on another PS4 of the same model. Your own covers can be imported from a `PS5-covers` folder.
-- KytyPS5 moves to upstream 93cce66: PS5 mesh draws run as compute on the PS4, smoother interpolation, and a fix for games that waited for good on the GPU (Invincible VS "GameThread timed out"). New per-game setting Garlic GPU memory, off by default.
-- Shaders Mesa cannot build are saved, and Copy logs to USB includes them (#76).
+- The Light and Midnight themes now work in the new home screen layout and all its pages, and the on-screen keyboard follows the theme too.
+- Share opens at once (it took over ten seconds) and its text is readable in every theme.
+- Animated avatars: animated emoji, or your own photos and GIFs from a USB drive or the PC's shared folder (My pictures; GIFs move). Settings, Appearance can stop the movement.
+- The Internet browser has the new look, in your theme and accent color.
+- Cartoon and photo avatars that fail to load are replaced by new ones.
 
 To update from 1.0.3 or earlier, start the update once by hand, since the old Software update cannot: turn on SSH in Settings, connect with `ssh ps5@<PS4 address>` (password `ps5` unless you changed it) and run
 
@@ -191,7 +189,7 @@ To update from 1.0.3 or earlier, start the update once by hand, since the old So
 sudo systemd-run --unit=emufive-update --collect /opt/ps5-on-ps4/bin/ps5-update install
 ```
 
-It installs every update you are missing (from 1.0.0 or 1.0.1 that includes 1.0.2's browser packages, about 110 MB), then restart from the home screen. From 1.0.4 on, Software update in Settings works. New installs use the `ps5-ps4-rootfs.tar.xz` of the 1.0.16 release.
+It installs every update you are missing (from 1.0.0 or 1.0.1 that includes 1.0.2's browser packages, about 110 MB), then restart from the home screen. From 1.0.4 on, Software update in Settings works. New installs use the `ps5-ps4-rootfs.tar.xz` of the 1.0.17 release.
 
 ## Project layout
 

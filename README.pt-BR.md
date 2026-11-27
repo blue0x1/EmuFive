@@ -185,15 +185,13 @@ Testou um jogo? Abra uma [issue](https://github.com/blue0x1/EmuFive/issues) com 
 <a id="changelog"></a>
 ## Registro de alterações
 
-### 1.0.16 (2026-11-26)
+### 1.0.17 (2026-11-27)
 
-- Um novo visual para a tela inicial, agora o padrão: os blocos dos jogos em cima e a arte do jogo escolhido embaixo, na sua cor de destaque de Aparência. O layout antigo continua como Aurora (legado) em Configurações, Aparência.
-- Uma página de perfil (escolha sua foto no topo) com nível de troféus, notificações, jogos e troféus; uma Central de controle no botão PS; uma Biblioteca de jogos com abas Todos os jogos, Disco do PS4, Unidade USB e PC; uma página de trapaças.
-- YouTube em Mídia, com a interface de TV para o controle.
-- Os jogos salvos podem ser copiados sozinhos para a unidade USB quando um jogo fecha (Configurações, Jogos salvos), e os backups agora incluem os salvamentos e troféus do KytyPS5 de todos os perfis.
-- Shaders compilados podem ser exportados para uma unidade USB e importados dela, para os jogos carregarem mais rápido já na primeira vez em outro PS4 do mesmo modelo. Suas próprias capas podem ser importadas de uma pasta `PS5-covers`.
-- O KytyPS5 passa para o upstream 93cce66: desenhos mesh do PS5 rodam como compute no PS4, interpolação mais suave e uma correção para jogos que esperavam a GPU para sempre (Invincible VS "GameThread timed out"). Nova configuração por jogo: Memória de GPU Garlic, desligada por padrão.
-- Shaders que o Mesa não consegue compilar são guardados, e Copiar logs para USB os inclui (#76).
+- Os temas Claro e Meia-noite agora funcionam no novo layout da tela inicial e em todas as suas páginas, e o teclado na tela também segue o tema.
+- Compartilhar abre na hora (levava mais de dez segundos) e o texto fica legível em todos os temas.
+- Avatares animados: emojis animados, ou suas próprias fotos e GIFs de um pendrive ou da pasta compartilhada do PC (Minhas imagens; GIFs se movem). Configurações, Aparência pode parar o movimento.
+- O navegador de Internet tem o novo visual, no seu tema e cor de destaque.
+- Avatares de desenho e foto que não carregam são trocados por novos.
 
 Para atualizar a partir da 1.0.3 ou anterior, inicie a atualização uma vez à mão, pois a atualização de software antiga não consegue: ative o SSH nas Configurações, conecte com `ssh ps5@<endereço do PS4>` (senha `ps5`, se não a mudou) e execute
 
@@ -201,7 +199,7 @@ Para atualizar a partir da 1.0.3 ou anterior, inicie a atualização uma vez à 
 sudo systemd-run --unit=emufive-update --collect /opt/ps5-on-ps4/bin/ps5-update install
 ```
 
-Ela instala todas as atualizações que faltam (a partir da 1.0.0 ou 1.0.1 isso inclui os pacotes do navegador da 1.0.2, cerca de 110 MB); depois reinicie pela tela inicial. A partir da 1.0.4, a atualização de software nas Configurações funciona. Instalações novas usam o `ps5-ps4-rootfs.tar.xz` da versão 1.0.16.
+Ela instala todas as atualizações que faltam (a partir da 1.0.0 ou 1.0.1 isso inclui os pacotes do navegador da 1.0.2, cerca de 110 MB); depois reinicie pela tela inicial. A partir da 1.0.4, a atualização de software nas Configurações funciona. Instalações novas usam o `ps5-ps4-rootfs.tar.xz` da versão 1.0.17.
 
 ## Estrutura do projeto
 

@@ -185,15 +185,13 @@ Vous avez testé un jeu ? Ouvrez une [issue](https://github.com/blue0x1/EmuFive/
 <a id="changelog"></a>
 ## Journal des modifications
 
-### 1.0.16 (2026-11-26)
+### 1.0.17 (2026-11-27)
 
-- Un nouveau look pour l'écran d'accueil, désormais par défaut : les tuiles des jeux en haut et l'image du jeu choisi en dessous, dans votre couleur d'accent d'Apparence. L'ancienne disposition reste sous le nom Aurora (ancien) dans Paramètres, Apparence.
-- Une page de profil (choisissez votre image en haut) avec votre niveau de trophées, vos notifications, jeux et trophées ; un Centre de contrôle sur la touche PS ; une Bibliothèque de jeux avec des onglets Tous les jeux, Disque de la PS4, Clé USB et PC ; une page pour les codes de triche.
-- YouTube dans Médias, avec son interface TV pour la manette.
-- Les sauvegardes peuvent être copiées d'elles-mêmes sur la clé USB à la fermeture d'un jeu (Paramètres, Sauvegardes), et elles incluent maintenant les sauvegardes et trophées de KytyPS5 de tous les profils.
-- Les shaders compilés peuvent être exportés vers une clé USB et importés depuis elle, pour que les jeux se chargent plus vite dès la première fois sur une autre PS4 du même modèle. Vos propres jaquettes peuvent être importées depuis un dossier `PS5-covers`.
-- KytyPS5 passe à upstream 93cce66 : les dessins mesh de la PS5 tournent en compute sur la PS4, interpolation plus douce et correction des jeux qui attendaient le GPU indéfiniment (Invincible VS « GameThread timed out »). Nouveau réglage par jeu : Mémoire GPU Garlic, désactivé par défaut.
-- Les shaders que Mesa ne peut pas compiler sont gardés, et Copier les journaux sur USB les inclut (#76).
+- Les thèmes Clair et Minuit fonctionnent désormais dans la nouvelle disposition de l'écran d'accueil et toutes ses pages, et le clavier à l'écran suit aussi le thème.
+- Le partage s'ouvre tout de suite (il prenait plus de dix secondes) et son texte est lisible dans tous les thèmes.
+- Avatars animés : des emoji animés, ou vos propres photos et GIF depuis une clé USB ou le dossier partagé du PC (Mes images ; les GIF bougent). Paramètres, Apparence peut arrêter le mouvement.
+- Le navigateur Internet a le nouveau look, dans votre thème et votre couleur d'accent.
+- Les avatars dessins et photos qui ne se chargent pas sont remplacés par de nouveaux.
 
 Pour mettre à jour depuis la 1.0.3 ou avant, lancez la mise à jour une fois à la main, car l'ancienne mise à jour du logiciel n'y arrive pas : activez SSH dans les Paramètres, connectez-vous avec `ssh ps5@<adresse de la PS4>` (mot de passe `ps5` si vous ne l'avez pas changé) et lancez
 
@@ -201,7 +199,7 @@ Pour mettre à jour depuis la 1.0.3 ou avant, lancez la mise à jour une fois à
 sudo systemd-run --unit=emufive-update --collect /opt/ps5-on-ps4/bin/ps5-update install
 ```
 
-Elle installe toutes les mises à jour manquantes (depuis la 1.0.0 ou la 1.0.1, cela inclut les paquets du navigateur de la 1.0.2, environ 110 Mo), puis redémarrez depuis l'écran d'accueil. À partir de la 1.0.4, la mise à jour du logiciel dans les Paramètres fonctionne. Les nouvelles installations utilisent le `ps5-ps4-rootfs.tar.xz` de la version 1.0.16.
+Elle installe toutes les mises à jour manquantes (depuis la 1.0.0 ou la 1.0.1, cela inclut les paquets du navigateur de la 1.0.2, environ 110 Mo), puis redémarrez depuis l'écran d'accueil. À partir de la 1.0.4, la mise à jour du logiciel dans les Paramètres fonctionne. Les nouvelles installations utilisent le `ps5-ps4-rootfs.tar.xz` de la version 1.0.17.
 
 ## Organisation du projet
 

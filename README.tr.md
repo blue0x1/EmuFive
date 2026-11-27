@@ -185,15 +185,13 @@ Bir oyun mu denediniz? Oyunu, oyun kimliğini, konsol modelinizi, EmuFive sürü
 <a id="changelog"></a>
 ## Değişiklik günlüğü
 
-### 1.0.16 (2026-11-26)
+### 1.0.17 (2026-11-27)
 
-- Ana ekran için yeni bir görünüm, artık varsayılan: oyun kutucukları üstte, seçilen oyunun görseli altta, Görünüm'deki vurgu renginizle. Eski düzen Ayarlar, Görünüm'de Aurora (eski) olarak kalıyor.
-- Bir profil sayfası (üstte resminizi seçin): kupa seviyesi, bildirimler, oyunlar ve kupalar; PS düğmesinde bir Kontrol Merkezi; Tüm oyunlar, PS4 sürücüsü, USB sürücü ve PC sekmeli bir Oyun Kitaplığı; hileler için bir sayfa.
-- Medya'da YouTube, kumanda için TV arayüzüyle.
-- Kayıtlar, bir oyun kapandığında kendiliğinden USB sürücüye yedeklenebilir (Ayarlar, Kayıtlar) ve yedekler artık tüm profillerin KytyPS5 kayıtlarını ve kupalarını da içeriyor.
-- Derlenmiş gölgelendiriciler bir USB sürücüye aktarılabilir ve oradan alınabilir; böylece oyunlar aynı modeldeki başka bir PS4'te ilk seferde daha hızlı yüklenir. Kendi kapaklarınız bir `PS5-covers` klasöründen alınabilir.
-- KytyPS5, upstream 93cce66'ya geçiyor: PS5 mesh çizimleri PS4'te compute olarak çalışıyor, daha yumuşak enterpolasyon ve GPU'yu sonsuza dek bekleyen oyunlar için bir düzeltme (Invincible VS "GameThread timed out"). Oyun başına yeni ayar: Garlic GPU belleği, varsayılan olarak kapalı.
-- Mesa'nın derleyemediği gölgelendiriciler saklanıyor ve Günlükleri USB'ye kopyala bunları da içeriyor (#76).
+- Açık ve Gece yarısı temaları artık yeni ana ekran düzeninde ve tüm sayfalarında çalışıyor; ekran klavyesi de temayı izliyor.
+- Paylaş hemen açılıyor (on saniyeden uzun sürüyordu) ve metni her temada okunabiliyor.
+- Hareketli avatarlar: hareketli emojiler ya da bir USB bellekten veya PC'nin paylaşılan klasöründen kendi fotoğraflarınız ve GIF'leriniz (Resimlerim; GIF'ler hareket eder). Ayarlar, Görünüm hareketi durdurabilir.
+- İnternet tarayıcısı, temanızda ve vurgu renginizde yeni görünüme sahip.
+- Yüklenmeyen çizgi film ve fotoğraf avatarları yenileriyle değiştirilir.
 
 1.0.3 veya önceki bir sürümden güncellemek için, eski yazılım güncellemesi bunu yapamadığından güncellemeyi bir kez elle başlatın: Ayarlar'da SSH'yi açın, `ssh ps5@<PS4 adresi>` ile bağlanın (değiştirmediyseniz parola `ps5`) ve çalıştırın:
 
@@ -201,7 +199,7 @@ Bir oyun mu denediniz? Oyunu, oyun kimliğini, konsol modelinizi, EmuFive sürü
 sudo systemd-run --unit=emufive-update --collect /opt/ps5-on-ps4/bin/ps5-update install
 ```
 
-Eksik tüm güncellemeleri kurar (1.0.0 veya 1.0.1'den buna 1.0.2'nin yaklaşık 110 MB'lık tarayıcı paketleri dahildir); ardından ana ekrandan yeniden başlatın. 1.0.4'ten itibaren Ayarlar'daki yazılım güncellemesi çalışır. Yeni kurulumlar 1.0.16 sürümündeki `ps5-ps4-rootfs.tar.xz` dosyasını kullanır.
+Eksik tüm güncellemeleri kurar (1.0.0 veya 1.0.1'den buna 1.0.2'nin yaklaşık 110 MB'lık tarayıcı paketleri dahildir); ardından ana ekrandan yeniden başlatın. 1.0.4'ten itibaren Ayarlar'daki yazılım güncellemesi çalışır. Yeni kurulumlar 1.0.17 sürümündeki `ps5-ps4-rootfs.tar.xz` dosyasını kullanır.
 
 ## Proje yapısı
 

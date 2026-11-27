@@ -185,15 +185,13 @@ Ein Spiel getestet? Eröffne ein [Issue](https://github.com/blue0x1/EmuFive/issu
 <a id="changelog"></a>
 ## Änderungsprotokoll
 
-### 1.0.16 (2026-11-26)
+### 1.0.17 (2026-11-27)
 
-- Ein neuer Look für den Startbildschirm, jetzt Standard: Spielkacheln oben und das Bild des gewählten Spiels darunter, in deiner Akzentfarbe aus Erscheinungsbild. Das alte Layout bleibt als Aurora (alt) in Einstellungen, Erscheinungsbild.
-- Eine Profilseite (dein Bild oben auswählen) mit Trophäen-Stufe, Benachrichtigungen, Spielen und Trophäen; ein Kontrollzentrum auf der PS-Taste; eine Spielebibliothek mit Tabs für Alle Spiele, PS4-Laufwerk, USB-Laufwerk und PC; eine Seite für Cheats.
-- YouTube unter Medien, mit seiner TV-Oberfläche für den Controller.
-- Spielstände können beim Schließen eines Spiels automatisch auf das USB-Laufwerk gesichert werden (Einstellungen, Spielstände), und Sicherungen enthalten jetzt die Spielstände und Trophäen von KytyPS5 aller Profile.
-- Kompilierte Shader lassen sich auf ein USB-Laufwerk exportieren und von dort importieren, damit Spiele auf einer anderen PS4 desselben Modells schon beim ersten Mal schneller laden. Eigene Cover lassen sich aus einem Ordner `PS5-covers` importieren.
-- KytyPS5 wechselt auf Upstream 93cce66: PS5-Mesh-Draws laufen auf der PS4 als Compute, weichere Interpolation und ein Fix für Spiele, die endlos auf die GPU warteten (Invincible VS „GameThread timed out“). Neue Einstellung pro Spiel: Garlic-GPU-Speicher, standardmäßig aus.
-- Shader, die Mesa nicht bauen kann, werden gespeichert, und Logs auf USB kopieren nimmt sie mit (#76).
+- Die Designs Hell und Mitternacht funktionieren jetzt im neuen Startbildschirm und all seinen Seiten, und auch die Bildschirmtastatur folgt dem Design.
+- Teilen öffnet sich sofort (es dauerte über zehn Sekunden) und sein Text ist in jedem Design lesbar.
+- Animierte Avatare: animierte Emojis oder deine eigenen Fotos und GIFs von einem USB-Stick oder dem freigegebenen Ordner des PCs (Meine Bilder; GIFs bewegen sich). Einstellungen, Aussehen kann die Bewegung abschalten.
+- Der Internet-Browser hat das neue Aussehen, in deinem Design und deiner Akzentfarbe.
+- Cartoon- und Foto-Avatare, die nicht laden, werden durch neue ersetzt.
 
 Um von 1.0.3 oder älter zu aktualisieren, starte das Update einmal von Hand, da die alte Softwareaktualisierung es nicht kann: SSH in den Einstellungen einschalten, mit `ssh ps5@<Adresse der PS4>` verbinden (Passwort `ps5`, falls nicht geändert) und ausführen:
 
@@ -201,7 +199,7 @@ Um von 1.0.3 oder älter zu aktualisieren, starte das Update einmal von Hand, da
 sudo systemd-run --unit=emufive-update --collect /opt/ps5-on-ps4/bin/ps5-update install
 ```
 
-Es installiert alle fehlenden Updates (von 1.0.0 oder 1.0.1 aus gehören die Browser-Pakete von 1.0.2 dazu, etwa 110 MB); danach über den Startbildschirm neu starten. Ab 1.0.4 funktioniert die Softwareaktualisierung in den Einstellungen. Neuinstallationen verwenden die `ps5-ps4-rootfs.tar.xz` der Version 1.0.16.
+Es installiert alle fehlenden Updates (von 1.0.0 oder 1.0.1 aus gehören die Browser-Pakete von 1.0.2 dazu, etwa 110 MB); danach über den Startbildschirm neu starten. Ab 1.0.4 funktioniert die Softwareaktualisierung in den Einstellungen. Neuinstallationen verwenden die `ps5-ps4-rootfs.tar.xz` der Version 1.0.17.
 
 ## Projektaufbau
 
