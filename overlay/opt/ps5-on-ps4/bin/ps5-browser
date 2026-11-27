@@ -33,7 +33,7 @@ import time
 import urllib.parse
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "lib"))
-from ps5 import i18n, store, system  # noqa: E402
+from ps5 import i18n, store, system, ui  # noqa: E402
 
 # WebKitGTK 2.46+ draws page tiles with Skia on the GPU, which leaves checkered blocks on the PS4's
 # GPU (YouTube, the start page: #61). Drawn by the CPU, then put on screen by the GPU, they are
@@ -76,10 +76,27 @@ DEFAULT_STATE = {
                   {"title": "EmuFive on GitHub", "url": "https://github.com/blue0x1/EmuFive"}],
 }
 
-# Colors of the dark theme (ps5.ui).
-WHITE, SOFT, DIM, INK = (255, 255, 255), (206, 203, 246), (150, 148, 180), (20, 18, 46)
-BACKDROP, DIALOG, KEY, KEY_ON = (14, 12, 34), (30, 28, 64), (44, 41, 86), (90, 84, 170)
-ACCENT, GOOD, BAD, ROW_ON = (124, 110, 255), (46, 200, 130), (255, 170, 170), (60, 56, 120)
+# The home screen's "luxe" look, in its theme (Dark, Midnight, Light) and accent color (Appearance):
+# a near black (or near white) page, cards on it, thin lines and the focus in the accent.
+_LOOK = store.Settings()
+ui.apply_theme(_LOOK["theme"], _LOOK["accent"])
+LIGHT = _LOOK["theme"] == "light"
+WHITE, SOFT, DIM, ACCENT = ui.WHITE, ui.SOFT, ui.DIM, ui.ACCENT
+BACKDROP, DIALOG, PANEL = {
+    "light": ((236, 236, 242), (250, 250, 253), (246, 246, 250)),
+    "midnight": ((0, 0, 0), (10, 10, 14), (8, 8, 12)),
+}.get(_LOOK["theme"], ((9, 9, 12), (16, 16, 24), (14, 14, 20)))
+INK = ui.KB_INK                                  # Text on the accent.
+KEY, KEY2, FIELD = ui.KB_KEY, ui.KB_KEY2, ui.KB_FIELD
+KEY_ON = ui.mix(KEY, ACCENT, 0.35)               # A key that is on (Shift, Symbols).
+LINE = ui.mix(BACKDROP, ACCENT, 0.32)            # Thin lines and quiet edges.
+GOOD = (30, 150, 95) if LIGHT else (46, 200, 130)
+BAD = (200, 60, 60) if LIGHT else (255, 170, 170)
+ROW_ON = ACCENT + (34,)
+
+
+def css_rgb(c, alpha=None):
+    return f"rgba({c[0]},{c[1]},{c[2]},{alpha})" if alpha is not None else f"rgb({c[0]},{c[1]},{c[2]})"
 
 LEFT, RIGHT, UP, DOWN, OK, BACK, SQUARE, TRIANGLE, OPTIONS, GUIDE, PAGE_UP, PAGE_DOWN = range(12)
 
@@ -328,6 +345,26 @@ class Paint:
         PangoCairo.show_layout(self.cr, layout)
         return w / self.S
 
+    def card(self, x, y, w, h, r=22):
+        """A luxe card: a soft accent glow behind, the card and a thin accent edge."""
+        for grow, alpha in ((26, 0.05), (14, 0.08), (6, 0.1)):
+            self.rect(ACCENT, x - grow, y - grow, w + grow * 2, h + grow * 2, r + grow, alpha=alpha)
+        self.rect(DIALOG, x, y, w, h, r)
+        self.rect(LINE, x, y, w, h, r, 1)
+
+    def pill(self, label, x, y, w, h, on):
+        """A pill button: the accent filled when focused, else quiet with a thin accent edge."""
+        if on:
+            self.rect(ACCENT, x, y, w, h, h / 2)
+        else:
+            self.rect(BACKDROP, x, y, w, h, h / 2, alpha=0.7)
+            self.rect(LINE, x, y, w, h, h / 2, 1)
+        self.text(label, 17, x + w / 2, y + h / 2, INK if on else WHITE, True, "center")
+
+    def label(self, text, x, y, anchor="topleft"):
+        """A small label in capitals, in the accent."""
+        return self.text(T(text).upper(), 12, x, y, ACCENT, True, anchor)
+
     def button(self, kind, x, y, size=11):
         """The PlayStation button symbols, as the home screen draws them."""
         self.circle((60, 58, 92), x, y, size)
@@ -462,11 +499,11 @@ class KeyboardLayer(Layer):
         x = w / 2 - width / 2 + 40
         y = h - 470
         inner = width - 80
-        p.rect(DIALOG, x - 40, y - 34, width, 430, 20)
-        p.text(self.title, 17, x, y, WHITE, width=inner)
+        p.card(x - 40, y - 34, width, 430, 22)
+        p.text(self.title, 17, x, y, WHITE, True, width=inner)
         field_y = y + 30
-        p.rect(BACKDROP, x - 4, field_y, inner + 8, 52, 10)
-        p.rect(ACCENT, x - 4, field_y, inner + 8, 52, 10, 2)
+        p.rect(FIELD, x - 4, field_y, inner + 8, 52, 10)
+        p.rect(ACCENT, x - 4, field_y, inner + 8, 52, 10, 1)
         shown = self.text if self.show or not self.secret else "•" * max(0, len(self.text) - 1) + self.text[-1:]
         # The end of the text, with the caret, when it is longer than the field.
         layout = p.layout(shown or " ", 22)
@@ -490,7 +527,7 @@ class KeyboardLayer(Layer):
                 for col, ch in enumerate(row):
                     kx = x + col * (key_w + 6)
                     on = r == self.row and col == self.col
-                    p.rect(WHITE if on else KEY, kx, ky, key_w, 46, 8)
+                    p.rect(ACCENT if on else KEY, kx, ky, key_w, 46, 8)
                     p.text(ch, 20, kx + key_w / 2, ky + 23, INK if on else WHITE, on, "center")
                 ky += 52
             else:
@@ -505,8 +542,10 @@ class KeyboardLayer(Layer):
                     main = name == self.done_label
                     active = (name == "Shift" and self.mode == "upper") or \
                              (name == "#+=" and self.mode == "symbols") or (name == "Show" and self.show)
-                    color = WHITE if on else ACCENT if main else KEY_ON if active else KEY
+                    color = ACCENT if on else KEY if main else KEY_ON if active else KEY2
                     p.rect(color, kx, ky, widths[col], 46, 8)
+                    if main and not on:
+                        p.rect(ACCENT, kx, ky, widths[col], 46, 8, 1)
                     label = "Hide" if name == "Show" and self.show else \
                         "Caps lock" if name == "Shift" and self.caps else name
                     p.text(label, 15, kx + widths[col] / 2, ky + 23, INK if on else WHITE, main or on, "center")
@@ -520,6 +559,7 @@ class KeyboardLayer(Layer):
 class ListLayer(Layer):
     """A panel of rows. Each row: dict(label, value=None, ok=None, step=None, sub=None)."""
     title = ""
+    label = "Internet"
     width = 470
 
     def __init__(self, browser):
@@ -556,9 +596,14 @@ class ListLayer(Layer):
     def draw(self, p, w, h):
         rows = self.rows()
         x, width = w - self.width, self.width
-        p.rect(DIALOG, x, 0, width + 20, h, 0)
-        p.text(self.title, 24, x + 32, 40, WHITE, True, width=width - 64)
-        row_h, y0, bottom = 58, 96, h - 70
+        for grow, alpha in ((36, 0.025), (18, 0.04), (7, 0.06)):   # A soft accent light at its edge.
+            p.rect(ACCENT, x - grow, 0, grow, h, 0, alpha=alpha)
+        p.rect(PANEL, x, 0, width + 20, h, 0)
+        p.line(LINE, x, 0, x, h, 1)
+        p.label(self.label, x + 32, 30)
+        p.text(self.title, 26, x + 32, 48, WHITE, True, width=width - 64)
+        p.rect(ACCENT, x + 32, 86, 36, 3, 1)
+        row_h, y0, bottom = 58, 108, h - 70
         visible = max(1, int((bottom - y0) // row_h))
         if self.selected < self.top:
             self.top = self.selected
@@ -572,12 +617,13 @@ class ListLayer(Layer):
             on = n == self.selected
             if on:
                 p.rect(ROW_ON, x + 16, y, width - 32, row_h - 6, 12)
-                p.rect(ACCENT, x + 16, y, width - 32, row_h - 6, 12, 2)
+                p.rect(ACCENT, x + 16, y + 10, 3, row_h - 26, 1)
             value = row.get("value")
             value_w = 0
             if value:
                 value_w = p.text(("‹  " + value + "  ›") if row.get("step") else value, 15,
-                                 x + width - 34, y + (row_h - 6) / 2, SOFT, anchor="midright") + 16
+                                 x + width - 34, y + (row_h - 6) / 2, ACCENT if on else SOFT, on,
+                                 anchor="midright") + 16
             if row.get("sub"):
                 p.text(row["label"], 17, x + 34, y + 7, WHITE, on, width=width - 68 - value_w)
                 p.text(row["sub"], 13, x + 34, y + 30, DIM, width=width - 68 - value_w)
@@ -590,7 +636,7 @@ class ListLayer(Layer):
 
 
 class MenuLayer(ListLayer):
-    title = "Internet"
+    title = "Menu"
 
     def rows(self):
         b = self.b
@@ -629,6 +675,7 @@ class MenuLayer(ListLayer):
 
 class BookmarksLayer(ListLayer):
     title = "Bookmarks"
+    label = "Internet"
 
     def rows(self):
         rows = []
@@ -671,7 +718,7 @@ class Question(Layer):
     def draw(self, p, w, h):
         width = 560
         x, y = w / 2 - width / 2, h / 2 - 110
-        p.rect(DIALOG, x, y, width, 220, 20)
+        p.card(x, y, width, 220, 22)
         layout = p.layout(T(self.message), 18)
         layout.set_width(int((width - 64) * p.S * Pango.SCALE))
         layout.set_wrap(Pango.WrapMode.WORD_CHAR)
@@ -682,8 +729,7 @@ class Question(Layer):
         for i, (label, _) in enumerate(self.buttons):
             bw = max(140, p.width(T(label), 17, True) + 48)
             on = i == self.selected
-            p.rect(WHITE if on else KEY, bx, y + 150, bw, 44, 22)
-            p.text(label, 17, bx + bw / 2, y + 172, INK if on else WHITE, True, "center")
+            p.pill(label, bx, y + 150, bw, 44, on)
             bx += bw + 14
 
     def hints(self):
@@ -698,36 +744,54 @@ def host_of(url):
 
 
 def start_page(bookmarks, search_name):
-    """The start page: the bookmarks as tiles."""
+    """The start page, in the home screen's luxe look: a cover of soft light and thin waves in the
+    accent color, then the bookmarks as cards."""
     tiles = []
     for mark in bookmarks:
         title = mark.get("title") or host_of(mark["url"])
-        hue = sum(map(ord, title)) * 47 % 360
         tiles.append(f'<a class="tile" href="{html.escape(mark["url"], True)}">'
-                     f'<span class="dot" style="background:hsl({hue},55%,45%)">'
-                     f'{html.escape(title[:1].upper())}</span>'
+                     f'<span class="dot">{html.escape(title[:1].upper())}</span>'
                      f'<span class="name">{html.escape(title)}</span>'
                      f'<span class="host">{html.escape(host_of(mark["url"]))}</span></a>')
     empty = "" if tiles else f'<p class="none">{html.escape(T("No bookmarks yet."))}</p>'
     hint = T("Press Triangle to search with {a} or type an address. OPTIONS: bookmarks and settings."
              ).replace("{a}", search_name)
     rtl = ' dir="rtl"' if i18n.rtl() else ""
+    a = ACCENT
+    waves = "".join(
+        f'<path d="M0 {60 + k * 22} C 300 {20 + k * 26}, 600 {130 + k * 18}, 900 {70 + k * 22} S 1500 {40 + k * 24}, '
+        f'1600 {90 + k * 20}" fill="none" stroke="{css_rgb(a)}" stroke-opacity="{0.28 - k * 0.035:.3f}" '
+        f'stroke-width="1"/>' for k in range(7))
     return f"""<!doctype html><html{rtl}><head><meta charset="utf-8"><title>{html.escape(T("Start page"))}</title>
 <style>
-html,body{{margin:0;min-height:100%;background:#0c0a1c;color:#fff;font-family:Inter,DejaVu Sans,sans-serif}}
-body{{background:radial-gradient(ellipse at 20% 0%,#2c2470 0%,#0c0a1c 60%);min-height:100vh}}
-main{{max-width:1100px;margin:0 auto;padding:72px 40px}}
-h1{{font-size:44px;margin:0 0 8px}}
-.hint{{color:#cecbf6;font-size:18px;margin:0 0 40px}}
+:root{{--ink:{css_rgb(BACKDROP)};--card:{css_rgb(DIALOG)};--text:{css_rgb(WHITE)};--soft:{css_rgb(SOFT)};
+--dim:{css_rgb(DIM)};--accent:{css_rgb(a)};--line:{css_rgb(LINE)};--on:{css_rgb(INK)}}}
+html,body{{margin:0;min-height:100%;background:var(--ink);color:var(--text);font-family:Inter,DejaVu Sans,sans-serif}}
+.cover{{position:absolute;left:0;top:0;right:0;height:300px;overflow:hidden;
+background:radial-gradient(ellipse at 18% 10%,{css_rgb(a, 0.38)} 0%,transparent 55%),
+radial-gradient(ellipse at 80% 0%,{css_rgb(a, 0.22)} 0%,transparent 50%),
+linear-gradient(90deg,{css_rgb(a, 0.16)},{css_rgb(a, 0.04)})}}
+.cover svg{{position:absolute;left:0;top:0;width:100%;height:100%}}
+.cover:after{{content:"";position:absolute;left:0;right:0;bottom:0;height:160px;
+background:linear-gradient(transparent,var(--ink))}}
+main{{position:relative;max-width:1100px;margin:0 auto;padding:64px 40px}}
+.label{{color:var(--accent);font-weight:700;font-size:13px;letter-spacing:.08em;text-transform:uppercase}}
+h1{{font-size:46px;margin:6px 0 8px}}
+.bar{{width:44px;height:3px;border-radius:2px;background:var(--accent);margin:0 0 18px}}
+.hint{{color:var(--soft);font-size:18px;margin:0 0 44px}}
 .grid{{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:18px}}
-.tile{{display:flex;flex-direction:column;gap:6px;padding:22px;border-radius:18px;background:rgba(255,255,255,.07);
-color:#fff;text-decoration:none;border:2px solid transparent}}
-.tile:hover{{background:rgba(124,110,255,.25);border-color:#7c6eff}}
+.tile{{display:flex;flex-direction:column;gap:6px;padding:22px;border-radius:18px;background:var(--card);
+color:var(--text);text-decoration:none;border:1px solid var(--line)}}
+.tile:hover,.tile:focus{{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent),0 0 28px {css_rgb(a, 0.35)};outline:none}}
 .dot{{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;
-font-weight:700;font-size:22px;margin-bottom:8px}}
-.name{{font-weight:700;font-size:19px}}.host{{color:#9694b4;font-size:14px}}
-.none{{color:#9694b4}}
-</style></head><body><main><h1>{html.escape(T("Internet"))}</h1><p class="hint">{html.escape(hint)}</p>
+font-weight:700;font-size:22px;margin-bottom:8px;color:var(--accent);border:2px solid var(--accent);
+background:{css_rgb(a, 0.14)}}}
+.tile:hover .dot{{background:var(--accent);color:var(--on)}}
+.name{{font-weight:700;font-size:19px}}.host{{color:var(--dim);font-size:14px}}
+.none{{color:var(--dim)}}
+</style></head><body><div class="cover"><svg viewBox="0 0 1600 300" preserveAspectRatio="none">{waves}</svg></div>
+<main><div class="label">EmuFive</div><h1>{html.escape(T("Internet"))}</h1><div class="bar"></div>
+<p class="hint">{html.escape(hint)}</p>
 <div class="grid">{''.join(tiles)}</div>{empty}</main></body></html>"""
 
 
@@ -813,7 +877,7 @@ class Browser:
             self.xt = None
 
         gtk_settings = Gtk.Settings.get_default()
-        gtk_settings.set_property("gtk-application-prefer-dark-theme", True)
+        gtk_settings.set_property("gtk-application-prefer-dark-theme", not LIGHT)
         gtk_settings.set_property("gtk-cursor-theme-name", "Adwaita")
         gtk_settings.set_property("gtk-cursor-theme-size", int(round(24 * self.S)))
 
@@ -858,7 +922,7 @@ class Browser:
         self.apply_agent()
         tv = self.app is not None and self.app["tv"]
         view.set_zoom_level(1.0 if tv else self.state["zoom"] / 100)   # A TV site fits itself.
-        view.set_background_color(Gdk.RGBA(12 / 255, 10 / 255, 28 / 255, 1))
+        view.set_background_color(Gdk.RGBA(BACKDROP[0] / 255, BACKDROP[1] / 255, BACKDROP[2] / 255, 1))
         view.connect("create", self.on_create)
         view.connect("permission-request", self.on_permission)
         view.connect("run-file-chooser", lambda v, r: (self.toast("Uploading files is not possible here."), True)[1])
@@ -946,7 +1010,7 @@ class Browser:
             uri = self.current_uri()
             # Pages without a background of their own are white, as everywhere.
             dark = uri.startswith("emufive:")
-            self.view.set_background_color(Gdk.RGBA(12 / 255, 10 / 255, 28 / 255, 1) if dark else
+            self.view.set_background_color(Gdk.RGBA(BACKDROP[0] / 255, BACKDROP[1] / 255, BACKDROP[2] / 255, 1) if dark else
                                            Gdk.RGBA(1, 1, 1, 1))
         self.bar.queue_draw()
 
@@ -973,7 +1037,7 @@ class Browser:
 
     def make_window(self):
         css = Gtk.CssProvider()
-        css.load_from_data(b"window { background-color: #0c0a1c; }")
+        css.load_from_data(f"window {{ background-color: {css_rgb(BACKDROP)}; }}".encode())
         Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(), css,
                                                  Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
         win = self.window = Gtk.Window(title=self.app["title"] if self.app else "Internet")
@@ -1017,6 +1081,7 @@ class Browser:
         p = Paint(cr, self.S)
         w = widget.get_allocated_width() / self.S
         p.rect(BACKDROP, 0, 0, w + 1, self.BAR + 1)
+        p.line(LINE, 0, self.BAR - 0.5, w + 1, self.BAR - 0.5, 1)
         uri = self.current_uri()
         title = self.view.get_title() or ""
         if uri.startswith("emufive:"):
@@ -1041,7 +1106,7 @@ class Browser:
             if (title or place) else 0
         if place and title and room - tw > 60:
             p.text(place, 14, x + tw + 14, self.BAR / 2, DIM, anchor="midleft", width=room - tw - 14)
-        p.hints(hints, right, self.BAR / 2)
+        p.hints(hints, right, self.BAR / 2, SOFT)
         if self.view.get_property("is-loading"):
             progress = max(0.05, self.view.get_estimated_load_progress())
             p.rect(ACCENT, 0, self.BAR - 3, w * progress, 3)
@@ -1055,16 +1120,18 @@ class Browser:
         p = Paint(cr, self.S)
         w, h = widget.get_allocated_width() / self.S, widget.get_allocated_height() / self.S
         if self.layers:
-            p.rect((6, 5, 16), 0, 0, w + 1, h + 1, alpha=0.6)
+            p.rect((0, 0, 0), 0, 0, w + 1, h + 1, alpha=0.25 if LIGHT else 0.6)
             self.layers[-1].draw(p, w, h)
             hints = self.layers[-1].hints()
             if hints:
-                p.rect(BACKDROP, 0, h - 52, w + 1, 53, alpha=0.92)
+                p.rect(BACKDROP, 0, h - 52, w + 1, 53, alpha=0.94)
+                p.line(LINE, 0, h - 52, w + 1, h - 52, 1)
                 p.hints(hints, 40, h - 26)
         y = h - (90 if self.layers else 40)
         for text, _ in reversed(self.toasts[-3:]):
             tw = p.width(T(text), 16) + 44
-            p.rect((30, 28, 64, 240), w / 2 - tw / 2, y - 22, tw, 44, 22)
+            p.rect(DIALOG, w / 2 - tw / 2, y - 22, tw, 44, 22, alpha=0.96)
+            p.rect(LINE, w / 2 - tw / 2, y - 22, tw, 44, 22, 1)
             p.text(text, 16, w / 2, y, WHITE, anchor="center")
             y -= 54
         if pointer:
@@ -1095,7 +1162,7 @@ class Browser:
         cr.close_path()
         cr.set_source_rgb(1, 1, 1)
         cr.fill_preserve()
-        cr.set_source_rgb(INK[0] / 255, INK[1] / 255, INK[2] / 255)
+        cr.set_source_rgb(20 / 255, 18 / 255, 46 / 255)     # The arrow's dark edge, in every theme.
         cr.set_line_width(1.6 * s)
         cr.set_line_join(1)   # Round.
         cr.stroke()

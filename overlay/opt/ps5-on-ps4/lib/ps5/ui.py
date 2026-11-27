@@ -45,6 +45,9 @@ DIALOG = (30, 28, 64)
 ACCENT = (124, 110, 255)
 ART_TEXT = (255, 255, 255)
 ART_SOFT = (206, 203, 246)
+# The on-screen keyboard (home screen and browser): its field, keys, quieter keys and the text on
+# the accent; set by apply_theme.
+KB_FIELD, KB_KEY, KB_KEY2, KB_INK = (9, 9, 12), (30, 30, 40), (22, 22, 30), (9, 9, 12)
 
 ACCENTS = {
     "purple": ("Purple", (124, 110, 255)),
@@ -65,11 +68,15 @@ def mix(a, b, t):
 
 def apply_theme(theme="dark", accent="purple"):
     global WHITE, SOFT, DIM, INK, PANEL, PANEL_LINE, ROW_ON, KEY, KEY_ON, BACKDROP, DIALOG, ACCENT, GOLD
-    global ART_SOFT
+    global ART_SOFT, KB_FIELD, KB_KEY, KB_KEY2, KB_INK
     a = ACCENTS.get(accent, ACCENTS["purple"])[1]
     ACCENT = a
     GOLD = (255, 205, 90) if accent != "spartan" else (240, 190, 90)
     ART_SOFT = mix(a, (236, 236, 246), 0.78)
+    KB_FIELD, KB_KEY, KB_KEY2, KB_INK = {
+        "light": ((250, 250, 253), (226, 226, 236), (234, 234, 242), (255, 255, 255)),
+        "midnight": ((0, 0, 0), (24, 24, 30), (16, 16, 20), (0, 0, 0)),
+    }.get(theme, ((9, 9, 12), (30, 30, 40), (22, 22, 30), (9, 9, 12)))
     if theme == "light":
         WHITE, INK = (26, 24, 40), (255, 255, 255)
         SOFT, DIM = (78, 76, 100), (128, 126, 150)
@@ -968,7 +975,7 @@ class Keyboard:
         """Title, field and keys from (x, y), `width` units wide; returns the bottom."""
         c.text(self.title, 17, x, y, WHITE, True)
         field_y = y + 30
-        c.rect((9, 9, 12), x - 4, field_y, width + 8, 52, 10)
+        c.rect(KB_FIELD, x - 4, field_y, width + 8, 52, 10)
         c.rect(ACCENT, x - 4, field_y, width + 8, 52, 10, 1)
         shown = self.text if self.show or not self.secret else \
             ("•" * max(0, len(self.text) - 1) + self.text[-1:])
@@ -987,8 +994,8 @@ class Keyboard:
                 for col, ch in enumerate(row):
                     kx = x + col * (key_w + 6)
                     on = r == self.row and col == self.col
-                    c.rect(ACCENT if on else (30, 30, 40), kx, ky, key_w, 46, 8)
-                    c.text(ch, 20, kx + key_w / 2, ky + 23, (9, 9, 12) if on else WHITE, on, "center")
+                    c.rect(ACCENT if on else KB_KEY, kx, ky, key_w, 46, 8)
+                    c.text(ch, 20, kx + key_w / 2, ky + 23, KB_INK if on else WHITE, on, "center")
                 ky += 52
             else:
                 ky += 6
@@ -1002,14 +1009,14 @@ class Keyboard:
                     main = name == self.done_label
                     active = (name == "Shift" and self.mode == "upper") or \
                              (name == "#+=" and self.mode == "symbols") or (name == "Show" and self.show)
-                    color = ACCENT if on else (30, 30, 40) if main else mix((30, 30, 40), ACCENT, 0.35) if active \
-                        else (22, 22, 30)
+                    color = ACCENT if on else KB_KEY if main else mix(KB_KEY, ACCENT, 0.35) if active \
+                        else KB_KEY2
                     c.rect(color, kx, ky, widths[col], 46, 8)
                     if main and not on:
                         c.rect(ACCENT, kx, ky, widths[col], 46, 8, 1)
                     label = "Hide" if name == "Show" and self.show else \
                         "Caps lock" if name == "Shift" and self.caps else name
-                    c.text(label, 15, kx + widths[col] / 2, ky + 23, (9, 9, 12) if on else WHITE, main or on, "center")
+                    c.text(label, 15, kx + widths[col] / 2, ky + 23, KB_INK if on else WHITE, main or on, "center")
                     kx += widths[col] + 6
                 ky += 46
         if self.status:
