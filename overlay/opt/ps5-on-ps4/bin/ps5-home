@@ -97,6 +97,87 @@ UPDATE_CHECK_AFTER = 20.0      # Seconds after the home screen starts (the netwo
 AVATAR_CACHE = os.path.expanduser("~/.cache/ps5-on-ps4/avatars")
 DICEBEAR_STYLES = ["adventurer", "avataaars", "big-smile", "bottts", "croodles", "fun-emoji", "lorelei",
                    "micah", "miniavs", "notionists", "open-peeps", "personas", "pixel-art", "thumbs"]
+# Animated avatars: Google's Noto animated emoji (CC BY 4.0, no key needed), 4 pages, and the
+# player's own GIFs from the USB drive or the PC's shared folder. A GIF is split once by ffmpeg into
+# square PNG frames (at most 3 seconds, 12 a second).
+NOTO_GIF = "https://fonts.gstatic.com/s/e/notoemoji/latest/{}/512.gif"
+NOTO_EMOJI = [
+    "1f600", "1f604", "1f602", "1f923", "1f60a", "1f607", "1f970", "1f60d", "1f929", "1f618", "1f60b", "1f60e",
+    "1f973", "1f92f", "1f631", "1f47b", "1f47d", "1f916", "1f63a", "1f639", "1f63b", "1f648", "1f649", "1f64a",
+    "1f431", "1f98a", "1f43c", "1f989", "1f427", "1f422", "1f419", "1f42c", "1f98b", "1f996",
+    "1f525", "2728", "1f4a5", "1f389", "1f680", "2764_fe0f", "1f47e", "1f3c6", "1f451", "1f48e", "1f4af"]
+ANIM_FPS, ANIM_FRAMES, ANIM_SIDE = 12, 36, 192
+# The player's own pictures (a GIF moves): looked for in these folders of the USB drive and the PC's share.
+PICTURE_FOLDERS = ("", "Avatars", "Pictures", "GIF", "PS5")
+PICTURE_TYPES = (".gif", ".png", ".jpg", ".jpeg", ".webp", ".bmp")
+
+
+def gif_frames(source, folder):
+    """Splits a GIF into square PNG frames in `folder` (replaced only when it worked). True if done."""
+    import shutil
+    part = folder + ".part"
+    shutil.rmtree(part, ignore_errors=True)
+    os.makedirs(part, exist_ok=True)
+    side = ANIM_SIDE
+    code, _, _ = system.run(["ffmpeg", "-v", "error", "-i", source, "-vf",
+                             f"fps={ANIM_FPS},scale={side}:{side}:force_original_aspect_ratio=increase,"
+                             f"crop={side}:{side},format=rgba",
+                             "-frames:v", str(ANIM_FRAMES), os.path.join(part, "%03d.png")], timeout=60)
+    if code != 0 or not os.listdir(part):
+        shutil.rmtree(part, ignore_errors=True)
+        return False
+    shutil.rmtree(folder, ignore_errors=True)
+    os.replace(part, folder)
+    return True
+
+
+def avatar_disc(surface, size_px):
+    """A picture as a round avatar on a soft disc in the accent color (a GIF's see-through parts
+    show the disc). Opaque, so a new frame drawn over the last one leaves nothing behind."""
+    surface = surface.convert_alpha()       # A GIF's first frame has a palette (and maybe a see-through color).
+    disc = pygame.Surface((size_px, size_px), pygame.SRCALPHA)
+    pygame.draw.circle(disc, ui.mix(ui.ACCENT, (24, 24, 34), 0.55), (size_px // 2, size_px // 2), size_px // 2)
+    see_through = surface.get_at((0, 0))[3] < 128
+    if see_through:                 # A sticker (an emoji): whole, smaller, on the disc.
+        inner = max(1, int(size_px * 0.74))
+        picture = pygame.transform.smoothscale(surface, (inner, inner))
+        disc.blit(picture, ((size_px - inner) // 2, (size_px - inner) // 2))
+    else:
+        disc.blit(ui.circle_image(surface, size_px), (0, 0))
+    disc.blit(ui.circle_mask(size_px), (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+    return disc
+
+
+def own_pictures(home):
+    """The player's pictures and GIFs: on the USB drive and in the PC's shared folder (at the top
+    and in PICTURE_FOLDERS), at most 48, none over 20 MB."""
+    roots = []
+    if system.mounted(system.USB_MOUNT):
+        roots.append(system.USB_MOUNT)
+    pc = getattr(home, "pc", None)
+    if pc is not None and pc.status()[0] == "connected":
+        s = pc.get()
+        if s.get("address") and s.get("share"):
+            roots.append(os.path.join(pc.mount, s["address"], *s["share"].split("/")))
+    found = []
+    for root in roots:
+        for sub in PICTURE_FOLDERS:
+            folder = os.path.join(root, sub)
+            try:
+                names = sorted(os.listdir(folder))
+            except OSError:
+                continue
+            for n in names:
+                path = os.path.join(folder, n)
+                try:
+                    if n.lower().endswith(PICTURE_TYPES) and not n.startswith(".") \
+                            and os.path.getsize(path) <= 20_000_000:
+                        found.append(path)
+                except OSError:
+                    pass
+    return found[:48]
+
+
 SOURCE_COLORS = {"USB": (88, 150, 255), "PS4": (64, 64, 76), "PC": (46, 170, 120)}
 
 
@@ -506,7 +587,7 @@ def draw_luxe_card(c, w, h, appear):
     x, y = ui.W / 2 - w / 2, ui.H / 2 - h / 2 + (1 - a) * 14
     glow = glow_sprite(px(w * 0.55), ui.mix((0, 0, 0), ui.ACCENT, 0.55))
     c.s.blit(glow, glow.get_rect(center=(px(ui.W / 2), px(y + h / 2))), special_flags=pygame.BLEND_RGB_ADD)
-    c.rect((16, 16, 24), x, y, w, h, 22)
+    c.rect(LUXE_CARD, x, y, w, h, 22)
     c.rect(luxe_line(), x, y, w, h, 22, 1)
     return x, y
 
@@ -516,7 +597,7 @@ def draw_luxe_button(c, label, x, y, w, h, on):
     if on:
         c.rect(ui.ACCENT, x, y, w, h, h / 2)
     else:
-        c.rect((9, 9, 12, 170), x, y, w, h, h / 2)
+        c.rect(LUXE_INK + (170,), x, y, w, h, h / 2)
         c.rect(luxe_line(), x, y, w, h, h / 2, 1)
     c.text(c.t.fit(label, 18, w - 24, on), 18, x + w / 2, y + h / 2, LUXE_INK if on else WHITE, on, "center")
 
@@ -686,7 +767,7 @@ class UpdateProgress(Modal):
             for i, step in enumerate(steps):
                 px_ = sx + i * sw
                 done, current = i < now, i == now
-                c.circle((16, 16, 24), px_, sy, 11)
+                c.circle(LUXE_CARD, px_, sy, 11)
                 c.circle(accent if (done or current) else line, px_, sy, 8 if current else 6, 0 if done or current else 2)
                 if current:
                     c.circle(accent, px_, sy, 13, 1)
@@ -995,7 +1076,7 @@ def draw_rows(c, rows, selected, x, y, width, bottom, focused, top_index=0):
             if on:
                 c.rect(ui.ACCENT, bx, y + 4, label_w, 46, 23)
             else:
-                c.rect((9, 9, 12, 170), bx, y + 4, label_w, 46, 23)
+                c.rect(LUXE_INK + (170,), bx, y + 4, label_w, 46, 23)
                 c.rect(luxe_line() if row.ok is None else ui.ACCENT, bx, y + 4, label_w, 46, 23, 1)
             ink = LUXE_INK if on else SOFT if row.ok is None else WHITE
             c.text(row.label, 18, bx + label_w / 2, y + 27, ink, True, "center")
@@ -1119,25 +1200,25 @@ def draw_card_rows(c, rows, selected, x, y, width, bottom, focused, top_index, a
             lines = c.t.wrap(row.label, 15, width)[:2]
             for n, line in enumerate(lines):
                 c.text(line, 15, x + width - 2 if rtl else x + 2, y + (14 if len(lines) == 1 else 4 + n * 20),
-                       row.color or ART_SOFT, False, "topright" if rtl else "topleft")
+                       row.color or SOFT, False, "topright" if rtl else "topleft")
         elif row.kind == "action":
             label_w = max(220, c.t.width(row.label, 18, True) + 64)
             bx = x + width - label_w if rtl else x
             if on:
                 home.play_button(c, bx, y + 6, row.label, accent, True, label_w)
             else:
-                c.rect((255, 255, 255, 26 if row.ok else 12), bx, y + 6, label_w, 44, 22)
-                c.rect((255, 255, 255, 70), bx, y + 6, label_w, 44, 22, 1)
-                c.text(row.label, 18, bx + label_w / 2, y + 28, ART_TEXT if row.ok else ART_SOFT, True, "center")
+                c.rect(WHITE + (26 if row.ok else 12,), bx, y + 6, label_w, 44, 22)
+                c.rect(WHITE + (70,), bx, y + 6, label_w, 44, 22, 1)
+                c.text(row.label, 18, bx + label_w / 2, y + 28, WHITE if row.ok else SOFT, True, "center")
             if row.value:
                 value = c.t.fit(str(row.value), 15, width - label_w - 30)
                 if rtl:
-                    c.text(value, 15, bx - 16, y + 19, row.color or ART_SOFT, False, "topright")
+                    c.text(value, 15, bx - 16, y + 19, row.color or SOFT, False, "topright")
                 else:
-                    c.text(value, 15, x + label_w + 16, y + 19, row.color or ART_SOFT)
+                    c.text(value, 15, x + label_w + 16, y + 19, row.color or SOFT)
         else:
             card_h = height - 2
-            c.rect(accent + (34,) if on else (255, 255, 255, 10), x - 18, y, width + 36, card_h, 14)
+            c.rect(accent + (34,) if on else WHITE + (10,), x - 18, y, width + 36, card_h, 14)
             if on:
                 border = gradient_border(px(width + 36), px(card_h), px(14), ui.mix(accent, WHITE, 0.45), accent,
                                          max(1, px(1.5)))
@@ -1150,7 +1231,7 @@ def draw_card_rows(c, rows, selected, x, y, width, bottom, focused, top_index, a
 
 
 def draw_card_content(c, row, on, x, y, width, accent, rtl, home):
-    label_color = ART_TEXT if row.kind != "info" else ART_SOFT
+    label_color = WHITE if row.kind != "info" else SOFT
     label = c.t.fit(row.label, 17, width * 0.55)
     if rtl:
         label_w = c.text(label, 17, x + width - 2, y + 11, label_color, on, "topright")
@@ -1164,26 +1245,26 @@ def draw_card_content(c, row, on, x, y, width, accent, rtl, home):
             cx = (x + 20 + n * 30) if rtl else (x + width - 20 - (len(keys) - 1 - n) * 30)
             c.circle(ui.ACCENTS[key][1], cx, y + 22, 10)
             if key == current:
-                c.circle(ART_TEXT, cx, y + 22, 14, 2)
+                c.circle(WHITE, cx, y + 22, 14, 2)
         return
     if rtl:
-        draw_row_value_rtl(c, row, on, x + 2, y, room, ART_SOFT)
+        draw_row_value_rtl(c, row, on, x + 2, y, room, SOFT)
         return
     rx = x + width - 2
     if row.kind == "toggle":
         on_value = bool(row.value)
-        c.rect(accent if on_value else (255, 255, 255, 50), rx - 50, y + 10, 50, 24, 12)
+        c.rect(accent if on_value else WHITE + (50,), rx - 50, y + 10, 50, 24, 12)
         c.circle((255, 255, 255), rx - 12 if on_value else rx - 38, y + 22, 9)
     elif row.kind == "slider":
         value = row.value if row.value is not None else 0
         bar_w = max(60, min(220, room - 70))
-        c.rect((255, 255, 255, 50), rx - bar_w - 56, y + 19, bar_w, 6, 3)
+        c.rect(WHITE + (50,), rx - bar_w - 56, y + 19, bar_w, 6, 3)
         c.rect(accent, rx - bar_w - 56, y + 19, max(1, bar_w * value / 100), 6, 3)
         c.circle((255, 255, 255), rx - bar_w - 56 + bar_w * value / 100, y + 22, 9)
-        c.text(f"{value}%", 16, rx, y + 12, ART_SOFT, False, "topright")
+        c.text(f"{value}%", 16, rx, y + 12, SOFT, False, "topright")
     elif row.kind == "choice":
         text = c.t.fit(str(row.value), 16, room - 40)
-        c.text(text, 16, rx - 20, y + 12, ART_TEXT if on else ART_SOFT, on, "topright")
+        c.text(text, 16, rx - 20, y + 12, WHITE if on else SOFT, on, "topright")
         if on:
             tw = c.t.width(text, 16, True)
             c.text("‹", 20, rx - 32 - tw, y + 8, accent, True, "topright")
@@ -1192,7 +1273,7 @@ def draw_card_content(c, row, on, x, y, width, accent, rtl, home):
         c.blit(row.picture, rx, y + 22, "midright")
     elif row.value is not None:
         text = c.t.fit(str(row.value), 16, room)
-        c.text(text, 16, rx, y + 12, row.color or (ART_SOFT if row.kind != "info" else ART_TEXT), False, "topright")
+        c.text(text, 16, rx, y + 12, row.color or (SOFT if row.kind != "info" else WHITE), False, "topright")
 
 
 def category_icon(c, name, x, y, color, r=11):
@@ -1353,7 +1434,7 @@ class SettingsScreen(RowList):
         profiles = h.profiles.all()
         rows = [
             Row("button", "Name", h.settings["name"], ok=self.edit_name),
-            Row("button", "Avatar", ok=lambda: h.push(AvatarPicker(h)), picture=h.avatar(36)),
+            Row("button", "Avatar", ok=lambda: h.push(AvatarPicker(h)), picture=h.avatar(36, still=True)),
             Row("info", "Your name and avatar are shown on the home screen. Games get your name as the "
                         "player name."),
             Row("header", "Profiles"),
@@ -1489,6 +1570,7 @@ class SettingsScreen(RowList):
             Row("header", "Top bar"),
             self.setting_toggle("Name", "show_name"),
             self.setting_toggle("Avatar", "show_avatar"),
+            self.setting_toggle("Animated avatar", "avatar_motion"),
             self.setting_toggle("Controller battery", "show_battery"),
             self.setting_toggle("IP address", "show_ip"),
             Row("header", "Sounds and feel"),
@@ -2340,8 +2422,8 @@ class SettingsScreen(RowList):
                 c.circle(vivid if focused else ui.mix(LUXE_INK, vivid, 0.35), rail_x, y, 22)
             else:
                 c.circle(luxe_line(), rail_x, y, 22, 1)
-            category_icon(c, name, rail_x, y, LUXE_INK if focused else ART_TEXT, 9)
-            c.text(c.t.fit(name, 11, 104), 11, rail_x, y + 27, ART_TEXT if on else ART_SOFT, on, "midtop")
+            category_icon(c, name, rail_x, y, LUXE_INK if focused else WHITE, 9)
+            c.text(c.t.fit(name, 11, 104), 11, rail_x, y + 27, WHITE if on else SOFT, on, "midtop")
         x = self.ROWS_X
         name = self.CATEGORIES[self.category]
         preview = name == "Appearance"
@@ -2349,12 +2431,12 @@ class SettingsScreen(RowList):
         if rtl:
             x = ui.W - self.ROWS_X - width
             c.text(i18n.upper("Settings"), 12, x + width, 18 - (1 - a) * 10, vivid, True, "topright")
-            c.text(name, 30, x + width, 34 - (1 - a) * 10, ART_TEXT, True, "topright")
-            c.text(self.SUBTITLES.get(name, ""), 15, x + width, 76, ART_SOFT, False, "topright")
+            c.text(name, 30, x + width, 34 - (1 - a) * 10, WHITE, True, "topright")
+            c.text(self.SUBTITLES.get(name, ""), 15, x + width, 76, SOFT, False, "topright")
         else:
             c.text(i18n.upper("Settings"), 12, x + 2, 18 - (1 - a) * 10, vivid, True)
-            c.text(name, 30, x, 34 - (1 - a) * 10, ART_TEXT, True)
-            c.text(self.SUBTITLES.get(name, ""), 15, x + 2, 76, ART_SOFT)
+            c.text(name, 30, x, 34 - (1 - a) * 10, WHITE, True)
+            c.text(self.SUBTITLES.get(name, ""), 15, x + 2, 76, SOFT)
         rows = self.rows()
         if self.focus == "rows":
             self.current(rows)
@@ -2366,7 +2448,7 @@ class SettingsScreen(RowList):
             self.top = 0
         draw_card_rows(c, rows, self.row, x, 112, width, ui.H - 64, self.focus == "rows", self.top, vivid, h)
         if self.top > 0:
-            c.text("▲", 14, x + width, 96, ART_SOFT, False, "topright")
+            c.text("▲", 14, x + width, 96, SOFT, False, "topright")
         if preview:
             px_ = 1240 - 453 if not rtl else 40
             c.text(i18n.upper("Preview"), 12, px_, 98, vivid, True)
@@ -2374,7 +2456,7 @@ class SettingsScreen(RowList):
             c.blit(picture, px_, 118)
             border = gradient_border(px(453), px(255), px(16), ui.mix(vivid, WHITE, 0.45), vivid, max(1, px(1.5)))
             c.s.blit(border, (px(px_), px(118)))
-            c.text("Changes show here as you make them.", 14, px_, 384, ART_SOFT)
+            c.text("Changes show here as you make them.", 14, px_, 384, SOFT)
 
     @staticmethod
     def row_bottom(rows, top, index):
@@ -2424,7 +2506,16 @@ def change_volume(h, step):
 # The "luxe" look of the profile, trophy and avatar pages: near black, a cover across the top
 # with soft light and thin waves, all in the accent color (Settings, Appearance).
 
-LUXE_INK = (9, 9, 12)
+LIGHT = SETTINGS["theme"] == "light"
+# The page color, the cards on it and a darker panel: near black, pure black (Midnight) or
+# near white (Light). Text on the accent is LUXE_INK too (white in the Light theme).
+LUXE_INK, LUXE_CARD, LUXE_PANEL = {
+    "light": ((236, 236, 242), (250, 250, 253), (246, 246, 250)),
+    "midnight": ((0, 0, 0), (10, 10, 14), (8, 8, 12)),
+}.get(SETTINGS["theme"], ((9, 9, 12), (16, 16, 24), (14, 14, 20)))
+LUXE_KEY = ui.mix(LUXE_CARD, WHITE, 0.08)     # Keys, empty slots and idle marks on a card.
+# The PS5 home over the games' art: white text on a dark shade, or dark text on a light one.
+HOME_TEXT, HOME_SOFT = (WHITE, SOFT) if LIGHT else (ART_TEXT, ART_SOFT)
 TROPHY_POINTS = {"bronze": 15, "silver": 30, "gold": 90, "platinum": 300}
 # Points from one level to the next: 60 up to level 100, then more for each hundred (to 999).
 LEVEL_STEPS = [(100, 60), (200, 90), (300, 450), (400, 900), (500, 1350), (600, 1800), (700, 2250),
@@ -2523,55 +2614,93 @@ def draw_luxe_header(c, label, title, subtitle, rise, picture=None, icon=None):
 
 class AvatarPicker(Modal):
     covers = True       # Full screen, in the luxe look (draw_luxe_cover).
-    TABS = ["Built-in", "Cartoon", "Photos"]
+    TABS = ["Built-in", "Animated", "My pictures", "Cartoon", "Photos"]
     COLS = 6
+    ONLINE = ("Animated", "Cartoon", "Photos")
+    PAGED = ("Animated", "My pictures")         # Triangle shows the next 12 (the others: 12 new ones).
 
     def __init__(self, home):
         super().__init__(home)
         self.tab = 0
         self.focus = "grid"
         self.index = 0
-        self.images = {}          # (tab, n) -> Surface
-        self.raw = {}             # (tab, n) -> Surface, "loading" or "error"
-        self.seeds = {1: self.new_seeds(1), 2: self.new_seeds(2)}
+        self.images = {}          # (kind, item) -> Surface
+        self.raw = {}             # (kind, item) -> Surface, "loading" or "error"
+        self.frames = {}          # (kind, item) -> "working", "ready" or "error" (an animation's frames)
+        self.seeds = {"Cartoon": self.new_seeds("Cartoon"), "Photos": self.new_seeds("Photos")}
+        self.pages = {"Animated": 0, "My pictures": 0}
+        self.gifs = None          # The player's pictures and GIFs (looked for in the background).
         self.lock = threading.Lock()
         self.size = px(108)
+        threading.Thread(target=lambda: setattr(self, "gifs", own_pictures(home)), daemon=True).start()
+
+    @property
+    def kind(self):
+        return self.TABS[self.tab]
 
     @staticmethod
-    def new_seeds(tab):
-        return [f"{random.choice(DICEBEAR_STYLES)}:{random.randrange(10 ** 9)}" if tab == 1
+    def new_seeds(kind):
+        return [f"{random.choice(DICEBEAR_STYLES)}:{random.randrange(10 ** 9)}" if kind == "Cartoon"
                 else str(random.randrange(10 ** 9)) for _ in range(12)]
 
-    def url(self, tab, n):
-        seed = self.seeds[tab][n]
-        if tab == 1:
-            style, value = seed.split(":")
+    def items(self, kind=None):
+        """What the 12 places of a tab show: seeds, emoji codes or GIF paths (fewer at the end)."""
+        kind = kind or self.kind
+        if kind == "Built-in":
+            return list(range(12))
+        if kind in self.seeds:
+            return self.seeds[kind]
+        whole = NOTO_EMOJI if kind == "Animated" else (self.gifs or [])
+        page = self.pages[kind]
+        return whole[page * 12:page * 12 + 12]
+
+    @staticmethod
+    def animated(kind, item):
+        """An emoji or a GIF: it moves (split into frames)."""
+        return kind == "Animated" or (kind == "My pictures" and item.lower().endswith(".gif"))
+
+    def page_count(self):
+        whole = len(NOTO_EMOJI) if self.kind == "Animated" else len(self.gifs or [])
+        return max(1, -(-whole // 12))
+
+    def url(self, kind, item):
+        if kind == "Cartoon":
+            style, value = item.split(":")
             return (f"https://api.dicebear.com/9.x/{style}/png?seed={value}&size=256"
                     "&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf&backgroundType=gradientLinear")
-        return f"https://picsum.photos/seed/{seed}/256/256"
+        if kind == "Animated":
+            return NOTO_GIF.format(item)
+        return f"https://picsum.photos/seed/{item}/256/256"
 
-    def cache_path(self, tab, n):
-        return os.path.join(AVATAR_CACHE, hashlib.sha1(self.url(tab, n).encode()).hexdigest() + ".png")
+    def cache_path(self, kind, item):
+        """The picture on the PS4: downloaded into the cache, or the player's own GIF."""
+        if kind == "My pictures":
+            return item
+        ext = ".gif" if kind == "Animated" else ".png"
+        return os.path.join(AVATAR_CACHE, hashlib.sha1(self.url(kind, item).encode()).hexdigest() + ext)
 
-    def load(self, tab, n):
-        key = (tab, n)
+    def frames_dir(self, kind, item):
+        return os.path.join(AVATAR_CACHE, "frames-" + hashlib.sha1(f"{kind}:{item}".encode()).hexdigest())
+
+    def load(self, kind, item):
+        key = (kind, item)
         with self.lock:
             if key in self.raw:
                 return
             self.raw[key] = "loading"
-        url, path = self.url(tab, n), self.cache_path(tab, n)
+        path = self.cache_path(kind, item)
 
         def work():
             try:
                 if not os.path.exists(path):
                     os.makedirs(AVATAR_CACHE, exist_ok=True)
-                    request = urllib.request.Request(url, headers={"User-Agent": "ps5-on-ps4"})
+                    request = urllib.request.Request(self.url(kind, item), headers={"User-Agent": "ps5-on-ps4"})
                     with urllib.request.urlopen(request, timeout=12) as reply:
-                        data = reply.read(3_000_000)
+                        data = reply.read(8_000_000)
                     with open(path + ".part", "wb") as f:
                         f.write(data)
                     os.replace(path + ".part", path)
-                surface = pygame.image.load(path)
+                surface = pygame.image.load(path)       # A GIF: its first frame.
                 with self.lock:
                     self.raw[key] = surface
             except Exception:
@@ -2580,28 +2709,63 @@ class AvatarPicker(Modal):
 
         threading.Thread(target=work, daemon=True).start()
 
-    def image(self, tab, n):
-        key = (tab, n)
+    def image(self, kind, item):
+        key = (kind, item)
         if key in self.images:
             return self.images[key]
-        if tab == 0:
-            self.images[key] = ui.builtin_avatar(n, self.size)
+        if kind == "Built-in":
+            self.images[key] = ui.builtin_avatar(item, self.size)
             return self.images[key]
-        self.load(tab, n)
+        self.load(kind, item)
         with self.lock:
             raw = self.raw.get(key)
         if isinstance(raw, pygame.Surface):
-            self.images[key] = ui.circle_image(raw, self.size)
+            self.images[key] = avatar_disc(raw, self.size)
             return self.images[key]
+        if raw == "error" and kind in self.seeds and item in self.seeds[kind]:
+            # A cartoon or photo that did not come: another one takes its place (a few times).
+            n = self.seeds[kind].index(item)
+            tries = self.__dict__.setdefault("retries", {})
+            if tries.get((kind, n), 0) < 5:
+                tries[(kind, n)] = tries.get((kind, n), 0) + 1
+                self.seeds[kind][n] = self.new_seeds(kind)[0]
+                with self.lock:
+                    self.raw.pop(key, None)
+                return "loading"
         return raw
+
+    def prepare_frames(self, kind, item):
+        """Splits the focused GIF into frames (once, in the background), for its preview and to
+        choose it. Returns "working", "ready" or "error"."""
+        key = (kind, item)
+        state = self.frames.get(key)
+        if state is not None:
+            return state
+        folder = self.frames_dir(kind, item)
+        if os.path.isdir(folder) and os.listdir(folder):
+            self.frames[key] = "ready"
+            return "ready"
+        with self.lock:
+            downloaded = isinstance(self.raw.get(key), pygame.Surface)
+        if not downloaded:
+            return "working"
+        self.frames[key] = "working"
+
+        def work():
+            self.frames[key] = "ready" if gif_frames(self.cache_path(kind, item), folder) else "error"
+
+        threading.Thread(target=work, daemon=True).start()
+        return "working"
 
     def act(self, action):
         h = self.home
+        count = len(self.items())
         if action == BACK:
             h.sounds.play("back")
             self.close()
         elif action in (PAGE_UP, PAGE_DOWN) or (self.focus == "tabs" and action in (LEFT, RIGHT)):
             self.tab = (self.tab + (-1 if action in (PAGE_UP, LEFT) else 1)) % len(self.TABS)
+            self.index = min(self.index, max(0, len(self.items()) - 1))
             h.sounds.play("move")
         elif self.focus == "tabs":
             if action in (DOWN, OK):
@@ -2613,29 +2777,76 @@ class AvatarPicker(Modal):
             else:
                 self.focus = "tabs"
             h.sounds.play("move")
-        elif action == DOWN and self.index < self.COLS:
+        elif action == DOWN and self.index + self.COLS < count:
             self.index += self.COLS
             h.sounds.play("move")
-        elif action in (LEFT, RIGHT):
-            self.index = (self.index + (1 if action == RIGHT else -1)) % 12
+        elif action in (LEFT, RIGHT) and count:
+            self.index = (self.index + (1 if action == RIGHT else -1)) % count
             h.sounds.play("move")
-        elif action == TRIANGLE and self.tab > 0:
-            self.seeds[self.tab] = self.new_seeds(self.tab)
-            for n in range(12):
-                self.images.pop((self.tab, n), None)
-                with self.lock:
-                    self.raw.pop((self.tab, n), None)
+        elif action == TRIANGLE and self.kind in self.PAGED:
+            self.pages[self.kind] = (self.pages[self.kind] + 1) % self.page_count()
+            self.index = min(self.index, max(0, len(self.items()) - 1))
             h.sounds.play("select")
-        elif action == OK:
+        elif action == TRIANGLE and self.kind in self.seeds:
+            for item in self.seeds[self.kind]:
+                self.images.pop((self.kind, item), None)
+                with self.lock:
+                    self.raw.pop((self.kind, item), None)
+            self.seeds[self.kind] = self.new_seeds(self.kind)
+            self.__dict__.get("retries", {}).clear()
+            h.sounds.play("select")
+        elif action == OK and count:
             self.choose()
 
     def choose(self):
+        import shutil
         h = self.home
-        if self.tab == 0:
-            h.set_profile(avatar=f"builtin:{self.index}")
+        kind = self.kind
+        item = self.items()[self.index]
+        if kind == "Built-in":
+            h.set_profile(avatar=f"builtin:{item}")
+        elif self.animated(kind, item):
+            if self.prepare_frames(kind, item) != "ready":
+                h.sounds.play("error")
+                h.toast("Getting it ready: try again in a moment", 3.0, keep=False)
+                return
+            try:
+                folder = self.frames_dir(kind, item)
+                os.makedirs(store.CONFIG_DIR, mode=0o700, exist_ok=True)
+                target = store.avatar_anim_dir(h.profiles.current_id)
+                shutil.rmtree(target + ".new", ignore_errors=True)
+                shutil.copytree(folder, target + ".new")
+                shutil.rmtree(target, ignore_errors=True)
+                os.replace(target + ".new", target)
+                still = store.avatar_file(h.profiles.current_id)
+                shutil.copyfile(os.path.join(target, sorted(os.listdir(target))[0]), still + ".new")
+                os.replace(still + ".new", still)
+            except OSError:
+                h.sounds.play("error")
+                return
+            h.set_profile(avatar="anim")
+        elif kind == "My pictures":
+            # A photo: kept as a square PNG of at most 512 pixels (any size or type on the drive).
+            image = self.raw.get((kind, item))
+            if not isinstance(image, pygame.Surface):
+                h.sounds.play("error")
+                return
+            try:
+                w, hgt = image.get_size()
+                side = min(w, hgt)
+                square = image.subsurface(pygame.Rect((w - side) // 2, (hgt - side) // 2, side, side))
+                square = pygame.transform.smoothscale(square.convert(), (min(512, side),) * 2)
+                os.makedirs(store.CONFIG_DIR, mode=0o700, exist_ok=True)
+                target = store.avatar_file(h.profiles.current_id)
+                pygame.image.save(square, target + ".new.png")
+                os.replace(target + ".new.png", target)
+            except (pygame.error, OSError, ValueError):
+                h.sounds.play("error")
+                return
+            h.set_profile(avatar="file")
         else:
-            path = self.cache_path(self.tab, self.index)
-            if not isinstance(self.image(self.tab, self.index), pygame.Surface) or not os.path.exists(path):
+            path = self.cache_path(kind, item)
+            if not isinstance(self.image(kind, item), pygame.Surface) or not os.path.exists(path):
                 h.sounds.play("error")
                 return
             try:
@@ -2658,6 +2869,7 @@ class AvatarPicker(Modal):
     def draw(self, c):
         h = self.home
         accent = ui.ACCENT
+        kind = self.kind
         rise = (1 - ease_out(self.appear)) * 16
         draw_luxe_cover(c, 190)
         x0 = 90
@@ -2670,19 +2882,35 @@ class AvatarPicker(Modal):
         y = 186 - rise
         c.line(luxe_line(), x0, y + 36, ui.W - x0, y + 36, 1)
         draw_luxe_tabs(c, self.TABS, self.tab, x0, y, self.focus == "tabs")
-        if self.tab > 0 and not h.network.online():
+        if kind in self.ONLINE and not h.network.online():
             c.text("Connect to the internet to see these avatars.", 19, ui.W / 2, 420, SOFT, False, "center")
+            return
+        items = self.items()
+        if kind == "My pictures" and not items:
+            if self.gifs is None:
+                draw_spinner(c, ui.W / 2, 420, 18, h.t)
+            else:
+                c.text("No pictures found", 24, ui.W / 2, 380, WHITE, True, "center")
+                for n, line in enumerate(("Put photos (PNG, JPG) or GIFs on a USB drive, at the top or in a folder",
+                                          "named Avatars or Pictures, or in the PC's shared folder. GIFs move.")):
+                    c.text(line, 16, ui.W / 2, 420 + n * 26, SOFT, False, "center")
             return
         cell = 150
         gx = ui.W / 2 - self.COLS * cell / 2
         gy = 260 - rise
-        for n in range(12):
+        for n, item in enumerate(items):
             col, row = n % self.COLS, n // self.COLS
             cx, cy = gx + col * cell + cell / 2, gy + row * (cell + 14) + cell / 2
             on = self.focus == "grid" and n == self.index
             if on:
                 c.circle(ui.mix(LUXE_INK, accent, 0.25), cx, cy, 66)
-            image = self.image(self.tab, n)
+            image = self.image(kind, item)
+            if on and self.animated(kind, item) and isinstance(image, pygame.Surface) \
+                    and self.prepare_frames(kind, item) == "ready":
+                # The focused GIF moves.
+                frames = h.anim_frames(self.frames_dir(kind, item), self.size)
+                if frames:
+                    image = frames[int(time.monotonic() * ANIM_FPS) % len(frames)]
             if isinstance(image, pygame.Surface):
                 c.blit(image, cx, cy, "center")
             elif image == "error":
@@ -2696,13 +2924,23 @@ class AvatarPicker(Modal):
                 c.circle(accent, cx, cy, 61, 2 + 1.5 * (1 + math.sin(h.t * 4)))
             else:
                 c.circle(luxe_line(), cx, cy, 58, 1)
-        source = {1: "Cartoon avatars by DiceBear (dicebear.com)", 2: "Photos from Lorem Picsum (picsum.photos)"}
-        if self.tab in source:
-            c.text(source[self.tab], 13, ui.W - x0, ui.H - 52, DIM, False, "topright")
+        if kind in self.PAGED:
+            pages = self.page_count()
+            if pages > 1:
+                c.text(f"{self.pages[kind] + 1} / {pages}", 14, ui.W / 2, ui.H - 52, SOFT, True, "midtop")
+        source = {"Animated": "Animated emoji: Noto Emoji by Google (CC BY 4.0)",
+                  "Cartoon": "Cartoon avatars by DiceBear (dicebear.com)",
+                  "Photos": "Photos from Lorem Picsum (picsum.photos)",
+                  "My pictures": "Your photos and GIFs (animated GIFs are supported)"}
+        if kind in source:
+            c.text(source[kind], 13, ui.W - x0, ui.H - 52, DIM, False, "topright")
 
     def hints(self):
         hints = [("cross", "Choose"), ("l1r1", "Tabs")]
-        if self.tab > 0:
+        if self.kind in self.PAGED:
+            if self.page_count() > 1:
+                hints.append(("triangle", "Next page"))
+        elif self.kind in self.seeds:
             hints.append(("triangle", "More"))
         return hints + [("circle", "Back")]
 
@@ -2748,7 +2986,7 @@ class AboutPage(Modal):
         c.rect(accent, cx - 22, 152 - rise, 44, 3, 1)
         # The author.
         x0, y0, w = cx - 400, 186 - rise, 800
-        c.rect((16, 16, 24), x0, y0, w, 150, 18)
+        c.rect(LUXE_CARD, x0, y0, w, 150, 18)
         c.rect(luxe_line(), x0, y0, w, 150, 18, 1)
         ax, ay = x0 + 96, y0 + 75
         c.circle(LUXE_INK, ax, ay, 56)
@@ -2767,12 +3005,12 @@ class AboutPage(Modal):
         cy = y0 + 172
         c.text(i18n.upper("Thanks to"), 12, x0 + 4, cy, accent, True)
         for i, (name, what) in enumerate(about.CREDITS):
-            col, row = i % 3, i // 3
-            x = x0 + 4 + col * (w / 3)
+            col, row = i % 4, i // 4         # 4 columns: 3 rows above the version line.
+            x = x0 + 4 + col * (w / 4)
             y = cy + 30 + row * 58
             c.circle(accent, x + 4, y + 11, 3)
-            c.text(name, 17, x + 18, y, WHITE, True)
-            c.text(what, 14, x + 18, y + 24, SOFT)
+            c.text(c.t.fit(name, 17, w / 4 - 26, True), 17, x + 18, y, WHITE, True)
+            c.text(c.t.fit(what, 14, w / 4 - 26), 14, x + 18, y + 24, SOFT)
         version, kyty = self.art.versions
         c.line(luxe_line(), x0, 610 - rise, x0 + w, 610 - rise, 1)
         c.text(f"Version {version}   ·   KytyPS5 {kyty}", 13, cx, 624 - rise, DIM, False, "midtop")
@@ -2821,7 +3059,7 @@ class LogViewer(Modal):
         c.text("~/kytyps5.log", 15, 66, 86, SOFT)
         box_x, box_y, box_w = 48, 124, ui.W - 96
         box_h = self.LINES * 22 + 28
-        c.rect((14, 14, 20), box_x, box_y, box_w, box_h, 14)
+        c.rect(LUXE_PANEL, box_x, box_y, box_w, box_h, 14)
         c.rect(luxe_line(), box_x, box_y, box_w, box_h, 14, 1)
         if self.wrapped is None:
             self.wrapped = []
@@ -2977,7 +3215,7 @@ class GameMenu(RowList):
         left = ui.W - self.WIDTH * slide
         c.dim(160 * slide)
         accent = ui.ACCENT
-        c.rect((14, 14, 20), left, 0, self.WIDTH, ui.H)
+        c.rect(LUXE_PANEL, left, 0, self.WIDTH, ui.H)
         glow = glow_sprite(px(self.WIDTH * 0.9), ui.mix((0, 0, 0), accent, 0.22))
         c.s.blit(glow, glow.get_rect(center=(px(left + self.WIDTH * 0.7), 0)), special_flags=pygame.BLEND_RGB_ADD)
         c.line(luxe_line(), left, 0, left, ui.H, 1)
@@ -3244,7 +3482,7 @@ class CheatManager(Modal):
         on = self.group == "button"
         w = c.t.width(label, 16, True) + 44
         bx = ui.W - x0 - w
-        c.rect(accent if on else (9, 9, 12, 170), bx, 74 - rise, w, 42, 21)
+        c.rect(accent if on else LUXE_INK + (170,), bx, 74 - rise, w, 42, 21)
         if not on:
             c.rect(accent, bx, 74 - rise, w, 42, 21, 1)
         c.text(label, 16, bx + w / 2, 95 - rise, LUXE_INK if on else WHITE, True, "center")
@@ -3270,7 +3508,7 @@ class CheatManager(Modal):
             color = accent if order == 0 else WHITE if order == 1 else SOFT
             sw = c.t.width(shown, 15, True) + 28
             if order <= 1:
-                c.rect(accent + (40,) if order == 0 else (255, 255, 255, 20), x0 + width - sw, y + 11, sw, 28, 14)
+                c.rect(accent + (40,) if order == 0 else WHITE + (20,), x0 + width - sw, y + 11, sw, 28, 14)
             c.text(shown, 15, x0 + width - sw / 2, y + 25, color, order <= 1, "center")
             y += 68
         c.text("Cheats are turned on for each game version and are used the next time the game starts. "
@@ -3542,7 +3780,7 @@ class CenterPopup(RowList):
         hgt = 70 + sum(r.height() + 4 for r in rows)
         x = max(40, min(ui.W - 40 - w, self.x - w / 2))
         y = ControlCenter.TOP - 16 - hgt + (1 - ease_out(self.appear)) * 10
-        c.rect((18, 18, 26, 250), x, y, w, hgt, 18)
+        c.rect(LUXE_CARD + (250,), x, y, w, hgt, 18)
         c.rect(luxe_line(), x, y, w, hgt, 18, 1)
         c.text(self.title, 20, x + 26, y + 20, WHITE, True)
         draw_rows(c, rows, self.row, x + 26, y + 60, w - 52, y + hgt, True)
@@ -3634,7 +3872,7 @@ class ControlCenter(Modal):
         a = ease_out(self.appear)
         c.dim(150 * a)
         top = self.TOP + (1 - a) * 40
-        band = (12, 12, 18)
+        band = LUXE_PANEL
         c.rect(band, 0, top, ui.W, ui.H - top)
         c.line(luxe_line(), 0, top, ui.W, top, 1)
         accent = ui.ACCENT
@@ -3655,10 +3893,10 @@ class ControlCenter(Modal):
         cy = top + 86
         for i, (label, icon, _) in enumerate(cards):
             on = self.row == "cards" and i == self.index
-            c.rect(WHITE if on else (255, 255, 255, 18), cx, cy, cw, ch, 14)
+            c.rect(WHITE if on else WHITE + (18,), cx, cy, cw, ch, 14)
             if not on:
-                c.rect((255, 255, 255, 40), cx, cy, cw, ch, 14, 1)
-            fg = (20, 20, 26) if on else WHITE
+                c.rect(WHITE + (40,), cx, cy, cw, ch, 14, 1)
+            fg = INK if on else WHITE
             ix, iy = cx + 40, cy + ch / 2
             if icon == "play":
                 c.polygon(fg, [(ix - 8, iy - 11), (ix - 8, iy + 11), (ix + 11, iy)])
@@ -3680,8 +3918,8 @@ class ControlCenter(Modal):
         for i, (name, icon) in enumerate(self.BUTTONS):
             bx = self.button_x(i)
             on = self.row == "buttons" and i == self.index
-            c.circle(WHITE if on else (40, 40, 52), bx, by, 30)
-            fg = (20, 20, 26) if on else WHITE
+            c.circle(WHITE if on else LUXE_KEY, bx, by, 30)
+            fg = INK if on else WHITE
             if icon == "bell":
                 ui.draw_bell(c, bx, by - 1, fg)
             else:
@@ -3856,7 +4094,7 @@ class ProfilePicker(Modal):
                 c.blit(h.avatar(self.SIZE, profile), x, y)
                 name = c.t.fit(profile["name"], 20, self.SIZE + self.GAP - 10, on)
             else:
-                c.circle((22, 22, 30), cx, cy, self.SIZE / 2)
+                c.circle(LUXE_KEY, cx, cy, self.SIZE / 2)
                 col = accent if on else SOFT
                 c.line(col, cx - 22, cy, cx + 22, cy, 3)
                 c.line(col, cx, cy - 22, cx, cy + 22, 3)
@@ -4056,7 +4294,7 @@ class ProfileView(Modal):
             on = self.group == "buttons" and i == self.button
             w = c.t.width(label, 16, True) + 40
             bx -= w
-            c.rect(gold if on else (9, 9, 12, 170), bx, self.COVER_H - 2 - rise, w, 40, 20)
+            c.rect(gold if on else LUXE_INK + (170,), bx, self.COVER_H - 2 - rise, w, 40, 20)
             if not on:
                 c.rect(gold, bx, self.COVER_H - 2 - rise, w, 40, 20, 1)
             c.text(label, 16, bx + w / 2, self.COVER_H + 18 - rise, ink if on else WHITE, True, "center")
@@ -4300,14 +4538,14 @@ class ControllerTest(Modal):
 
         c.text("Press every button and move the sticks. Press O twice (or PS) to go back.", 16, 64, 86, SOFT)
         cx, cy = ui.W / 2, 400
-        lit, idle = ui.ACCENT, (34, 34, 46)
+        lit, idle = ui.ACCENT, ui.mix(LUXE_CARD, WHITE, 0.15)
         glow = glow_sprite(px(520), ui.mix((0, 0, 0), lit, 0.35))
         c.s.blit(glow, glow.get_rect(center=(px(cx), px(cy))), special_flags=pygame.BLEND_RGB_ADD)
         edge = luxe_line()
         c.circle(edge, cx - 240, cy + 90, 111)
         c.circle(edge, cx + 240, cy + 90, 111)
         c.rect(edge, cx - 331, cy - 151, 662, 252, 111)
-        body = (18, 18, 26)
+        body = LUXE_CARD
         c.rect(body, cx - 330, cy - 150, 660, 250, 110)
         c.circle(body, cx - 240, cy + 90, 110)
         c.circle(body, cx + 240, cy + 90, 110)
@@ -4477,18 +4715,18 @@ class GameLibrary(Modal):
         label = i18n.translate(order)
         w = c.t.width(label, 15) + 40
         right = x0 + self.COLS * (self.TILE + self.GAP) - self.GAP
-        c.rect((9, 9, 12, 170), right - w, 60 - rise, w, 34, 17)
+        c.rect(LUXE_INK + (170,), right - w, 60 - rise, w, 34, 17)
         c.rect(luxe_line(), right - w, 60 - rise, w, 34, 17, 1)
         c.text(label, 15, right - w / 2, 77 - rise, SOFT, False, "center")
         c.text(i18n.upper("Order"), 11, right - w - 12, 70 - rise, accent, True, "topright")
         # The tabs, with L1 and R1 at their ends.
         names = [f"{i18n.translate(name)}  {len(self.games(i))}" for i, (_, name) in enumerate(self.FILTERS)]
         ty = 122 - rise
-        c.rect((9, 9, 12, 170), x0, ty + 4, 40, 26, 8)
+        c.rect(LUXE_INK + (170,), x0, ty + 4, 40, 26, 8)
         c.rect(luxe_line(), x0, ty + 4, 40, 26, 8, 1)
         c.text("L1", 12, x0 + 20, ty + 17, SOFT, True, "center")
         end = draw_luxe_tabs(c, names, self.filter, x0 + 60, ty, self.on_tabs)
-        c.rect((9, 9, 12, 170), end - 24, ty + 4, 40, 26, 8)
+        c.rect(LUXE_INK + (170,), end - 24, ty + 4, 40, 26, 8)
         c.rect(luxe_line(), end - 24, ty + 4, 40, 26, 8, 1)
         c.text("R1", 12, end - 4, ty + 17, SOFT, True, "center")
         c.line(luxe_line(), x0, ty + 46, right, ty + 46, 1)
@@ -4651,7 +4889,7 @@ class MediaView:
         self.refresh()
         h = self.home
         y0 = ROW_Y
-        c.text("TV & Video", 18, ROW_X, y0 - 6, ART_SOFT, True, shadow=True)
+        c.text("TV & Video", 18, ROW_X, y0 - 6, HOME_SOFT, True, shadow=not LIGHT)
         for n, (_, name, icon) in enumerate(self.APPS):
             x, y = ROW_X + n * (self.THUMB_W + 22), y0 + 26
             # Our own neutral tile, nothing from the app's logo or colors: a dark tile, a white
@@ -4661,18 +4899,18 @@ class MediaView:
             draw_app_icon(c, icon, cx, cy, 30)
             c.text(name, 22, cx, y + self.THUMB_H - 26, (255, 255, 255), True, "center")
             if self.on_apps and n == self.app and h.focus == "tiles" and not h.modals:
-                c.rect(ART_TEXT, x - 5, y - 5, self.THUMB_W + 10, self.THUMB_H + 10, 12, 3)
+                c.rect(HOME_TEXT, x - 5, y - 5, self.THUMB_W + 10, self.THUMB_H + 10, 12, 3)
         y0 += self.GRID_Y
         if not self.paths:
-            c.text("No screenshots or videos yet", 40, ROW_X, y0 + 40, ART_TEXT, True, shadow=True)
+            c.text("No screenshots or videos yet", 40, ROW_X, y0 + 40, HOME_TEXT, True, shadow=not LIGHT)
             c.text("Press PS + Square, or Share, for a screenshot, in a game too.", 18, ROW_X + 2, y0 + 100,
-                   ART_SOFT, shadow=True)
-            c.text("PS + Triangle starts and stops a video.", 18, ROW_X + 2, y0 + 128, ART_SOFT, shadow=True)
+                   HOME_SOFT, shadow=not LIGHT)
+            c.text("PS + Triangle starts and stops a video.", 18, ROW_X + 2, y0 + 128, HOME_SOFT, shadow=not LIGHT)
             return
         rows = (len(self.paths) + self.COLS - 1) // self.COLS
         more = f"  ·  {self.index // self.COLS + 1} / {rows}" if rows > 1 else ""
-        c.text(f"Screenshots and videos  ·  {len(self.paths)}{more}", 18, ROW_X, y0 - 6, ART_SOFT, True,
-               shadow=True)
+        c.text(f"Screenshots and videos  ·  {len(self.paths)}{more}", 18, ROW_X, y0 - 6, HOME_SOFT, True,
+               shadow=not LIGHT)
         # One row fits under the apps, above the hints: it scrolls to the chosen one.
         self.top_row = self.index // self.COLS
         gap = 22
@@ -4688,9 +4926,9 @@ class MediaView:
             if system.is_video(self.paths[n]):
                 draw_play_badge(c, x + self.THUMB_W / 2, y + self.THUMB_H / 2, 22)
             if n == self.index and not self.on_apps and h.focus == "tiles" and not h.modals:
-                c.rect(ART_TEXT, x - 5, y - 5, self.THUMB_W + 10, self.THUMB_H + 10, 12, 3)
+                c.rect(HOME_TEXT, x - 5, y - 5, self.THUMB_W + 10, self.THUMB_H + 10, 12, 3)
             name = os.path.basename(os.path.dirname(self.paths[n]))
-            c.text(c.t.fit(name, 13, self.THUMB_W), 13, x, y + self.THUMB_H + 8, ART_SOFT, shadow=True)
+            c.text(c.t.fit(name, 13, self.THUMB_W), 13, x, y + self.THUMB_H + 8, HOME_SOFT, shadow=not LIGHT)
 
 
 def draw_library_icon(c, x, y, r, color, back=None):
@@ -4888,7 +5126,9 @@ class MediaViewer(Modal):
         elif action == TRIANGLE and self.path():
             self.stop_video()
             h.sounds.play("select")
-            h.push(ShareView(h, self.path()))
+            # A copy: the Share page reads it in its own thread while this one is still drawn.
+            ready = self.picture.copy() if self.picture is not None and self.loaded_for == self.path() else None
+            h.push(ShareView(h, self.path(), ready))
         elif action == SQUARE and self.path():
             self.stop_video()
             path = self.path()
@@ -4915,8 +5155,10 @@ class MediaViewer(Modal):
                 picture = pygame.image.load(system.video_thumb(path) if video else path)
                 w, hgt = c.s.get_size()
                 scale = min(w / picture.get_width(), hgt / picture.get_height())
+                # Converted to the screen's format once: a PNG's own format made every frame's copy
+                # slow (about 0.1 s a frame on a PS4), which also held up the Share page's work.
                 self.picture = pygame.transform.smoothscale(
-                    picture, (int(picture.get_width() * scale), int(picture.get_height() * scale)))
+                    picture, (int(picture.get_width() * scale), int(picture.get_height() * scale))).convert()
             except (pygame.error, OSError):
                 self.picture = None
             self.loaded_for = path
@@ -5000,6 +5242,18 @@ def soft_aurora_light(w, h, vivid):
     return pygame.transform.smoothscale(small, (w, h))
 
 
+def png_size(path):
+    """(width, height) from a PNG's header, without reading the picture; None if not a PNG."""
+    try:
+        with open(path, "rb") as f:
+            head = f.read(24)
+        if head[:8] == b"\x89PNG\r\n\x1a\n":
+            return int.from_bytes(head[16:20], "big"), int.from_bytes(head[20:24], "big")
+    except OSError:
+        pass
+    return None
+
+
 def qr_surface(data, side, error="m"):
     """A QR code (dark on white, with its quiet zone) `side` pixels wide, or None without segno."""
     try:
@@ -5018,6 +5272,9 @@ def qr_surface(data, side, error="m"):
     return pygame.transform.scale(surface, (side - side % (n + 2 * quiet) or side, ) * 2)
 
 
+SHARE_DIM = (160, 160, 176)       # Faint text on the Share card (always dark glass, any theme).
+
+
 class ShareView(Modal):
     """A QR code for a phone: it opens the screenshot in the phone's browser, to save or share.
     The Glass card design: the screenshot blurred behind, and on a glass card the picture, the code
@@ -5029,12 +5286,14 @@ class ShareView(Modal):
     CODE = (927, 280)                     # The code's center.
     CODE_SIDE = 220
 
-    def __init__(self, home, path=None):
+    def __init__(self, home, path=None, picture=None):
         super().__init__(home)
         self.path = path
         self.qr = None
         self.error = None
         self.picture = None
+        self.given = picture      # Already loaded (the media viewer's): no second PNG read.
+        self.size = None          # The file's own size, for the line under the picture.
         self.vivid = ACCENT
         self.url = None
         self.server = None
@@ -5069,7 +5328,11 @@ class ShareView(Modal):
     def prepare(self):
         """Background: the picture, its colors, the phone page and the code."""
         self.video = system.is_video(self.path)
-        self.picture = self.load_picture(system.video_thumb(self.path) if self.video else self.path)
+        if self.given is not None and not self.video:
+            self.picture = self.given
+            self.size = png_size(self.path)
+        else:
+            self.picture = self.load_picture(system.video_thumb(self.path) if self.video else self.path)
         palette = surface_palette(self.picture) if self.picture is not None else None
         self.vivid = palette[0] if palette else ACCENT
         try:
@@ -5163,22 +5426,22 @@ class ShareView(Modal):
         cx, cy = self.CODE
         side = self.qr.get_width() / ui.S
         top = cy + side / 2 + 17 + 30
-        c.text(title, 23, cx, top, WHITE, True, "midtop")
-        ink = (14, 12, 20) if sum(self.vivid) > 300 else WHITE
+        c.text(title, 23, cx, top, ART_TEXT, True, "midtop")
+        ink = (14, 12, 20) if sum(self.vivid) > 300 else ART_TEXT
         sx = cx - 140
         for n, line in enumerate(lines):
             yy = top + 46 + n * 35
             c.circle(self.vivid, sx + 12, yy + 12, 12)
             c.text(str(n + 1), 13, sx + 12, yy + 12, ink, True, "center")
-            c.text(line, 16, sx + 35, yy + 12, WHITE, False, "midleft")
+            c.text(line, 16, sx + 35, yy + 12, ART_TEXT, False, "midleft")
 
     def compose_text(self, frame, c):
         """Main thread: the text (fonts are not drawn from two threads)."""
         x, y, w, h = self.CARD
         if self.error:
-            c.text("Share", 26, ui.W / 2, y + 60, WHITE, True, "midtop")
+            c.text("Share", 26, ui.W / 2, y + 60, ART_TEXT, True, "midtop")
             for n, line in enumerate(c.t.wrap(self.error, 18, w - 160)):
-                c.text(line, 18, ui.W / 2, y + 130 + n * 28, SOFT, False, "midtop")
+                c.text(line, 18, ui.W / 2, y + 130 + n * 28, ART_SOFT, False, "midtop")
             return
         video = self.video
         px_, py_, pw, ph = self.PICTURE
@@ -5190,24 +5453,25 @@ class ShareView(Modal):
         parts = when.split(" ")
         if len(parts) == 2 and parts[1].count("-") == 2:
             when = parts[0] + "  " + parts[1].replace("-", ":")[:5]
-        c.text(c.t.fit(name, 20, pw, True), 20, px_, py_ + ph + 22, WHITE, True)
-        c.text(("Video" if video else "Screenshot") + i18n.SEPARATOR + i18n.Final(when), 15, px_, py_ + ph + 52, SOFT)
+        c.text(c.t.fit(name, 20, pw, True), 20, px_, py_ + ph + 22, ART_TEXT, True)
+        c.text(("Video" if video else "Screenshot") + i18n.SEPARATOR + i18n.Final(when), 15, px_, py_ + ph + 52, ART_SOFT)
         if video:
             size = VideoPlayer.probe(self.path)
             seconds = int(system.video_seconds(self.path) or 0)
             size_text = f"{size[0]} × {size[1]}  ·  MP4  ·  {seconds // 60}:{seconds % 60:02d}"
-            c.text(i18n.Final(size_text), 15, px_, py_ + ph + 74, DIM)
+            c.text(i18n.Final(size_text), 15, px_, py_ + ph + 74, SHARE_DIM)
         elif self.picture is not None:
-            size_text = f"{self.picture.get_width()} × {self.picture.get_height()}  ·  PNG"
-            c.text(i18n.Final(size_text), 15, px_, py_ + ph + 74, DIM)
+            w, hgt = self.size or self.picture.get_size()
+            size_text = f"{w} × {hgt}  ·  PNG"
+            c.text(i18n.Final(size_text), 15, px_, py_ + ph + 74, SHARE_DIM)
         self.steps(c, "Share to your phone", ("Open your phone's camera", "Point it at the code",
                                               "Save or share the video" if video else "Save or share the picture"))
         # The address, for typing it in.
         width = c.t.width(self.url, 13) + 30
         c.rect((255, 255, 255, 18), ui.W / 2 - width / 2, y + h + 18, width, 27, 13)
         c.rect((255, 255, 255, 40), ui.W / 2 - width / 2, y + h + 18, width, 27, 13, 1)
-        c.text(i18n.Final(self.url), 13, ui.W / 2, y + h + 31, SOFT, False, "center")
-        c.text("Your phone must be on the same network as the PS4.", 13, ui.W / 2, y + h + 56, DIM, False, "midtop")
+        c.text(i18n.Final(self.url), 13, ui.W / 2, y + h + 31, ART_SOFT, False, "center")
+        c.text("Your phone must be on the same network as the PS4.", 13, ui.W / 2, y + h + 56, SHARE_DIM, False, "midtop")
 
     def update(self, dt):
         super().update(dt)
@@ -5296,32 +5560,32 @@ class ReportView(ShareView):
         x, y, w, h = self.CARD
         px_, py_, pw, ph = self.PICTURE
         ty = py_ + ph + 18
-        c.text(c.t.fit(self.game.title, 21, pw, True), 21, px_, ty, WHITE, True)
+        c.text(c.t.fit(self.game.title, 21, pw, True), 21, px_, ty, ART_TEXT, True)
         ty += 34
         label = compat.LABELS.get(self.result, self.result)
         pill_w = c.t.width(label, 14, True) + 24
         c.rect(compat.COLORS.get(self.result, ACCENT), px_, ty, pill_w, 24, 12)
-        c.text(label, 14, px_ + pill_w / 2, ty + 12, WHITE, True, "center")
+        c.text(label, 14, px_ + pill_w / 2, ty + 12, ART_TEXT, True, "center")
         sub = self.game.subtitle()
         if sub:
-            c.text(c.t.fit(i18n.Final(sub), 14, pw - pill_w - 14), 14, px_ + pill_w + 14, ty + 12, SOFT, False, "midleft")
+            c.text(c.t.fit(i18n.Final(sub), 14, pw - pill_w - 14), 14, px_ + pill_w + 14, ty + 12, ART_SOFT, False, "midleft")
         ty += 40
         details = self.details()
         label_w = max(c.t.width(i18n.translate(lbl), 15) for lbl, _ in details) + 18
         for lbl, value in details:
             if ty > y + h - 30:
                 break
-            c.text(lbl, 15, px_, ty, DIM)
-            c.text(c.t.fit(value, 15, pw - label_w), 15, px_ + label_w, ty, WHITE)
+            c.text(lbl, 15, px_, ty, SHARE_DIM)
+            c.text(c.t.fit(value, 15, pw - label_w), 15, px_ + label_w, ty, ART_TEXT)
             ty += 24
         if self.error:
             cx, cy = self.CODE
             for n, line in enumerate(c.t.wrap(self.error, 17, 300)):
-                c.text(line, 17, cx, cy - 40 + n * 26, SOFT, False, "midtop")
+                c.text(line, 17, cx, cy - 40 + n * 26, ART_SOFT, False, "midtop")
         else:
             self.steps(c, "Post it on GitHub", ("Open your phone's camera", "Point it at the code",
                                                 "Post the ready issue"))
-        c.text("Square saves the report and the game's log on the USB drive.", 13, ui.W / 2, y + h + 22, DIM,
+        c.text("Square saves the report and the game's log on the USB drive.", 13, ui.W / 2, y + h + 22, SHARE_DIM,
                False, "midtop")
 
     def act(self, action):
@@ -5543,16 +5807,21 @@ class Home:
         count = ORB_COUNTS.get(self.settings["orb_amount"], 34)
         self.particles = [ui.new_particle(True) for _ in range(count)]
 
-    def avatar(self, size, profile=None):
-        """A profile's picture (the current one's by default) as a circle `size` units wide."""
+    def avatar(self, size, profile=None, still=False):
+        """A profile's picture (the current one's by default) as a circle `size` units wide. An
+        animated one gives the frame for this moment (still: its first frame)."""
         profile = profile or {"id": self.profiles.current_id, "avatar": self.settings["avatar"]}
         choice = profile["avatar"]
+        if choice == "anim" and not still and self.settings["avatar_motion"]:
+            frames = self.anim_frames(store.avatar_anim_dir(profile["id"]), px(size))
+            if frames:
+                return frames[int(time.monotonic() * ANIM_FPS) % len(frames)]
         key = (profile["id"], choice, size)
         surface = self.avatar_cache.get(key)
         if surface is None:
-            if choice == "file":
+            if choice in ("file", "anim"):
                 try:
-                    surface = ui.circle_image(pygame.image.load(store.avatar_file(profile["id"])), px(size))
+                    surface = avatar_disc(pygame.image.load(store.avatar_file(profile["id"])), px(size))
                 except (pygame.error, OSError):
                     surface = None
             if surface is None:
@@ -5563,6 +5832,34 @@ class Home:
                 surface = ui.builtin_avatar(index, px(size))
             self.avatar_cache[key] = surface
         return surface
+
+    def anim_frames(self, folder, size_px):
+        """An animated avatar's frames as round discs `size_px` wide, read in the background
+        (None until they are ready, or if there are none)."""
+        cache = self.__dict__.setdefault("anim_cache", {})
+        key = (folder, size_px, ui.ACCENT)
+        frames = cache.get(key)
+        if frames is None:
+            if len(cache) > 4:
+                # Picker previews come and go: keep only the profiles' own avatars.
+                for old in [k for k in cache if not k[0].startswith(store.CONFIG_DIR)]:
+                    del cache[old]
+            cache[key] = "loading"
+
+            def work():
+                try:
+                    names = sorted(n for n in os.listdir(folder) if n.endswith(".png"))
+                    cache[key] = [avatar_disc(pygame.image.load(os.path.join(folder, n)), size_px)
+                                  for n in names] or "none"
+                except (pygame.error, OSError):
+                    cache[key] = "none"
+
+            threading.Thread(target=work, daemon=True).start()
+            return None
+        return frames if isinstance(frames, list) else None
+
+    def avatar_moves(self):
+        return self.settings["avatar"] == "anim" and self.settings["avatar_motion"]
 
     def switch_profile(self, profile_id):
         self.profiles.switch(profile_id, self.settings)
@@ -5576,6 +5873,7 @@ class Home:
         self.settings.set(**changes)
         self.profiles.update(self.profiles.current_id, **changes)
         self.avatar_cache.clear()
+        self.__dict__.get("anim_cache", {}).clear()
 
     def play(self, game):
         self.games_store.played(game.key)
@@ -6002,10 +6300,14 @@ class Home:
         for modal in self.modals[max(0, cover):]:
             modal.draw(c)
         if self.settings["hints"]:
-            if self.modals:
+            if self.modals and isinstance(self.modals[-1], (ShareView, MediaViewer)):
+                # Over a dark picture in every theme: light hints.
+                ui.draw_hints(c, self.modals[-1].hints(), soft=ART_SOFT, dim=ART_SOFT)
+            elif self.modals:
                 ui.draw_hints(c, self.modals[-1].hints())
             else:
-                ui.draw_hints(c, self.home_hints(), soft=ART_SOFT, dim=ART_SOFT)
+                soft = HOME_SOFT if self.ps5_layout else ART_SOFT
+                ui.draw_hints(c, self.home_hints(), soft=soft, dim=soft)
         if self.toast_text and self.t < self.toast_until:
             width = c.t.width(self.toast_text, 18) + 48
             c.rect(DIALOG, ui.W / 2 - width / 2, 24, width, 48, 24)
@@ -6300,8 +6602,9 @@ class Home:
             canvas = ui.Canvas(self.frame, c.t)
             self.ring = None
             self.shine_tile = None
+            self.avatar_spot = None
             self.draw_background(canvas, orbs=False)
-            if self.ps5_layout and self.tab != "media":
+            if self.ps5_layout and (self.tab != "media" or LIGHT):
                 self.draw_ps5_shade(canvas)    # Under the top bar, so Games is as bright as Media.
             self.draw_top_bar(canvas)
             if self.tab == "media":
@@ -6314,6 +6617,11 @@ class Home:
                     self.draw_info(canvas)
             self.frame_key = key
         c.s.blit(self.frame, (0, 0))
+        spot = getattr(self, "avatar_spot", None)
+        if spot is not None and self.avatar_moves():
+            # An animated avatar: only its circle is drawn again over the kept frame.
+            x, y, size, anchor = spot
+            c.blit(self.avatar(size), x, y, anchor)
         avoid = pygame.Rect(CARD_X - 10, 0, ui.W, ui.H) if self.tab == "games" and not self.ps5_layout else None
         self.draw_orbs(c, avoid)
         if getattr(self, "shine_tile", None) is not None and self.focus == "tiles" and not self.modals \
@@ -6348,31 +6656,32 @@ class Home:
         x = ROW_X
         for tab, label in (("games", "Games"), ("media", "Media")):
             on = self.tab == tab
-            width = c.text(label, 21, x, 30, WHITE if on else ART_SOFT, on, shadow=True)
+            width = c.text(label, 21, x, 30, HOME_TEXT if on else HOME_SOFT, on, shadow=not LIGHT)
             x += width + 30
         right = ui.W - 56
         clock = clock_text(s["clock_24h"], s["clock_seconds"])
-        clock_w = c.text(clock, 21, right, 30 if not s["clock_date"] else 21, ART_TEXT, True, "topright",
-                         shadow=True)
+        clock_w = c.text(clock, 21, right, 30 if not s["clock_date"] else 21, HOME_TEXT, True, "topright",
+                         shadow=not LIGHT)
         if s["clock_date"]:
             date = time.strftime("%a %d %b")
-            clock_w = max(clock_w, c.text(date, 13, right, 49, ART_SOFT, False, "topright", shadow=True))
+            clock_w = max(clock_w, c.text(date, 13, right, 49, HOME_SOFT, False, "topright", shadow=not LIGHT))
         focus_home = not self.modals
         spots = [("profile", right - clock_w - 40), ("settings", right - clock_w - 92),
                  ("search", right - clock_w - 144)]
         tips = {"profile": s["name"], "settings": "Settings", "search": "Search games"}
         for name, spot in spots:
             if self.focus == name and focus_home:
-                c.circle(ART_TEXT, spot, 44, 22, 2)
+                c.circle(HOME_TEXT, spot, 44, 22, 2)
                 self.tip(c, spot, tips[name])
         profile_x, gear_x, search_x = (spot for _, spot in spots)
         c.blit(self.avatar(32), profile_x, 44, "center")
+        self.avatar_spot = (profile_x, 44, 32, "center")
         if self.poll.get("unread", store.unread_notifications, 2.0, 0):
             # New notifications (they are in the profile page): a dot on the profile picture.
             c.circle((10, 10, 16), profile_x + 13, 32, 7)
             c.circle(ACCENT, profile_x + 13, 32, 5)
-        ui.draw_gear(c, gear_x, 44, ART_TEXT)
-        ui.draw_search(c, search_x, 44, ART_TEXT)
+        ui.draw_gear(c, gear_x, 44, HOME_TEXT)
+        ui.draw_search(c, search_x, 44, HOME_TEXT)
         if self.search:
             c.circle(ACCENT, search_x + 12, 32, 5)
 
@@ -6383,13 +6692,15 @@ class Home:
         shade = GLOWS.get(key)
         if shade is None:
             small = pygame.Surface((64, 36), pygame.SRCALPHA)
+            # Light theme: a white veil (the text is dark), stronger so it reads on any art.
+            shade_color, strength = ((242, 242, 248), 1.25) if LIGHT else ((0, 0, 0), 1.0)
             for yy in range(36):
                 for xx in range(64):
                     left = max(0.0, 1 - xx / 40) * 0.62
                     bottom = max(0.0, (yy - 20) / 16) * 0.7
-                    top = max(0.0, 1 - yy / 6) * 0.35
+                    top = max(0.0, 1 - yy / 6) * (0.6 if LIGHT else 0.35)
                     alpha = 1 - (1 - left) * (1 - bottom) * (1 - top)
-                    small.set_at((xx, yy), (0, 0, 0, int(255 * alpha)))
+                    small.set_at((xx, yy), shade_color + (min(255, int(255 * alpha * strength)),))
             shade = pygame.transform.smoothscale(small, size)
             GLOWS[key] = shade
         c.s.blit(shade, (0, 0))
@@ -6433,74 +6744,76 @@ class Home:
                 cards.append(("Media", shots))
         x, y = PS5_INFO_X, PS5_INFO_Y + (1 - a) * 12
         for line in c.t.wrap(title, 46, 640, True)[:2]:
-            c.text(line, 46, x, y, ART_TEXT, True, shadow=True)
+            c.text(line, 46, x, y, HOME_TEXT, True, shadow=not LIGHT)
             y += 56
         if sub:
-            c.text(c.t.fit(sub, 18, 640), 18, x + 2, y + 4, ART_SOFT, shadow=True)
+            c.text(c.t.fit(sub, 18, 640), 18, x + 2, y + 4, HOME_SOFT, shadow=not LIGHT)
             y += 30
         for line in notes:
-            c.text(c.t.fit(line, 15, 640), 15, x + 2, y + 6, ART_SOFT, shadow=True)
+            c.text(c.t.fit(line, 15, 640), 15, x + 2, y + 6, HOME_SOFT, shadow=not LIGHT)
             y += 22
         y += 26
         if button:
             label = i18n.translate(button)
             width = max(170, c.t.width(label, 18, True) + 60)
-            c.rect((255, 255, 255, 240) if play_on else (255, 255, 255, 46), x, y, width, 46, 23)
+            fill, idle, ink = (HOME_TEXT + (240,), (0, 0, 0, 26), INK) if LIGHT else \
+                ((255, 255, 255, 240), (255, 255, 255, 46), (22, 22, 28))
+            c.rect(fill if play_on else idle, x, y, width, 46, 23)
             if play_on:
-                c.rect((255, 255, 255), x - 5, y - 5, width + 10, 56, 28, 2)
-            c.text(label, 18, x + width / 2, y + 23, (22, 22, 28) if play_on else ART_TEXT, True, "center")
+                c.rect(HOME_TEXT, x - 5, y - 5, width + 10, 56, 28, 2)
+            c.text(label, 18, x + width / 2, y + 23, ink if play_on else HOME_TEXT, True, "center")
             if game is not None:
                 ox = x + width + 14
-                c.rect((255, 255, 255, 240) if more_on else (255, 255, 255, 46), ox, y, 46, 46, 23)
+                c.rect(fill if more_on else idle, ox, y, 46, 46, 23)
                 if more_on:
-                    c.rect((255, 255, 255), ox - 5, y - 5, 56, 56, 28, 2)
+                    c.rect(HOME_TEXT, ox - 5, y - 5, 56, 56, 28, 2)
                 for n in (-1, 0, 1):
-                    c.circle((22, 22, 28) if more_on else ART_TEXT, ox + 23 + n * 8, y + 23, 2.5)
+                    c.circle(ink if more_on else HOME_TEXT, ox + 23 + n * 8, y + 23, 2.5)
             if game is not None and self.entries.get(game.path, {}).get("play_seconds", 0) >= 60:
                 hours = self.entries[game.path]["play_seconds"] / 3600
                 text = f"{int(hours)}h" if hours >= 1 else f"{int(hours * 60)}m"
                 width = c.t.width(text, 15, True) + 44
                 px0 = ui.W - 64 - width
-                c.rect((0, 0, 0, 120), px0, y + 9, width, 28, 14)
-                ui.draw_clock_icon(c, px0 + 17, y + 23, ART_TEXT)
-                c.text(text, 15, px0 + 30, y + 23, ART_TEXT, True, "midleft")
+                c.rect((255, 255, 255, 150) if LIGHT else (0, 0, 0, 120), px0, y + 9, width, 28, 14)
+                ui.draw_clock_icon(c, px0 + 17, y + 23, HOME_TEXT)
+                c.text(text, 15, px0 + 30, y + 23, HOME_TEXT, True, "midleft")
         if cards:
             cw, ch, cy = 250, 78, ui.H - 172
             for n, (label, value) in enumerate(cards):
                 cx = x + n * (cw + 14)
-                self.draw_glass(c, cx, cy, cw, ch, 14, 16)
+                self.draw_glass(c, cx, cy, cw, ch, 14, 120 if LIGHT else 16)
                 if label == "Trophies":
                     # As on a PS5: a cup and the count earned for each grade, then the word.
                     grades = value[2] if len(value) > 2 else {}
                     tx = cx + 22
                     for grade in ("platinum", "gold", "silver", "bronze"):
                         ui.draw_trophy(c, tx, cy + 26, TROPHY_COLORS[grade], 8)
-                        tx += 14 + c.text(str(grades.get(grade, 0)), 17, tx + 14, cy + 15, ART_TEXT, True) + 16
-                    c.text(f"Trophies  ·  {value[0]} / {value[1]}", 14, cx + 18, cy + 44, ART_SOFT)
-                    c.rect((255, 255, 255, 50), cx + 18, cy + ch - 12, cw - 36, 3, 1)
-                    c.rect(ART_TEXT, cx + 18, cy + ch - 12, max(3, (cw - 36) * value[0] / max(1, value[1])), 3, 1)
+                        tx += 14 + c.text(str(grades.get(grade, 0)), 17, tx + 14, cy + 15, HOME_TEXT, True) + 16
+                    c.text(f"Trophies  ·  {value[0]} / {value[1]}", 14, cx + 18, cy + 44, HOME_SOFT)
+                    c.rect(HOME_TEXT + (50,), cx + 18, cy + ch - 12, cw - 36, 3, 1)
+                    c.rect(HOME_TEXT, cx + 18, cy + ch - 12, max(3, (cw - 36) * value[0] / max(1, value[1])), 3, 1)
                     continue
                 if label == "Played":
                     # The play time, and when it was last played.
                     played, last = value
-                    c.text(label, 14, cx + 18, cy + 14, ART_SOFT)
+                    c.text(label, 14, cx + 18, cy + 14, HOME_SOFT)
                     if last:
-                        c.text(time.strftime("%d %b", time.localtime(last)), 14, cx + cw - 18, cy + 14, ART_SOFT,
+                        c.text(time.strftime("%d %b", time.localtime(last)), 14, cx + cw - 18, cy + 14, HOME_SOFT,
                                False, "topright")
-                    c.text(c.t.fit(played, 20, cw - 36, True), 20, cx + 18, cy + 38, ART_TEXT, True)
+                    c.text(c.t.fit(played, 20, cw - 36, True), 20, cx + 18, cy + 38, HOME_TEXT, True)
                     continue
                 if label == "Media":
                     # This game's screenshots and videos: the newest small at the right; X opens them.
                     if self.focus == "media" and not self.modals:
-                        c.rect((255, 255, 255), cx - 5, cy - 5, cw + 10, ch + 10, 19, 2)
+                        c.rect(HOME_TEXT, cx - 5, cy - 5, cw + 10, ch + 10, 19, 2)
                     thumb = self.small_thumb(value[0])
                     if thumb is not None:
                         c.blit(thumb, cx + cw - 12 - 96, cy + 12)
-                    c.text("Media", 14, cx + 18, cy + 14, ART_SOFT)
-                    c.text(str(len(value)), 20, cx + 18, cy + 38, ART_TEXT, True)
+                    c.text("Media", 14, cx + 18, cy + 14, HOME_SOFT)
+                    c.text(str(len(value)), 20, cx + 18, cy + 38, HOME_TEXT, True)
                     continue
-                c.text(label, 14, cx + 18, cy + 14, ART_SOFT)
-                c.text(c.t.fit(value, 20, cw - 36, True), 20, cx + 18, cy + 38, ART_TEXT, True)
+                c.text(label, 14, cx + 18, cy + 14, HOME_SOFT)
+                c.text(c.t.fit(value, 20, cw - 36, True), 20, cx + 18, cy + 38, HOME_TEXT, True)
 
     def media_card_key(self, game):
         """What the Media card shows (so the page is drawn again when it changes)."""
@@ -6532,6 +6845,7 @@ class Home:
         x = ROW_X
         if s["show_avatar"]:
             c.blit(self.avatar(40), x, 24)
+            self.avatar_spot = (x, 24, 40, "topleft")
             x += 52
         if s["show_name"]:
             x += c.text(c.t.fit(s["name"], 19, 300, True), 19, x, 33, ART_TEXT, True, shadow=True) + 36
@@ -6743,7 +7057,8 @@ class Home:
                     c.blit(badge, lx + bw / 2, ly + 12, "center")
                     lx += bw + 10
                 text = c.t.fit(label, 17, tiles_right - lx, True)
-                for color, dx in (((0, 0, 0), 2 / ui.S), (ART_TEXT, 0)):
+                shadows = ((HOME_TEXT, 0),) if LIGHT and self.ps5_layout else (((0, 0, 0), 2 / ui.S), (ART_TEXT, 0))
+                for color, dx in shadows:
                     piece = c.t.render(text, 17, color, True)
                     piece.set_alpha(alpha)
                     c.blit(piece, lx + dx, ly + dx)

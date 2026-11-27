@@ -36,6 +36,7 @@ CREDITS = [
     ("Inter", "the font"),
     ("DiceBear", "cartoon avatars"),
     ("Lorem Picsum", "photo avatars"),
+    ("Noto Emoji", "animated avatars"),
     ("smbnetfs", "games from a PC"),
 ]
 

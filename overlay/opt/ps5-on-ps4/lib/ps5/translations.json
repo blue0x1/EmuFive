@@ -7459,5 +7459,104 @@
 "de": "Kopiere ein Spiel über seine Optionen auf die EmuFive-Festplatte.",
 "it": "Copia un gioco sul disco EmuFive dalle sue opzioni.",
 "pt": "Copie um jogo para o disco EmuFive a partir das opções dele."
+},
+"Animated": {
+"ar": "متحركة",
+"fr": "Animés",
+"tr": "Hareketli",
+"es": "Animados",
+"de": "Animiert",
+"it": "Animati",
+"pt": "Animados"
+},
+"Next page": {
+"ar": "الصفحة التالية",
+"fr": "Page suivante",
+"tr": "Sonraki sayfa",
+"es": "Página siguiente",
+"de": "Nächste Seite",
+"it": "Pagina successiva",
+"pt": "Próxima página"
+},
+"Animated avatar": {
+"ar": "صورة رمزية متحركة",
+"fr": "Avatar animé",
+"tr": "Hareketli avatar",
+"es": "Avatar animado",
+"de": "Animierter Avatar",
+"it": "Avatar animato",
+"pt": "Avatar animado"
+},
+"Animated emoji: Noto Emoji by Google (CC BY 4.0)": {
+"ar": "رموز تعبيرية متحركة: Noto Emoji من Google (CC BY 4.0)",
+"fr": "Emoji animés : Noto Emoji par Google (CC BY 4.0)",
+"tr": "Hareketli emojiler: Google'ın Noto Emoji'si (CC BY 4.0)",
+"es": "Emoji animados: Noto Emoji de Google (CC BY 4.0)",
+"de": "Animierte Emojis: Noto Emoji von Google (CC BY 4.0)",
+"it": "Emoji animate: Noto Emoji di Google (CC BY 4.0)",
+"pt": "Emojis animados: Noto Emoji do Google (CC BY 4.0)"
+},
+"Getting it ready: try again in a moment": {
+"ar": "جارٍ التحضير: حاول مرة أخرى بعد لحظة",
+"fr": "Préparation en cours : réessayez dans un instant",
+"tr": "Hazırlanıyor: birazdan tekrar deneyin",
+"es": "Preparándolo: inténtalo de nuevo en un momento",
+"de": "Wird vorbereitet: gleich noch einmal versuchen",
+"it": "Preparazione in corso: riprova tra un momento",
+"pt": "Preparando: tente de novo em instantes"
+},
+"animated avatars": {
+"ar": "صور رمزية متحركة",
+"fr": "avatars animés",
+"tr": "hareketli avatarlar",
+"es": "avatares animados",
+"de": "animierte Avatare",
+"it": "avatar animati",
+"pt": "avatares animados"
+},
+"My pictures": {
+"ar": "صوري",
+"fr": "Mes images",
+"tr": "Resimlerim",
+"es": "Mis imágenes",
+"de": "Meine Bilder",
+"it": "Le mie immagini",
+"pt": "Minhas imagens"
+},
+"No pictures found": {
+"ar": "لم يتم العثور على صور",
+"fr": "Aucune image trouvée",
+"tr": "Resim bulunamadı",
+"es": "No se encontraron imágenes",
+"de": "Keine Bilder gefunden",
+"it": "Nessuna immagine trovata",
+"pt": "Nenhuma imagem encontrada"
+},
+"Put photos (PNG, JPG) or GIFs on a USB drive, at the top or in a folder": {
+"ar": "ضع صورًا (PNG، JPG) أو صور GIF على وحدة USB، في الأعلى أو في مجلد",
+"fr": "Mettez des photos (PNG, JPG) ou des GIF sur une clé USB, à la racine ou dans un dossier",
+"tr": "Fotoğrafları (PNG, JPG) veya GIF'leri bir USB belleğe koyun, en üste veya",
+"es": "Pon fotos (PNG, JPG) o GIF en una memoria USB, en la raíz o en una carpeta",
+"de": "Lege Fotos (PNG, JPG) oder GIFs auf einen USB-Stick, oben oder in einen Ordner",
+"it": "Metti foto (PNG, JPG) o GIF su una chiavetta USB, in alto o in una cartella",
+"pt": "Coloque fotos (PNG, JPG) ou GIFs num pendrive, na raiz ou numa pasta"
+},
+"named Avatars or Pictures, or in the PC's shared folder. GIFs move.": {
+"ar": "باسم Avatars أو Pictures، أو في المجلد المشترك على الكمبيوتر. صور GIF تتحرك.",
+"fr": "nommé Avatars ou Pictures, ou dans le dossier partagé du PC. Les GIF bougent.",
+"tr": "Avatars ya da Pictures adlı bir klasöre veya PC'nin paylaşılan klasörüne. GIF'ler hareket eder.",
+"es": "llamada Avatars o Pictures, o en la carpeta compartida del PC. Los GIF se mueven.",
+"de": "namens Avatars oder Pictures oder in den freigegebenen Ordner des PCs. GIFs bewegen sich.",
+"it": "chiamata Avatars o Pictures, o nella cartella condivisa del PC. Le GIF si muovono.",
+"pt": "chamada Avatars ou Pictures, ou na pasta compartilhada do PC. GIFs se movem."
+},
+"Your photos and GIFs (animated GIFs are supported)": {
+"ar": "صورك وصور GIF (صور GIF المتحركة مدعومة)",
+"fr": "Vos photos et GIF (les GIF animés sont pris en charge)",
+"tr": "Fotoğraflarınız ve GIF'leriniz (hareketli GIF desteklenir)",
+"es": "Tus fotos y GIF (se admiten GIF animados)",
+"de": "Deine Fotos und GIFs (animierte GIFs werden unterstützt)",
+"it": "Le tue foto e GIF (le GIF animate sono supportate)",
+"pt": "Suas fotos e GIFs (GIFs animados são suportados)"
 }
 }

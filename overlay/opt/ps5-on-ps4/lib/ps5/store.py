@@ -18,7 +18,9 @@ SHARED_KYTY = ("_PipelineCache", "_DownloadData")         # The same for every p
 
 DEFAULT_SETTINGS = {
     "name": "Player",          # Shown on the home screen and given to games as the user name.
-    "avatar": "builtin:0",     # builtin:N, or "file" for AVATAR_FILE (a chosen online picture).
+    "avatar": "builtin:0",     # builtin:N, "file" for AVATAR_FILE (a chosen picture), or "anim" (a GIF:
+                               # its frames in avatar_anim_dir, the first also in the avatar file).
+    "avatar_motion": True,     # An animated avatar moves (off: its first frame).
     "sort": "recent",          # recent or name
     "show_hidden": False,
     "clock_24h": True,
@@ -248,6 +250,11 @@ def avatar_file(profile_id):
     return os.path.join(CONFIG_DIR, f"avatar-{profile_id}.png")
 
 
+def avatar_anim_dir(profile_id):
+    """The frames of a profile's animated avatar (PNG files, in order)."""
+    return os.path.join(CONFIG_DIR, f"avatar-{profile_id}-anim")
+
+
 def work_dir(profile_id):
     """KytyPS5's folder for a profile (made when missing): saves, trophies; caches are shared."""
     if profile_id == FIRST_PROFILE:
@@ -339,6 +346,7 @@ class Profiles:
                 os.remove(avatar_file(profile_id))
             except OSError:
                 pass
+            shutil.rmtree(avatar_anim_dir(profile_id), ignore_errors=True)
         Games().forget_profile(profile_id)
         return True
 
